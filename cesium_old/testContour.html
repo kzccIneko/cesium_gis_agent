@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>等高线可视化系统</title>
+  <!-- 引入Cesium -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.97/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.97/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <!-- 引入罗盘控件 -->
+   <script src="./libs/CesiumExtend/viewerCesiumNavigationMixin.min.js"></script>
+  <!--主界面样式文件-->
+  <link rel="stylesheet" href="css/index.css" />
+  <link rel="stylesheet" href="css/toobar.css" />
+  <link rel="stylesheet" href="css/override.css" />
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1a1a2e;
+      color: #e6e6ff;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(90deg, #16213e 0%, #0f3460 100%);
+      padding: 15px 25px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      background: linear-gradient(45deg, #4cc9f0, #4361ee);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: 1px;
+    }
+
+    .container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 320px;
+      background: rgba(16, 22, 46, 0.9);
+      padding: 20px;
+      overflow-y: auto;
+      z-index: 10;
+      box-shadow: 4px 0 15px rgba(0, 0, 0, 0.4);
+    }
+
+    .cesium-container {
+      flex: 1;
+      position: relative;
+    }
+
+    #cesium-viewer {
+      width: 100%;
+      height: 100%;
+    }
+
+    .legend-gradient {
+      height: 200px;
+      width: 20%;
+      border-radius: 5px;
+      margin-top: 10px;
+      background: linear-gradient(to top, #2e8b57, #ffa500, #dc143c);
+    }
+
+    .slider-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input[type=range] {
+      width: 100%;
+    }
+
+    .color-picker {
+      margin: 10px 0;
+    }
+
+    .stats-card {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(10, 15, 35, 0.8);
+      border: 1px solid #4361ee;
+      border-radius: 8px;
+      padding: 12px 18px;
+      z-index: 10;
+    }
+    /*比例尺定位及样式*/
+    .distance-legend{
+    position: absolute;
+    left: 1px;
+    bottom: 1px;
+    margin: 1px;
+
+    }
+                
+    /*罗盘*/
+    .compass{
+    position: absolute;
+    right: 1%;
+    top: 1%;
+    }
+    /*缩放*/
+    .navigation-controls{
+    position: absolute;
+    left: 1%;
+    bottom: 50px;
+
+    }
+
+
+  </style>
+</head>
+<body>
+
+  <div id="app">
+    <div class="header">
+      <h1><i class="el-icon-s-promotion"></i> 等高线可视化系统</h1>
+    </div>
+
+    <div class="container">
+      <div class="sidebar">
+        <div class="control-group">
+            <button onclick="toNorth()">双击罗盘中心 方向复位（北）</button>
+          <h3>等高线设置</h3>
+          <div class="slider-group">
+            <!-- <label for="contourInterval">等高线间距 (米)</label> -->
+            <p>等高线间距: <span id="contourIntervalLabel">200</span> 米</p>
+            <input type="range" id="contourInterval" min="50" max="500" step="50" value="200">
+          </div>
+          <div class="slider-group">
+            <label for="visibleRangeMax">渐变色带高度范围 (米)</label>
+            <input type="range" id="visibleRangeMin" min="0" max="6000" step="100" value="800">
+            <input type="range" id="visibleRangeMax" min="0" max="6000" step="100" value="4000">
+          </div>
+          <div class="slider-group">
+            <!-- <label for="lineWidth">线宽</label> -->
+            <p>线宽：<span id="width">2</span></p>
+            <input type="range" id="lineWidth" min="1" max="10" step="1" value="2">           
+          </div>
+          <div class="slider-group">
+            <!-- <label for="gradientIntensity">渐变强度</label> -->
+            <p><span id="gradientIntensity"></span></p><!--这行不显示，为了改变等高线绘制范围的显示数字-->
+          </div>
+          <div class="color-picker">
+            <p> 海拔颜色:</p>
+            <!-- (&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)这是8个空格，用了空格占位符 -->
+            <label>&nbsp;&nbsp;&nbsp;&nbsp;低&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 中&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 高</label>
+            <input type="color" id="lowColor" value="#2e8b57">
+            <input type="color" id="midColor" value="#ffa500">
+            <input type="color" id="highColor" value="#dc143c">
+          </div>
+          <div class="checkbox-group">
+            <p><span id="useSmoothGradient"></span></p><!--这行不显示，为了改变等高线绘制范围的显示数字-->
+            <p><span id="showLabels"></span></p><!--这行不显示，为了改变等高线绘制范围的显示数字-->
+            <label><input type="checkbox" id="showContour" checked> 显示等高线</label>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3>渐变色带高度范围（米）</h3>
+          <p><span id="minHeight">800</span>米 - <span id="maxHeight">4000</span> 米</p>
+          <div class="legend-gradient"></div>          
+        </div>
+
+        <div class="control-group">
+          <h3>系统信息</h3>
+          <p>相机高度: <span id="height">0</span> 米</p>
+        </div>
+      </div>
+
+      <div class="cesium-container">
+        <div id="cesium-viewer"></div>
+        <div class="stats-card">
+          <p>当前视域: <span id="viewWidth">0</span> × <span id="viewHeight">0</span> 公里</p>
+          <!-- <p>等高线绘制范围: <span id="minHeight">800</span> - <span id="maxHeight">4000</span> 米</p> -->
+          <p>中心位置经度: <span id="longitude">0.00000</span>°</p>
+          <p>中心位置纬度: <span id="latitude">0.00000</span>°</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let viewer = null;
+    let contourMaterial = null;
+
+    // 如果已有 viewer 则复用，否则新建
+    if (this.viewer) {
+      viewer = this.viewer;
+    } else {
+      Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkZTlkNjBmMi05NjdjLTQwMTgtOTBiOC04NDU1NWJjYmFkZWEiLCJpZCI6MzA2MzMzLCJpYXQiOjE3NDgyNDg4MTl9.r7m_tXkLjZOAcHKP_oI0BuCvE6xuaujzU3CL7f4TG9A';
+
+      viewer = new Cesium.Viewer('cesium-viewer', {
+        terrainProvider: Cesium.createWorldTerrain({
+          requestWaterMask: true,
+          requestVertexNormals: true
+        }),
+        baseLayerPicker: false,
+        animation: false,
+        timeline: false,
+        infoBox: false,
+        navigationHelpButton: false,
+        sceneModePicker: false,
+        geocoder: false,
+        homeButton: false,
+        fullscreenButton: false,
+      });
+
+      // 设置初始视图
+      viewer.camera.flyTo({
+        destination: Cesium.Rectangle.fromDegrees(-180, -90, 180, 90)
+      });
+
+    }
+
+    // 创建自定义等高线材质
+    function createContourMaterial() {
+      const contourShader = `
+        uniform float spacing;
+        uniform float width;
+        uniform vec4 lowColor;
+        uniform vec4 midColor;
+        uniform vec4 highColor;
+        uniform float minHeight;
+        uniform float maxHeight;
+        uniform float gradientIntensity;
+        uniform bool useSmoothGradient;
+        uniform bool showLabels;
+        uniform bool enableContour;
+
+        czm_material czm_getMaterial(czm_materialInput materialInput)
+        {
+          czm_material material = czm_getDefaultMaterial(materialInput);
+
+          float height = materialInput.height;
+          float t = clamp((height - minHeight) / (maxHeight - minHeight), 0.0, 1.0);
+
+          float modulo = mod(height, spacing);
+          float halfWidth = width * 0.5;
+          float contour = smoothstep(spacing - halfWidth, spacing, modulo);
+
+          vec4 color;
+          if (t < 0.5) {
+            color = mix(lowColor, midColor, t * 2.0);
+          } else {
+            color = mix(midColor, highColor, (t - 0.5) * 2.0);
+          }
+
+          if (useSmoothGradient) {
+            float gradient = pow(1.0 - abs(t - 0.5) * 2.0, gradientIntensity / 10.0);
+            color = mix(color, vec4(1.0), gradient * 0.3);
+          }
+
+          material.diffuse = color.rgb;
+          material.alpha = enableContour ? color.a * contour : 0.0;
+
+          if (showLabels && contour < 0.1) {
+            material.diffuse = mix(vec3(1.0), color.rgb, 0.3);
+          }
+
+          return material;
+        }
+      `;
+
+      contourMaterial = new Cesium.Material({
+        fabric: {
+          type: 'ElevationContour',
+          uniforms: {
+            spacing: 200,
+            width: 2,
+            lowColor: new Cesium.Color(0.18, 0.545, 0.34, 1),
+            midColor: new Cesium.Color(1, 0.647, 0, 1),
+            highColor: new Cesium.Color(0.86, 0.08, 0.21, 1),
+            minHeight: 800,
+            maxHeight: 4000,
+            gradientIntensity: 70,
+            useSmoothGradient: true,
+            showLabels: false,
+            enableContour: true
+          },
+          source: contourShader
+        }
+      });
+
+      viewer.scene.globe.material = contourMaterial;
+    }
+
+    // 更新材质参数
+    function updateContours() {
+      contourMaterial.uniforms.spacing = parseInt(document.getElementById("contourInterval").value);
+      contourMaterial.uniforms.width = parseFloat(document.getElementById("lineWidth").value);
+      contourMaterial.uniforms.lowColor = Cesium.Color.fromCssColorString(document.getElementById("lowColor").value);
+      contourMaterial.uniforms.midColor = Cesium.Color.fromCssColorString(document.getElementById("midColor").value);
+      contourMaterial.uniforms.highColor = Cesium.Color.fromCssColorString(document.getElementById("highColor").value);
+      contourMaterial.uniforms.minHeight = parseInt(document.getElementById("visibleRangeMin").value);
+      contourMaterial.uniforms.maxHeight = parseInt(document.getElementById("visibleRangeMax").value);
+      contourMaterial.uniforms.gradientIntensity = parseInt(document.getElementById("gradientIntensity").value);
+      contourMaterial.uniforms.useSmoothGradient = document.getElementById("useSmoothGradient").checked;
+      contourMaterial.uniforms.showLabels = document.getElementById("showLabels").checked;
+      contourMaterial.uniforms.enableContour = document.getElementById("showContour").checked;
+
+      viewer.scene.requestRender();
+
+      if(contourMaterial.uniforms.maxHeight <= contourMaterial.uniforms.minHeight){
+        contourMaterial.uniforms.maxHeight = contourMaterial.uniforms.minHeight + 100;
+        document.getElementById('visibleRangeMax').value = contourMaterial.uniforms.minHeight + 100;  
+      }
+  
+      // 更新UI显示（前端界面上的数字实时更新方法，innerText）
+      document.getElementById("contourIntervalLabel").innerText = contourMaterial.uniforms.spacing;
+      document.getElementById("minHeight").innerText = contourMaterial.uniforms.minHeight;
+      document.getElementById("maxHeight").innerText = contourMaterial.uniforms.maxHeight;
+      document.getElementById("width").innerText = contourMaterial.uniforms.width;
+
+
+    }
+
+    // 更新相机位置信息
+    function updatePosition() {
+      const pos = Cesium.Cartographic.fromCartesian(viewer.camera.position);//cesium获取相机位置信息，经纬高
+      document.getElementById("longitude").innerText = Cesium.Math.toDegrees(pos.longitude).toFixed(5);
+      document.getElementById("latitude").innerText = Cesium.Math.toDegrees(pos.latitude).toFixed(5);
+      document.getElementById("height").innerText = Math.round(pos.height);
+    }
+
+    // 计算视域大小
+    function updateViewSize() {
+      const frustum = viewer.camera.frustum;
+      if (frustum instanceof Cesium.PerspectiveFrustum) {
+        const tanPhi = Math.tan(frustum.fovy / 2);
+        const tanTheta = frustum.aspectRatio * tanPhi;
+        const dist = Cesium.Math.toDegrees(Cesium.Cartographic.fromCartesian(viewer.camera.position).height);
+
+        document.getElementById("viewWidth").innerText = Math.round(2 * dist * tanTheta / 1000);
+        document.getElementById("viewHeight").innerText = Math.round(2 * dist * tanPhi / 1000);
+      }
+    }
+
+    // 绑定事件监听器
+    function bindEvents() {
+      const inputs = [
+        "contourInterval", "lineWidth",
+        "visibleRangeMin", "visibleRangeMax",
+        "gradientIntensity", "useSmoothGradient", "showLabels", "showContour",
+        "lowColor", "midColor", "highColor"
+      ];
+
+      inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener("input", updateContours);
+          el.addEventListener("change", updateContours);
+        }
+      });
+
+      viewer.camera.changed.addEventListener(updatePosition);
+      viewer.scene.postRender.addEventListener(updateViewSize);
+      
+      viewer.extend(Cesium.viewerCesiumNavigationMixin,{				
+                enableCompass:true,
+				//罗盘组件true启用，false禁用，默认值为true。
+				enableZoomControls:true,
+				//缩放组件true启用，false禁用，默认值为true。
+				enableDistanceLegend:true,
+				//比例尺组件true启用，false禁用，默认值为true。
+				enableCompassOuterRing:true,
+				//指南针外环组件true启用，false禁用，默认值为true。
+    })
+      
+      updatePosition();
+      updateViewSize();
+    }
+
+    //指北
+    function toNorth(){
+      //var viewer = viewerRef.current
+      viewer.camera.setView({orientation:{heading:0}})
+    }
+    // 初始化
+    function init() {
+      createContourMaterial();
+      bindEvents();
+    }
+    init();
+    //this.onload = init;
+  </script>
+</body>
+</html>

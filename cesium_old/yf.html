@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Cesium 喜马拉雅山脉坡度分析示例</title>
+  <!-- 引入CesiumJS库 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cesium/1.100.0/Cesium.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cesium/1.100.0/Widgets/widgets.css" rel="stylesheet">
+  <style>
+    /* 设置Cesium容器的样式 */
+    #cesiumContainer {
+      width: 100%;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* 简单的图例样式 */
+    #legend {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 5px;
+      font-family: sans-serif;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .color-box {
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      border: 1px solid #000;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Cesium的容器 -->
+  <div id="cesiumContainer"></div>
+  <!-- 图例 -->
+  <div id="legend">
+    <div class="legend-item">
+      <div class="color-box" style="background-color: rgba(0, 255, 0, 0.6);"></div>坡度 &lt; 5°
+    </div>
+    <div class="legend-item">
+      <div class="color-box" style="background-color: rgba(255, 255, 0, 0.6);"></div>5° ≤ 坡度 &lt; 15°
+    </div>
+    <div class="legend-item">
+      <div class="color-box" style="background-color: rgba(255, 165, 0, 0.6);"></div>15° ≤ 坡度 &lt; 30°
+    </div>
+    <div class="legend-item">
+      <div class="color-box" style="background-color: rgba(255, 0, 0, 0.6);"></div>坡度 ≥ 30°
+    </div>
+  </div>
+  <script>
+    // 初始化Cesium Viewer
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkZTlkNjBmMi05NjdjLTQwMTgtOTBiOC04NDU1NWJjYmFkZWEiLCJpZCI6MzA2MzMzLCJpYXQiOjE3NDgyNDg4MTl9.r7m_tXkLjZOAcHKP_oI0BuCvE6xuaujzU3CL7f4TG9A'
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      terrainProvider: Cesium.createWorldTerrain(), // 使用Cesium世界地形
+      imageryProvider: new Cesium.IonImageryProvider({ assetId: 2 }), // 默认影像图层
+      baseLayerPicker: true, // 启用底图选择器
+      geocoder: false, // 禁用地名查找
+      homeButton: false, // 禁用主页按钮
+      sceneModePicker: false, // 禁用场景模式切换
+      timeline: false, // 禁用时间轴
+      animation: false, // 禁用动画控制
+      navigationHelpButton: false, // 禁用导航帮助按钮
+      infoBox: false, // 禁用信息框
+      selectionIndicator: false // 禁用选择指示器
+    });
+
+    // 设置初始视角（喜马拉雅山脉附近）
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(86.9250, 27.9881, 5000), // 珠穆朗玛峰坐标，海拔5000米
+      orientation: {
+        heading: Cesium.Math.toRadians(0.0), // 朝向
+        pitch: Cesium.Math.toRadians(-45.0), // 倾斜角度
+        roll: 0.0 // 滚转角度
+      }
+    });
+
+    // 定义选定区域的边界（经纬度） - 以珠穆朗玛峰为中心，约0.5度范围
+    const selectedRegion = {
+      west: Cesium.Math.toRadians(86.675),   // 86.675°E
+      south: Cesium.Math.toRadians(27.738),  // 27.738°N
+      east: Cesium.Math.toRadians(87.175),   // 87.175°E
+      north: Cesium.Math.toRadians(28.238)   // 28.238°N
+    };
+
+    // 清除所有之前添加的实体和后处理阶段，避免重复添加
+    viewer.entities.removeAll();
+    viewer.scene.postProcessStages.removeAll();
+
+    // 添加调试日志
+    console.log("清除所有实体和后处理阶段。");
+
+    // 绘制选定区域的边界
+    const boundaryEntity = viewer.entities.add({
+      name: 'Selected Region Boundary',
+      rectangle: {
+        coordinates: Cesium.Rectangle.fromRadians(selectedRegion.west, selectedRegion.south, selectedRegion.east, selectedRegion.north),
+        material: Cesium.Color.YELLOW.withAlpha(0.3), // 半透明黄色填充
+        outline: true,
+        outlineColor: Cesium.Color.YELLOW
+      }
+    });
+
+    console.log("添加一个矩形实体表示选定区域。");
+
+    // 定义坡度到颜色的映射
+    function slopeToColor(slope) {
+      if (slope < 5) {
+        return [0.0, 1.0, 0.0, 0.6]; // 绿色
+      } else if (slope < 15) {
+        return [1.0, 1.0, 0.0, 0.6]; // 黄色
+      } else if (slope < 30) {
+        return [1.0, 0.647, 0.0, 0.6]; // 橙色
+      } else {
+        return [1.0, 0.0, 0.0, 0.6]; // 红色
+      }
+    }
+
+    // 创建坡度颜色映射的片段着色器
+    const slopeColorFragmentShader = `
+            uniform sampler2D colorTexture;
+            uniform sampler2D depthTexture;
+            uniform vec4 selectedRegion; // [west, south, east, north] in radians
+            uniform vec2 resolution;
+            uniform float delta; // Sampling delta
+
+            void main() {
+                vec2 uv = gl_FragCoord.xy / resolution;
+
+                // 获取当前深度值
+                float depth = texture2D(depthTexture, uv).r;
+
+                // 采样相邻像素的深度值
+                float depthRight = texture2D(depthTexture, uv + vec2(delta, 0.0)).r;
+                float depthLeft = texture2D(depthTexture, uv - vec2(delta, 0.0)).r;
+                float depthUp = texture2D(depthTexture, uv + vec2(0.0, delta)).r;
+                float depthDown = texture2D(depthTexture, uv - vec2(0.0, delta)).r;
+
+                // 计算深度梯度
+                float dzdx = (depthRight - depthLeft) / (2.0 * delta);
+                float dzdy = (depthUp - depthDown) / (2.0 * delta);
+
+                // 计算坡度（简单近似）
+                float slope = sqrt(dzdx * dzdx + dzdy * dzdy) * 100.0; // 需要根据实际情况调整缩放因子
+
+                // 计算世界坐标
+                float z = depth * 2.0 - 1.0;
+                vec4 clipSpace = vec4(uv * 2.0 - 1.0, z, 1.0);
+                vec4 eyeSpace4 = czm_inverseProjection * clipSpace;
+                vec3 eyeSpace = eyeSpace4.xyz / eyeSpace4.w;
+                vec4 worldSpace4 = czm_inverseView * vec4(eyeSpace, 1.0);
+                vec3 worldSpace = worldSpace4.xyz / worldSpace4.w;
+
+                // 计算经纬度
+                float longitude = atan(worldSpace.y, worldSpace.x);
+                float latitude = asin(worldSpace.z / length(worldSpace.xyz));
+
+                // 判断是否在选定区域内
+                bool inRegion = (longitude >= selectedRegion.x) && (longitude <= selectedRegion.z) &&
+                                (latitude >= selectedRegion.y) && (latitude <= selectedRegion.w);
+
+                if (inRegion) {
+                    // 映射坡度到颜色
+                    vec4 slopeColor;
+                    if (slope < 5.0) {
+                        slopeColor = vec4(0.0, 1.0, 0.0, 0.6); // 绿色
+                    } else if (slope < 15.0) {
+                        slopeColor = vec4(1.0, 1.0, 0.0, 0.6); // 黄色
+                    } else if (slope < 30.0) {
+                        slopeColor = vec4(1.0, 0.647, 0.0, 0.6); // 橙色
+                    } else {
+                        slopeColor = vec4(1.0, 0.0, 0.0, 0.6); // 红色
+                    }
+
+                    // 将坡度颜色与原始颜色混合
+                    gl_FragColor = mix(texture2D(colorTexture, uv), slopeColor, slopeColor.a);
+                } else {
+                    // 非选定区域，显示原始颜色
+                    gl_FragColor = texture2D(colorTexture, uv);
+                }
+            }
+        `;
+
+    // 创建Post-Process Stage
+    const slopePostProcessStage = new Cesium.PostProcessStage({
+      fragmentShader: slopeColorFragmentShader,
+      uniforms: {
+        selectedRegion: new Cesium.Cartesian4(
+          selectedRegion.west,
+          selectedRegion.south,
+          selectedRegion.east,
+          selectedRegion.north
+        ),
+        resolution: new Cesium.Cartesian2(window.innerWidth, window.innerHeight),
+        delta: 1.0 / 1000.0 // 采样步长，根据需要调整
+      },
+      enabled: true
+    });
+
+    console.log("创建并添加一个后处理阶段。");
+
+    // 添加Post-Process Stage到场景
+    viewer.scene.postProcessStages.add(slopePostProcessStage);
+
+    console.log(`当前实体数量: ${viewer.entities.values.length}`);
+    console.log(`当前后处理阶段数量: ${viewer.scene.postProcessStages.length}`);
+
+    // 监听窗口大小变化，更新分辨率和delta
+    window.addEventListener('resize', () => {
+      slopePostProcessStage.uniforms.resolution = new Cesium.Cartesian2(window.innerWidth, window.innerHeight);
+      slopePostProcessStage.uniforms.delta = 1.0 / 1000.0; // 根据需要调整
+      console.log("窗口大小变化，更新uniform参数。");
+    });
+
+    // 进一步调试：监控实体和后处理阶段的数量变化
+
+
+  </script>
+</body>
+
+</html>

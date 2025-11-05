@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.79.1/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.79.1/Build/Cesium/Widgets/widgets.css"
+        rel="stylesheet">
+  <style>
+    html,
+    body,
+    #container {
+      height: 100%;
+    }
+
+    .text {
+      width: 30px;
+    }
+
+    span {
+      width: 230px;
+    }
+  </style>
+</head>
+
+<body>
+<div id="container">
+  <div style="position: fixed;z-index: 2000;background-color: rgba(255, 255, 255, 0.5);">
+    <!--图层选择器-->
+    <div>
+      <input type="checkbox" checked id="isSelected" onchange="baseLayerIsShow(this)">
+      <!--下拉选择框-->
+      <select id="selection" onchange="selectChange(this)">
+
+        <option value="ArcGIS World Street Maps">ArcGIS World Street Maps</option>
+        <option selected value="Bing Maps Aerial"> Bing Maps Aerial</option>
+        <option value="Bing Maps Road"> Bing Maps Road</option>
+        <option value="Open Street Maps">Open Street Maps</option>
+
+        <option value="Stamen Maps">Stamen Maps</option>
+        <option value="Natural Earth II (local)">Natural Earth II (local)</option>
+        <option value="USGS Shaded Relief (via WMTS)">USGS Shaded Relief (via WMTS)</option>
+      </select>
+      <input type="range" id="selectionRange" min="0" max="1" step="0.1" value="1"
+             onchange="baseLayerAlpha(this)"><button id="up">上</button><button id="down">下</button>图层索引：<input
+            type="text" id="selectionText" value="1" class="text">
+    </div>
+    <div style="display: flex;">
+      <input type="checkbox" checked id="isGrid"><span>Grid</span> <input type="range" id="gridRange" min="0"
+                                                                          max="1" step="0.1" value="1">
+    </div>
+    <div style="display: flex;">
+      <input type="checkbox" checked id="isTileCoordinates">
+      <span>Tile Coordinates</span> <input type="range" id="tileCoordinatesRange" min="0" max="1" step="0.1"
+                                           value="1">
+
+    </div>
+    <div style="display: flex;">
+      <input type="checkbox" checked id="isSingleImage"><span>Single Image</span> <input type="range"
+                                                                                         id="singleImageRange" min="0" max="1" step="0.1" value="1">
+    </div>
+    <div style="display: flex;">
+      <input type="checkbox" checked id="isTileMapServiceImage"><span>Tile MapService Image</span> <input
+            type="range" id="tileMapServiceImageRange" min="0" max="1" step="0.1" value="1">
+    </div>
+    <div style="display: flex;">
+      <input type="checkbox" checked id="isUnitedStatesWeatherRadar"><span>United States Weather Radar</span>
+      <input type="range" id="unitedStatesWeatherRadarRange" min="0" max="1" step="0.1" value="1">
+    </div>
+
+    <input type="checkbox" checked id="isUnitedStatesGOESInfrared"><span>United States GOES Infrared</span>
+    <input type="range" id="unitedStatesGOESInfraredRange" min="0" max="1" step="0.1" value="1">
+
+  </div>
+</div>
+</body>
+<script>
+  Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYTQ2ZjdjNS1jM2E0LTQ1M2EtOWM0My1mODMzNzY3YjYzY2YiLCJpZCI6MjkzMjcsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1OTE5NDIzNjB9.RzKlVTVDTQ9r7cqCo-PDydgUh8Frgw0Erul_BVxiS9c';
+  let viewer = new Cesium.Viewer('container', {
+    baseLayerPicker: true
+  })
+  let defaultbaseLayer = viewer.imageryLayers.get(0)
+</script>
+<script>
+  function selectChange(e) {
+    switch (e.value) {
+      case 'ArcGIS World Street Maps':
+        addBaseLayer(e.value, new Cesium.ArcGisMapServerImageryProvider({
+          url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer"
+        }))
+        break
+      case 'Bing Maps Aerial':
+        addBaseLayer(e.value, undefined)
+        break
+      case 'Open Street Maps':
+        addBaseLayer(e.value, new Cesium.OpenStreetMapImageryProvider())
+        break
+      case 'Bing Maps Road':
+        addBaseLayer(e.value, Cesium.createWorldImagery({
+          style: Cesium.IonWorldImageryStyle.ROAD
+        }))
+        break
+      case 'Stamen Maps':
+        addBaseLayer(e.value, new Cesium.OpenStreetMapImageryProvider({
+          url: "https://stamen-tiles.a.ssl.fastly.net/watercolor/",
+          fileExtension: "jpg",
+          credit: "Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.",
+        }))
+        break
+      case 'Natural Earth II (local)':
+        addBaseLayer(e.value, new Cesium.TileMapServiceImageryProvider({
+          url: Cesium.buildModuleUrl('libs/Cesium-1.93/Source/Assets/Textures/NaturalEarthII/tilemapresource.xml')
+        }))
+        break
+      case 'USGS Shaded Relief (via WMTS)':
+        addBaseLayer(e.value, new Cesium.WebMapTileServiceImageryProvider({
+          url: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer/WMTS",
+          layer: "USGSShadedReliefOnly",
+          style: "default",
+          format: "image/jpeg",
+          tileMatrixSetID: "default028mm",
+          maximumLevel: 19,
+          credit: "U. S. Geological Survey",
+        }))
+        break
+    }
+  }
+
+  function baseLayerIsShow(e) {
+    viewer.imageryLayers.get(0).show = e.checked
+  }
+
+  function baseLayerAlpha(e) {
+    viewer.imageryLayers.get(0).alpha = e.value
+  }
+
+
+  function init() {
+    document.getElementById('up').disabled = false
+    document.getElementById('down').disabled = false
+    if (document.getElementById('selectionText').value == 1) {
+      document.getElementById('down').disabled = true
+    }
+    if (document.getElementById('selectionText').value == viewer.imageryLayers.length) {
+      document.getElementById('up').disabled = true
+    }
+  }
+
+  document.getElementById('up').onclick = () => {
+    let val = document.getElementById('selectionText').value - 1
+    viewer.imageryLayers.raise(viewer.imageryLayers.get(val))
+    document.getElementById('selectionText').value = 1 + Number(document.getElementById('selectionText').value)
+    init()
+  }
+  document.getElementById('down').onclick = () => {
+
+    let val = document.getElementById('selectionText').value - 1
+    viewer.imageryLayers.lower(viewer.imageryLayers.get(val))
+    let x = Number(document.getElementById('selectionText').value) - 1
+    document.getElementById('selectionText').value = x
+
+    init()
+  }
+</script>
+<script>
+  function addBaseLayer(name, imageryProvider) {
+    let layer
+    if (typeof imageryProvider === 'undefined') {
+      layer = defaultbaseLayer
+    } else {
+      layer = new Cesium.ImageryLayer(imageryProvider)
+    }
+    layer.name = name
+    viewer.imageryLayers.remove(viewer.imageryLayers.get(0), false) //默认值为true，ture的意思就是移除掉的图层销毁，下次也用不了了，除非重新new
+    viewer.imageryLayers.add(layer)
+  }
+
+  function addAdditionalLayer(name, imageryProvider) {
+    let layer = viewer.imageryLayers.addImageryProvider(imageryProvider)
+    layer.name = name
+  }
+
+  function changeAlpha(e, name) {
+    let layer
+    for (let i = 0; i < viewer.imageryLayers.length; i++) {
+      if (viewer.imageryLayers.get(i).name == name) {
+        layer = viewer.imageryLayers.get(i)
+        layer.alpha = e.target.value
+        return
+      }
+    }
+  }
+
+  function changeShow(e, name) {
+    let layer
+    for (let i = 0; i < viewer.imageryLayers.length; i++) {
+
+      if (viewer.imageryLayers.get(i).name == name) {
+
+        layer = viewer.imageryLayers.get(i)
+        layer.show = e.target.checked
+        return
+      }
+    }
+  }
+
+  function setUp() {
+    let USGI = new Cesium.WebMapServiceImageryProvider({
+      url: "https://mesonet.agron.iastate.edu/cgi-bin/wms/goes/conus_ir.cgi?",
+      layers: "goes_conus_ir",
+      credit: "Infrared data courtesy Iowa Environmental Mesonet",
+      parameters: {
+        transparent: "true",
+        format: "image/png",
+      },
+    })
+    addAdditionalLayer('United States GOES Infrared', USGI)
+
+    document.getElementById('unitedStatesGOESInfraredRange').onchange = (e) => {
+      changeAlpha(e, 'United States GOES Infrared')
+    }
+    document.getElementById('isUnitedStatesGOESInfrared').onchange = (e) => {
+      changeShow(e, 'United States GOES Infrared')
+    }
+
+    let Grid = new Cesium.GridImageryProvider()
+    addAdditionalLayer('Grid', Grid)
+    document.getElementById('gridRange').onchange = (e) => {
+      changeAlpha(e, 'Grid')
+    }
+    document.getElementById('isGrid').onchange = (e) => {
+      changeShow(e, 'Grid')
+    }
+
+    let tileCoordinates = new Cesium.TileCoordinatesImageryProvider()
+    addAdditionalLayer('Tile Coordinates', tileCoordinates)
+    document.getElementById('tileCoordinatesRange').onchange = (e) => {
+      changeAlpha(e, 'Tile Coordinates')
+    }
+    document.getElementById('isTileCoordinates').onchange = (e) => {
+      changeShow(e, 'Tile Coordinates')
+    }
+
+    let tileMapServiceImage = new Cesium.TileMapServiceImageryProvider({
+      url: 'libs/Cesium-1.93/Source/Assets/Images/ion-credit.png'
+    })
+    addAdditionalLayer('Tile MapService Image', tileMapServiceImage)
+    document.getElementById('tileMapServiceImageRange').onchange = (e) => {
+      changeAlpha(e, 'Tile MapService Image')
+    }
+    document.getElementById('isTileMapServiceImage').onchange = (e) => {
+      changeShow(e, 'Tile MapService Image')
+    }
+
+    let singleImage = new Cesium.SingleTileImageryProvider({
+      url: 'libs/Cesium-1.93/Source/Assets/Images/cesium_credit.png',
+      rectangle: Cesium.Rectangle.fromDegrees(
+              -115.0,
+              38.0,
+              -107,
+              39.75
+      ),
+    })
+    addAdditionalLayer('Single Image', singleImage)
+    document.getElementById('singleImageRange').onchange = (e) => {
+      changeAlpha(e, 'Single Image')
+    }
+    document.getElementById('isSingleImage').onchange = (e) => {
+      changeShow(e, 'Single Image')
+    }
+
+    let USWR = new Cesium.WebMapServiceImageryProvider({
+      url: "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0r.cgi?",
+      layers: "nexrad-n0r",
+      credit: "Radar data courtesy Iowa Environmental Mesonet",
+      parameters: {
+        transparent: "true",
+        format: "image/png",
+      },
+    })
+    addAdditionalLayer('United States Weather Radar', USWR)
+    document.getElementById('unitedStatesWeatherRadarRange').onchange = (e) => {
+      changeAlpha(e, 'United States Weather Radar')
+    }
+    document.getElementById('isUnitedStatesWeatherRadar').onchange = (e) => {
+      changeShow(e, 'United States Weather Radar')
+    }
+  }
+  setUp()
+  init()
+  console.log(viewer.imageryLayers.get(0))
+</script>
+
+</html>

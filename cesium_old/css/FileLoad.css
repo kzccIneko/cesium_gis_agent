@@ -1,0 +1,115 @@
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover, 
+        .upload-area.dragover {
+            border-color: #4CAF50;
+            background-color: #f8fff8;
+        }
+        
+        .upload-area i {
+            font-size: 48px;
+            color: #ccc;
+            margin-bottom: 15px;
+        }
+        
+        .upload-area p {
+            color: #666;
+            margin: 10px 0;
+        }
+        
+        /* 隐藏底层文件输入框，本样式优先级调至最高 */
+        .file-input {
+            display: none!important;
+        }        
+        
+        .btn:hover {
+            background-color: #45a049;
+        }
+        
+        .file-info {
+            margin-top: 2px;
+            padding: 2px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            display: none;
+            height: 200;
+        }
+        
+        .file-info h3 {
+            margin-top: 0;
+        }
+        
+        .file-list {
+            margin-top: 20px;
+        }
+        
+        .file-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+/* *******************IndexDB CSS new************************ */
+               
+        .file-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-item-content {
+            margin-top: 10px;
+        }
+        
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeeba;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .stored-files {
+            margin-top: 30px;
+        }
+        
+        .file-preview {
+            max-width: 100px;
+            max-height: 100px;
+            margin: 0;
+        }
+        
+        .note {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }

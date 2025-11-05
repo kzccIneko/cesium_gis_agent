@@ -1,0 +1,287 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: black;
+}
+/*隐藏 cesium logo*/
+.cesium-viewer-bottom {
+  display: none !important;
+}
+/*隐藏搜索框*/
+.cesium-viewer-geocoderContainer {
+  display: none !important;
+}
+/*隐藏fps和网络状态栏*/
+.cesium-performanceDisplay { 
+  display: none !important;
+}
+/* 全屏按钮 */
+.cesium-button.cesium-fullscreenButton {
+  position: fixed;
+  top: 68px;
+  right: 50px;
+  width: 30px;
+  height: 30px;
+}
+/*二三维切换按钮*/
+span.cesium-sceneModePicker-wrapper {
+  display: inline-block;
+  position: fixed;
+  top: 2px;
+  right: 80px;
+}
+/*E*/
+/*cesium窗体S*/
+#cesiumContainer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0;
+  overflow: hidden;
+  padding: 0;
+  font-family: sans-serif;
+}
+/*E*/
+/*加载中S*/
+.loadingIndicator {
+  display: block;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  margin-top: -33px;
+  margin-left: -33px;
+  width: 66px;
+  height: 66px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-image: url(../img/page/ajax-loader.gif);
+}
+/*E*/
+/*LOGO聚焦时样式*/
+.navbar-brand span {
+  color: white;
+  font-size: 28px;
+}
+/*!*E*!*/
+
+/*导航栏聚焦时样式*/
+.nav > li > a:focus {
+  text-decoration: none;
+  background-color: black !important;
+  color: white;
+}
+/*导航栏LI S*/
+.navbar {
+  background-color: #303336;
+}
+.nav li img {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+}
+.nav li {
+  display: inline-block;
+}
+.nav li a:hover {
+  background-color: #104e8b !important;
+  color: white !important;
+}
+.dropdown-menu li {
+  width: 100%;
+}
+/*LOGO S*/
+.navbar-brand a:focus {
+  color: white;
+}
+/*E*/
+
+/*功能操作弹框*/
+.functionWin {
+  position: fixed;
+  top: 10%;
+  left: 0%;
+  overflow: auto;
+  display: none;
+  border-radius: 8px;
+  min-width: 160px;
+  z-index: 2000;
+}
+
+.functionWin [type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+.functionWin select {
+  height: 80%;
+}
+.functionWin [type="text"] {
+  height: 80%;
+  max-width: 150px;
+}
+.functionWin [type="button"] {
+  border-radius: 4px;
+}
+.functionWin [type="button"]:hover {
+  background-color: gray;
+}
+.row div {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow: hidden;
+}
+.functionWin .title {
+  font-weight: 900;
+}
+/* 头部 */
+.functionWin .head {
+  border-bottom: 1px solid #c4c4c4;
+  width: 100%;
+  height: 36px;
+  background: linear-gradient(#c4c4c4, white, #c4c4c4);
+  /* min-width: 160px; */
+}
+/* 内容 */
+.functionWin .content {
+  padding: 8px 12px 12px 8px;
+  background-color: white;
+  width: 100%;
+  min-height: 60px;
+}
+.functionWin .content .container-fluid {
+  overflow: auto;
+  height: 500px;
+  width: 500px;
+}
+/*win 头部功能按钮*/
+.headfun_win {
+  position: relative;
+  padding: 6px;
+  opacity: 1;
+}
+.headfun_win:hover,
+.headfun_win:focus {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+}
+/*E*/
+
+/*导航栏S*/
+.cesium-viewer-toolbar {
+  /* position: fixed !important; */
+  /* top: 10% !important; */
+  transform: translateY(60px);
+}
+/*E*/
+
+/* 字体设置 */
+.font-center {
+  text-align: center;
+}
+
+/*  默认样式 */
+/* 浏览器自定义 */
+hr {
+  margin: 8px 0px !important;
+  height: 2px !important;
+  background-color: gray !important;
+}
+
+/* 自定义常量样式 */
+.rowText {
+  display: table-cell;
+  vertical-align: middle;
+  font-size: 1.4em;
+}
+
+/* S滑块样式 */
+.slider {
+  height: px;
+  min-width: 180px;
+}
+.slider .ui-slider-handle {
+  height: 28px;
+  min-width: 20px;
+  background-color: #303336;
+}
+
+/* 图标div */
+.chartdiv {
+  width: 400px;
+  height: 300px;
+}
+
+/*比例尺定位及样式*/
+    .distance-legend{
+    position: absolute;
+    right: 1px;
+    bottom: 1px;
+    margin: 1px;
+
+    }
+                
+    /*罗盘*/
+    .compass{
+    position: absolute;
+    right: 0%;
+    margin: 0%;
+    top: 11%;
+    }
+    /*缩放*/
+    .navigation-controls{
+    position: absolute;
+    right: 30px!important;
+    bottom: 670px!important;
+    background-color:#303336;
+    }
+    /*颜色选择器*/
+    .color-picker {
+      margin: 10px 0;
+    }
+    /*右下角状态栏*/
+    /* .stats-card {
+      position: absolute;
+      top: 760px; 顶和底是反的不知道为什么
+      right: 1px;
+      background: rgba(10, 15, 35, 0.8);
+      color:#fff;
+      border: 1px solid #4361ee;
+      border-radius: 8px;
+      padding: 12px 18px;
+      z-index: 10;
+    } *//*暂时不用了*/
+    .cesium-container {
+      flex: 1;
+      position: relative;
+    }
+
+    #cesium-viewer {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 浮动面板样式保证白底黑字 */
+  #pathListPanel {
+    background: #ffffff;
+    color: #000000;
+    overflow: auto;   
+  }
+  /* 下拉框及选项强制黑字白底，避免主题样式覆盖 */
+  #pathListPanel select,
+  #pathListPanel select option {
+    color: #000000 !important;
+        
+    z-index: 9999;
+    border: 1px solid #ccc;
+
+    overflow: auto;                /* 等价于 overflow-x/overflow-y 都是 auto */
+    -webkit-overflow-scrolling: touch; /* 移动端更顺滑 */
+  }
+  /* 可选：按钮与面板间距微调 */
+  #pathListPanel .btn { margin-bottom:6px; }

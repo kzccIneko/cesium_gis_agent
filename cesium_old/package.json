@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "geotiff": "^2.1.4-beta.0",
+    "tiff-imagery-provider": "^2.17.1"
+  }
+}

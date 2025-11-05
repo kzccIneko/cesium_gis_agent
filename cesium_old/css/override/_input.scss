@@ -1,0 +1,42 @@
+.input {
+  display: inline-block;
+  width: 140px;
+  height: 32px;
+  border-radius: 4px;
+  border: solid 1px #323d51;
+  transition: all 0.2s;
+  select {
+    background: none;
+    display: block;
+    height: 100%;
+    border: none;
+    width: 95%;
+  }
+  input {
+    background: none;
+    border: none;
+    outline: none;
+    display: block;
+    width: 100%;
+    color: #fff;
+    padding: 0 10px;
+    height: 100% !important;
+    -webkit-appearance: none;
+  }
+
+  &:hover {
+    border-color: #72819c;
+  }
+  &:focus-within {
+    border-color: #70bdf9;
+  }
+  &--disabled {
+    pointer-events: none;
+    background-color: #1d2d46;
+    border-color: #3d495e;
+  }
+  &--block {
+    display: block;
+    width: 100%;
+  }
+}

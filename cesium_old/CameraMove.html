@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+  <meta name="description" content="Fly to a specified location or view a geographic rectangle.">
+  <meta name="cesium-sandcastle-labels" content="Beginner, Tutorials, Showcases">
+  <title>Cesium Demo</title>
+  <script type="text/javascript" src="libs/Cesium-1.93/Build/Cesium/Cesium.js"></script>
+  <style>
+    @import url(libs/Cesium-1.93/Build/Cesium/Widgets/widgets.css);
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+      background: #000;
+    }
+
+    .fullSize {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      border: none;
+      width: 100%;
+      height: 100%;
+    }
+
+    #toolbar {
+      margin: 5px;
+      padding: 2px 5px;
+      position: absolute;
+    }
+  </style>
+</head>
+
+<body>
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="toolbar">
+  <select id = "camera_select", class="cesium-button">
+    <option value="undefined">
+      相机选项
+    </option>
+    <option value="undefined">
+      飞行至某一点——武汉大学
+    </option>
+    <option value="undefined">
+      飞行至某区域——武汉市
+    </option>
+    <option value="undefined">
+      设置相机点——华中科技大学
+    </option>
+    <option value="undefined">
+      设置相机区域——上海市
+    </option>
+    <option value="undefined">
+      从武大飞向华科
+    </option>
+  </select>
+</div>
+<script >
+  Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYTQ2ZjdjNS1jM2E0LTQ1M2EtOWM0My1mODMzNzY3YjYzY2YiLCJpZCI6MjkzMjcsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1OTE5NDIzNjB9.RzKlVTVDTQ9r7cqCo-PDydgUh8Frgw0Erul_BVxiS9c';
+  var viewer = new Cesium.Viewer('cesiumContainer', {
+    geocoder: false,
+    homeButton: true,
+    sceneModePicker: false,
+    fullscreenButton: false,
+    vrButton: false,
+    baseLayerPicker: true,
+    infoBox: false,
+    selectionIndicator: false,
+    animation: true,
+
+    //开启会和坐标显示框重合
+    timeline: true,
+    shouldAnimate: true,
+    navigationHelpButton: true,
+    navigationInstructionsInitiallyVisible: false,
+  })
+  //隐藏版权信息
+  viewer._cesiumWidget._creditContainer.style.display = "none";
+  //关闭日照阴影
+  viewer.scene.globe.enableLighting = false;
+  //开启深度检测
+  viewer.scene.globe.depthTestAgainstTerrain = true;
+  //关闭/开启大气层
+  viewer.scene.globe.showGroundAtmosphere = false;
+
+  var camera_select = document.getElementById("camera_select");
+  if (camera_select) {
+    camera_select.onchange = function gradeChange() {
+      switch (camera_select.selectedIndex) {
+        case 1:
+          viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(114.35231209, 30.53542614, 5000.0),
+            orientation: {
+              heading: Cesium.Math.toRadians(0.0),
+              pitch: Cesium.Math.toRadians(-90.0),
+              roll: Cesium.Math.toRadians(0.0)
+            }
+          });
+          break;
+        case 2:
+          viewer.camera.flyTo({
+            destination: Cesium.Rectangle.fromDegrees(113.683333, 29.966667, 115.083333, 31.366667)
+          });
+          break;
+        case 3:
+          viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(114.40782845, 30.51011682, 5000.0),
+            orientation: {
+              heading: Cesium.Math.toRadians(0.0),
+              pitch: Cesium.Math.toRadians(-90.0),
+              roll: Cesium.Math.toRadians(0.0)
+            }
+          });
+          break;
+        case 4:
+          viewer.camera.setView({
+            destination: Cesium.Rectangle.fromDegrees(120.86667, 30.66667, 122.2, 31.883333)
+          });
+          break;
+        case 5: {
+          var whdxOptions = {
+            destination: Cesium.Cartesian3.fromDegrees(114.35231209, 30.53542614, 5000.0),
+            duration: 5,
+            orientation: {
+              heading: Cesium.Math.toRadians(0.0),
+              pitch: Cesium.Math.toRadians(-90.0),
+              roll: Cesium.Math.toRadians(0.0)
+            }
+          };
+          var hzkjdxOptions = {
+            destination: Cesium.Cartesian3.fromDegrees(114.40782845, 30.51011682, 5000.0),
+            orientation: {
+              heading: Cesium.Math.toRadians(0.0),
+              pitch: Cesium.Math.toRadians(-90.0),
+              roll: Cesium.Math.toRadians(0.0)
+            },
+            duration: 5,
+            //flyOverLongitude: Cesium.Math.toRadians(60.0)
+          };
+
+          whdxOptions.complete = function () {
+            setTimeout(function () {
+              viewer.camera.flyTo(hzkjdxOptions);
+            }, 1000);
+          };
+
+          // if (adjustPitch) {
+          //     tokyoOptions.pitchAdjustHeight = 1000;
+          //     laOptions.pitchAdjustHeight = 1000;
+          // }
+
+          viewer.camera.flyTo(whdxOptions);
+        }
+          break;
+        default:
+          break;
+      }
+    }
+  }
+</script>
+</body>
+
+</html>

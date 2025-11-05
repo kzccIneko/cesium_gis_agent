@@ -1,0 +1,111 @@
+@import "./override/modal";
+@import "./override/input";
+@import "./override/btn";
+
+.navbar {
+  background-color: rgba(5, 26, 55, 0.9) !important;
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    width: 100%;
+    background-color: rgba(10, 46, 79, 0.9);
+  }
+  .container-fluid {
+    margin: 0;
+    padding: 0 10px;
+  }
+  .dropdown-toggle {
+    color: #fff;
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    background: none !important;
+    img {
+      margin-right: 10px;
+      width: 30px;
+      height: 30px;
+    }
+    .caret {
+      margin-left: 10px;
+    }
+  }
+
+  .dropdown-menu {
+    background-color: rgba(5, 26, 55, 0.8);
+    border: 1px solid #0a2e4f;
+    border-radius: 4px;
+    list-style: none;
+    padding: 10px 0;
+    left: 0 !important;
+    a {
+      padding: 10px !important;
+      color: #fff !important;
+      cursor: pointer;
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+    }
+  }
+}
+
+.flex {
+  display: flex;
+  align-items: center;
+  @at-root {
+    &--inline {
+      display: inline-flex;
+      align-items: center;
+    }
+  }
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+  &:first-child {
+    margin-top: 14px;
+  }
+  &-btn {
+    justify-content: flex-end;
+  }
+
+  .label {
+    width: 80px;
+    text-align: right;
+  }
+  .ctl {
+    flex: 1;
+    .input {
+      display: block;
+      width: 100%;
+    }
+    input {
+      max-width: none !important;
+    }
+  }
+  &-auto {
+    .label {
+      width: auto;
+    }
+  }
+}
+@each $var in 5, 10, 15 {
+  .mr#{$var} {
+    margin-right: $var * 1px;
+  }
+  .ml#{$var} {
+    margin-left: $var * 1px;
+  }
+  .mt#{$var} {
+    margin-top: $var * 1px;
+  }
+  .mb#{$var} {
+    margin-bottom: $var * 1px;
+  }
+}

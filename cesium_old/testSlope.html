@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Cesium 喜马拉雅山脉坡度分析示例</title>
+    <!-- 引入CesiumJS库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cesium/1.100.0/Cesium.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cesium/1.100.0/Widgets/widgets.css" rel="stylesheet">
+    <style>
+        /* 设置Cesium容器的样式 */
+        #cesiumContainer {
+            width: 100%;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* 简单的图例样式 */
+        #legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 5px;
+            font-family: sans-serif;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .color-box {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Cesium的容器 -->
+    <div id="cesiumContainer"></div>
+    <!-- 图例 -->
+    <div id="legend">
+        <div class="legend-item">
+            <div class="color-box" style="background-color: rgba(0, 255, 0, 0.6);"></div>坡度 &lt; 5°
+        </div>
+        <div class="legend-item">
+            <div class="color-box" style="background-color: rgba(255, 255, 0, 0.6);"></div>5° ≤ 坡度 &lt; 15°
+        </div>
+        <div class="legend-item">
+            <div class="color-box" style="background-color: rgba(255, 165, 0, 0.6);"></div>15° ≤ 坡度 &lt; 30°
+        </div>
+        <div class="legend-item">
+            <div class="color-box" style="background-color: rgba(255, 0, 0, 0.6);"></div>坡度 ≥ 30°
+        </div>
+    </div>
+    <script>
+        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkZTlkNjBmMi05NjdjLTQwMTgtOTBiOC04NDU1NWJjYmFkZWEiLCJpZCI6MzA2MzMzLCJpYXQiOjE3NDgyNDg4MTl9.r7m_tXkLjZOAcHKP_oI0BuCvE6xuaujzU3CL7f4TG9A'
+        // 初始化Cesium Viewer
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+            terrainProvider: Cesium.createWorldTerrain(), // 使用Cesium世界地形
+            imageryProvider: new Cesium.IonImageryProvider({ assetId: 2 }), // 默认影像图层
+            baseLayerPicker: true, // 启用底图选择器
+            geocoder: false, // 禁用地名查找
+            homeButton: false, // 禁用主页按钮
+            sceneModePicker: false, // 禁用场景模式切换
+            timeline: false, // 禁用时间轴
+            animation: false, // 禁用动画控制
+            navigationHelpButton: false, // 禁用导航帮助按钮
+            infoBox: false, // 禁用信息框
+            selectionIndicator: false // 禁用选择指示器
+        });
+
+        // 设置初始视角（喜马拉雅山脉附近）
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(86.9250, 27.9881, 5000), // 珠穆朗玛峰坐标，海拔5000米
+            orientation: {
+                heading: Cesium.Math.toRadians(0.0), // 朝向
+                pitch: Cesium.Math.toRadians(-45.0), // 倾斜角度
+                roll: 0.0 // 滚转角度
+            }
+        });
+
+        // 定义选定区域的边界（经纬度） - 以珠穆朗玛峰为中心，约0.5度范围
+        const selectedRegion = {
+            west: Cesium.Math.toRadians(86.675),   // 86.675°E
+            south: Cesium.Math.toRadians(27.738),  // 27.738°N
+            east: Cesium.Math.toRadians(87.175),   // 87.175°E
+            north: Cesium.Math.toRadians(28.238)   // 28.238°N
+        };
+
+        // 清除所有之前添加的实体和后处理阶段，避免重复添加
+        viewer.entities.removeAll();
+        viewer.scene.postProcessStages.removeAll();
+
+        // 添加调试日志
+        console.log("清除所有实体和后处理阶段。");
+        // 定义自定义材质
+        Cesium.Material.SlopeMaterialType = 'SlopeMaterial';
+
+        Cesium.Material.SlopeMaterial = new Cesium.Material(Cesium.Material.SlopeMaterialType, {
+            fabric: {
+                type: Cesium.Material.SlopeMaterialType,
+                uniforms: {
+                    selectedRegion: new Cesium.Cartesian4(
+                        selectedRegion.west,
+                        selectedRegion.south,
+                        selectedRegion.east,
+                        selectedRegion.north
+                    )
+                },
+                source: `
+                    czm_material czm_getMaterial(czm_materialInput materialInput)
+                    {
+                        czm_material material = czm_getDefaultMaterial(materialInput);
+                        // 获取地形法向量
+                        vec3 normal = normalize(materialInput.normal);
+                        // 计算坡度：法向量与垂直方向的夹角
+                        float slope = degrees(acos(dot(normal, vec3(0.0, 0.0, 1.0))));
+                        
+                        // 计算世界坐标的经纬度
+                        vec4 positionWC = czm_modelViewProjection * vec4(materialInput.positionWC, 1.0);
+                        vec3 worldPosition = materialInput.positionWC;
+                        float longitude = atan(worldPosition.y, worldPosition.x);
+                        float latitude = asin(worldPosition.z / length(worldPosition.xyz));
+                        
+                        // 判断是否在选定区域内
+                        bool inRegion = (longitude >= selectedRegion.x) && (longitude <= selectedRegion.z) &&
+                                        (latitude >= selectedRegion.y) && (latitude <= selectedRegion.w);
+                        
+                        if (inRegion) {
+                            // 根据坡度映射颜色
+                            if (slope < 5.0) {
+                                material.diffuse = vec3(0.0, 1.0, 0.0); // 绿色
+                            } else if (slope < 15.0) {
+                                material.diffuse = vec3(1.0, 1.0, 0.0); // 黄色
+                            } else if (slope < 30.0) {
+                                material.diffuse = vec3(1.0, 0.647, 0.0); // 橙色
+                            } else {
+                                material.diffuse = vec3(1.0, 0.0, 0.0); // 红色
+                            }
+                            material.alpha = 0.6;
+                        } else {
+                            // 非选定区域，保持原始颜色
+                            material.diffuse = material.diffuse;
+                            material.alpha = material.alpha;
+                        }
+                        
+                        return material;
+                    }
+                `
+            },
+            translucent: function (material) {
+                return material.alpha > 0.0;
+            }
+        });
+
+        // 绘制选定区域的边界
+        const boundaryEntity = viewer.entities.add({
+            name: 'Selected Region Boundary',
+            rectangle: {
+                coordinates: Cesium.Rectangle.fromRadians(selectedRegion.west, selectedRegion.south, selectedRegion.east, selectedRegion.north),
+                material: Cesium.Material.SlopeMaterial, // 半透明黄色填充
+                outline: true,
+                outlineColor: Cesium.Color.YELLOW
+            }
+        });
+
+        console.log("添加一个矩形实体表示选定区域。");
+
+        // 定义坡度到颜色的映射
+        function slopeToColor(slope) {
+            if (slope < 5) {
+                return [0.0, 1.0, 0.0, 0.6]; // 绿色
+            } else if (slope < 15) {
+                return [1.0, 1.0, 0.0, 0.6]; // 黄色
+            } else if (slope < 30) {
+                return [1.0, 0.647, 0.0, 0.6]; // 橙色
+            } else {
+                return [1.0, 0.0, 0.0, 0.6]; // 红色
+            }
+        }
+
+
+
+        console.log("应用自定义坡度材质到地球。");
+
+        // 监听窗口大小变化，更新uniform变量（经纬度区域不变）
+        window.addEventListener('resize', () => {
+            // 因为材质已经应用到地球，不需要特别处理
+            // 如果需要动态调整区域，可以更新材质的uniform
+            console.log("窗口大小变化，但材质不需要调整。");
+        });
+
+        // 添加调试日志，确认材质类型
+        //console.log(`当前地球材质类型: ${viewer.scene.globe.material.type}`);
+    </script>
+</body>
+
+</html>
