@@ -145,7 +145,12 @@ class SlopeAspect {
     this.slopePolygons = []; //存放坡度primitive
     this.aspectPolygons = []; //存放坡向primitive
     this.heightPolygons = []; //存放高度primitive
+    this.costPolygons = []; //存放通行代价primitive
     this.drawFlag = true; //是否渲染坡度坡向
+    this.drawCostMapFlag = false; //是否渲染通行代价图
+    // 覆盖区支持：用户绘制的 road/water 覆盖区信息与可视实体缓存
+    this.overrideAreas = []; // 存 { type: 'road'|'water', polygonEntity, coords: [[lon,lat],...] }
+    this.overrideAreaEntities = []; // 方便一次性移除显示实体
 
     this.openList = []; //OPEN列表 每个openList用于找一次（一个）路径点，xyz信息，每个格子一个node，用于存储：1.已发现但尚未探索的节点 2.新发现的邻居节点（其实一个意思）
     this.closeList = new Set(); //记录已被访问过的节点，用set.has判断是否存在
@@ -158,6 +163,7 @@ class SlopeAspect {
     this.keepStartPoint = null;//保留的起点坐标
     this.keepEndPoint = null;//保留的终点坐标
     this.pathLineNum = 0;//路径线ID
+    this.potentialField = null;// 潜力场（二维数组），用于存储从每个点到目标的最小代价（cost-to-go）
     this.usePotentialFieldFlag = false;// 是否使用潜力场（反向 Dijkstra -> 从起点按 potential 最小方向跟随）进行全局寻路
   }
   // 不会栈溢出的方法，找最大最小值，代替Math.min和Math.max
@@ -202,6 +208,15 @@ class SlopeAspect {
       polygon.primitive.appearance.material.uniforms.color = newColor;
       polygon.primitive.appearance.translucent = parseFloat(newAlpha) < 1;
     });
+
+    this.costPolygons.forEach((polygon) => {
+      polygon.alpha = parseFloat(newAlpha);
+
+      // 更新颜色透明度 - 使用MaterialAppearance方式
+      const newColor = polygon.baseColor.withAlpha(parseFloat(newAlpha));
+      polygon.primitive.appearance.material.uniforms.color = newColor;
+      polygon.primitive.appearance.translucent = parseFloat(newAlpha) < 1;
+    });
   }
 
   clearAll() {
@@ -221,6 +236,11 @@ class SlopeAspect {
       this.viewer.scene.primitives.remove(element.primitive);
     });
     this.aspectPolygons = [];
+
+    this.costPolygons.forEach((element) => {
+      this.viewer.scene.primitives.remove(element.primitive);
+    });
+    this.costPolygons = [];
     
     //删除所有点
     this.viewer.entities.removeAll();
@@ -257,6 +277,14 @@ class SlopeAspect {
       console.log("aspectChange");
     }
   }
+  costMapLayerVisibility() {
+    if (this.costPolygons && this.costPolygons.length >= 2) {
+      this.costPolygons.forEach((element) => {
+        element.primitive.show = !element.primitive.show;
+      });
+      console.log("costMapChange");
+    }
+  }
 
   openTip() {
     const $this = this;
@@ -287,6 +315,7 @@ class SlopeAspect {
     this.openList = [];
     this.gWeight = $("#gWeight").val();
     this.hWeight = $("#hWeight").val();
+    this.potentialField = null;// 重置潜力场
     console.log('keepStartEndFlag', this.keepStartEndFlag, 'clearPathFlag', this.clearPathFlag);
 
     if(this.keepStartEndFlag && !this.clearPathFlag){
@@ -316,7 +345,13 @@ class SlopeAspect {
         // 忽略无法访问的实体属性
       }
     });
-    toRemove.forEach((ent) => this.viewer.entities.remove(ent));console.log('reFindPathFlag', this.reFindPathFlag);
+    toRemove.forEach((ent) => this.viewer.entities.remove(ent));
+
+    this.costPolygons.forEach((element) => {
+      this.viewer.scene.primitives.remove(element.primitive);
+    });
+    this.costPolygons = [];//清除通行代价图
+
     
     if(this.reFindPathFlag){
       this.GetSlopePath();
@@ -386,9 +421,9 @@ class SlopeAspect {
     if (!cols) return [];
     const rows = (this.slopeCostGrid[0] || []).length;
     const INF = Number.POSITIVE_INFINITY;
-    const potential = Array.from({ length: rows }, () => Array(cols).fill(INF));
-    const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
-
+    const potential = Array.from({ length: cols }, () => Array(rows).fill(INF));
+    const visited = Array.from({ length: cols }, () => Array(rows).fill(false));
+    
     class MinHeap {
       constructor() {
         this.a = [];
@@ -732,6 +767,154 @@ class SlopeAspect {
       }
     );
   }
+
+  // 开始绘制覆盖区（type: 'road' 或 'water'）
+  startDrawOverride(type = 'road') {
+      // 使用项目中已有的交互绘制函数 CreatePolygonOnGround(viewer, ..., callback)
+      const viewer = this.viewer;
+      const fillColor = type === 'road' ? Cesium.Color.YELLOW.withAlpha(0.4) : Cesium.Color.BLUE.withAlpha(0.4);
+      CreatePolygonOnGround(viewer, [], { color: fillColor, outlineColor: Cesium.Color.BLACK }, (polygon) => {
+        try {
+       // polygon.pottingPoint 为绘制多边形的 Cartesian3 顶点数组（你的项目中已有该约定）
+       const pts = polygon.pottingPoint || polygon.positions || [];
+       // 转换为经纬数组 [lon, lat]
+       const coords = pts.map(p => {
+         const c = Cesium.Cartographic.fromCartesian(p);
+         return [Cesium.Math.toDegrees(c.longitude), Cesium.Math.toDegrees(c.latitude)];
+       });
+       if (coords.length && (coords[0][0] !== coords[coords.length-1]?.[0] || coords[0][1] !== coords[coords.length-1]?.[1])) {
+         coords.push(coords[0]); // 闭合环
+       }
+       // 添加可视实体用于展示覆盖区（保存以便清理）
+       const ent = viewer.entities.add({
+         polygon: {
+           hierarchy: pts,
+           material: fillColor,
+           classificationType: Cesium.ClassificationType.TERRAIN
+         }
+       });
+       this.overrideAreas = this.overrideAreas || [];
+       this.overrideAreas.push({ type: type, polygonEntity: ent, coords: coords });
+       this.overrideAreaEntities.push(ent);
+       // 应用覆盖到格网并刷新可视化
+       this.applyOverridesToGrid();
+       if (this.drawCostMapFlag) this.DrawCostMap();
+     } catch (e) {
+       console.error('startDrawOverride error', e);
+     } finally {
+       // 移除临时绘制实体（CreatePolygonOnGround 可能返回一个临时实体）
+       try { viewer.entities.remove(polygon); } catch (e) {}
+     }
+   });
+ }
+  
+  // 将覆盖区应用到 this.slopeCostGrid：road -> 增大 slopeCost（更易通行），water -> 设为极小（不可通行）
+  applyOverridesToGrid() {
+  if (!this.slopeCostGrid || this.slopeCostGrid.length === 0) return;
+  this.overrideAreas = this.overrideAreas || [];
+  // 遍历格网并检测每个格子中心是否在覆盖区内
+  for (let i = 0; i < this.slopeCostGrid.length; i++) {
+    for (let j = 0; j < this.slopeCostGrid[i].length; j++) {
+      const cell = this.slopeCostGrid[i][j];
+      if (!cell || cell.length === 0) continue;
+      const lon = Number(cell[2] && cell[2][0]);
+      const lat = Number(cell[2] && cell[2][1]);
+      if (!isFinite(lon) || !isFinite(lat)) continue;
+
+      // 确保有原始备份，方便恢复
+      if (cell._origSlope === undefined) cell._origSlope = cell[1];
+      if (cell._origSlopeCost === undefined) cell._origSlopeCost = cell[3];
+
+      // 先恢复为基于坡度的默认值（避免多次叠加）
+      cell[1] = cell._origSlope;
+      cell[3] = cell._origSlopeCost;
+
+      // 后添加的覆盖区优先级更高（覆盖数组按加入顺序保存）
+      for (let k = 0; k < this.overrideAreas.length; k++) {
+        const area = this.overrideAreas[k];
+        if (!area || !area.coords) continue;
+        if (this._pointInPolygon(lon, lat, area.coords)) {
+          if (area.type === "road") {
+            // road 等效为坡度 = 0（极易通行），并把 slopeCost 设为一个很大值以降低代价
+            cell[1] = 0; // 等效坡度0
+            cell[3] = Math.max(cell[3] || 1, 1000.0); // 增大代价因子，使通行更容易
+          } else if (area.type === "water") {
+            // water 等效为坡度极大（不可通行），使 slopeCost 极小 -> 代价极大
+            cell[1] = 99999; // 表示坡度极大（用于显示或其它逻辑）
+            cell[3] = 1e-6; // 极小的通行能力，GetCost 会返回非常大的代价
+          }
+          // 不 break：允许运行后续覆盖覆盖前面的（后画者优先）
+        }
+      }
+    }
+  }
+  // 覆盖改变后，潜力场与路径缓存失效须重算
+  this.potentialField = null;
+  // 若需要立即重新绘制代价图，调用者负责触发 DrawCostMap / FindPath
+}
+    
+  // 根据每个格子的 slope 值重新计算默认 slopeCost（用于恢复或首次计算）
+  recomputeSlopeCosts() {
+    if (!this.slopeCostGrid || this.slopeCostGrid.length === 0) return;
+    for (let i = 0; i < this.slopeCostGrid.length; i++) {
+      for (let j = 0; j < this.slopeCostGrid[i].length; j++) {
+        const cell = this.slopeCostGrid[i][j];
+        if (!cell || cell.length === 0) continue;
+        const slope = Number(cell[1]);
+        if (!isFinite(slope)) { cell[3] = 1e-6; continue; }
+        // 复用你原来在 FindPath 中的坡度->代价转换（用 Math.pow 替换 ^）
+        if (slope <= 5) {
+          cell[3] = 10 * 1;
+        } else if (slope > 5 && slope <= 9) {
+          cell[3] = (10 * (Math.pow(0.02 * (slope - 5), 3) - 3.183 * slope + 41.1103) / 25.18);
+        } else if (slope > 9 && slope <= 22) {
+          cell[3] = (10 * ((0.45 * Math.pow(22 - slope, 3) + 0.11 * Math.pow(9 - slope, 3)) / 78 + 0.653 * slope - 4.905) / 25.18);
+        } else if (slope > 22 && slope <= 35) {
+          cell[3] = (10 * ((0.11 * Math.pow(slope - 35, 3)) / 78 - 0.728 * slope + 25.490) / 25.18);
+        } else {
+          cell[3] = 1e-6;
+        }
+        // 同步原始备份
+        cell._origSlopeCost = cell[3];
+      }
+    }
+    this.potentialField = null;
+  }
+    
+  // 清除所有覆盖区（移除实体并恢复默认代价）
+  clearOverrideAreas() {
+    if (this.overrideAreas && this.overrideAreas.length) {
+      for (const a of this.overrideAreas) {
+        try { this.viewer.entities.remove(a.polygonEntity); } catch (e) {}
+      }
+      this.overrideAreas = [];
+      // 恢复默认 slopeCost
+      this.recomputeSlopeCosts();
+      if (this.drawCostMapFlag) this.DrawCostMap();
+    }
+  }
+    
+  // 点在多边形内判定：优先使用 turf.booleanPointInPolygon（若加载了 turf），否则回退到射线法
+  _pointInPolygon(lon, lat, polyCoords) {
+    if (!polyCoords || polyCoords.length < 3) return false;
+    try {
+      if (typeof turf !== 'undefined' && turf.booleanPointInPolygon) {
+        const pt = turf.point([lon, lat]);
+        const poly = turf.polygon([polyCoords]);
+        return turf.booleanPointInPolygon(pt, poly);
+      }
+    } catch (e) { /* ignore */ }
+    // fallback: ray-casting
+    let inside = false;
+    for (let i = 0, j = polyCoords.length - 1; i < polyCoords.length; j = i++) {
+      const xi = polyCoords[i][0], yi = polyCoords[i][1];
+      const xj = polyCoords[j][0], yj = polyCoords[j][1];
+      const intersect = ((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi + 1e-12) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
 
   //获取对应坐标地形高度
   createEllipse(gridSquare) {
@@ -1084,61 +1267,12 @@ class SlopeAspect {
     // 若启用潜力场寻路，优先使用全局 cost-to-go 场并按 potential 贪心跟随
     if (this.usePotentialFieldFlag && startx !== -1 && endx !== -1) {
       try {
-        const potential = this.computePotentialField({x: endx, y: endy});console.log('potential', potential);
-        const gridPath = this.followPotentialPath({x: startx, y: starty}, {x: endx, y: endy}, potential);
-        if (gridPath && gridPath.length > 1) {
-          // 绘制路径（与 A* 绘制逻辑一致）
-          const CrossPoints = [];
-          const pathPointEntities = [];
-          for (let i = 0; i < gridPath.length; i++) {
-            const pos = gridPath[i].Cartesian3Grid;
-            CrossPoints.push(pos);
-            const PathPoint = new Cesium.Entity({
-              id: 'slope_path_point' + this.pathLineNum + i,
-              position: pos,
-              point: {
-                pixelSize: 8,
-                color: Cesium.Color.fromCssColorString('#fdfdfdff'),
-                disableDepthTest: Number.POSITIVE_INFINITY,
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-              }
-            });
-            pathPointEntities.push(PathPoint);
-            this.viewer.entities.add(PathPoint);
-            PathPoint.isPath = true;
-          }
+        this.potentialField = this.computePotentialField({x: endx, y: endy});console.log('potentialField', this.potentialField);
 
-          const PathLine = new Cesium.Entity({
-            id: 'slope_path_line' + this.pathLineNum,
-            polyline: {
-              positions: CrossPoints,
-              width: 5,
-              material: new Cesium.Color(this.pathLineNum*0.1, 1 - this.pathLineNum*0.3, this.pathLineNum*0.4, 1),
-              clampToGround: true,
-            }
-          });
-          this.viewer.entities.add(PathLine);
-          PathLine.isPath = true;
-          var css = new Cesium.Color(this.pathLineNum*0.1, 1 - this.pathLineNum*0.3, this.pathLineNum*0.4, 1).toCssHexString();
-
-          const pathLineInfo = {
-            pathPointEntities: pathPointEntities,
-            pathLineEntity: PathLine,
-            pathLineNum: this.pathLineNum,
-            pathLineLength: gridPath.length,
-            pathLineColor: PathLine.polyline.material.color,
-            pathLineColorCss: css,
-            pathLineCostg: this.gWeight,
-            pathLineCosth: this.hWeight,
-          };
-          this.pathLineNum = (this.pathLineNum || 0) + 1;
-          this.pathLines.push(pathLineInfo);
-          try { this.pickPath(); } catch(e) {}
-          return;
-        }
       } catch (e) {
-        console.error('potential-field 路径失败，回退至 A*', e);
-        // 若潜力场失败，继续走原来的 A* 分支
+        console.error('预计算 potentialField 失败，回退到几何启发式', e);
+        console.log('this.potentialField', this.potentialField);
+        this.potentialField = null;
       }
     }
 
@@ -1259,54 +1393,13 @@ class SlopeAspect {
                   pathPoints.length + '，搜索时间：' + 
                   Math.round(endTime - startTime) + 'ms，搜索节点数：' + 
                   closeList.size);
-
+        
             // 绘制路径
-            const CrossPoints = [];
-            const pathPointEntities = [];
-            for(let i = 0; i < pathPoints.length; i++){
-              CrossPoints.push(pathPoints[i].Cartesian3Grid);
-              const PathPoint = new Cesium.Entity({
-                id: 'slope_path_point' + this.pathLineNum + i,
-                position: pathPoints[i].Cartesian3Grid,
-                point: {
-                  pixelSize: 8,
-                  color: Cesium.Color.fromCssColorString('#fdfdfdff'),
-                  disableDepthTest: Number.POSITIVE_INFINITY,
-                  heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                }
-              });
-              pathPointEntities.push(PathPoint);
-              this.viewer.entities.add(PathPoint);
-              PathPoint.isPath = true;
+            this.DrawPath(pathPoints);
+            if(this.drawCostMapFlag){
+              //绘制代价图
+              this.DrawCostMap();
             }
-
-            const PathLine = new Cesium.Entity({
-              id: 'slope_path_line' + this.pathLineNum,
-              polyline: {
-                  positions: CrossPoints,
-                  width: 5,//边界线宽
-                  material: new Cesium.Color(this.pathLineNum*0.1, 1 - this.pathLineNum*0.3, this.pathLineNum*0.4, 1), // 边界线颜色
-                  clampToGround: true,
-              }
-            })
-            viewer.entities.add(PathLine);
-            PathLine.isPath = true;
-            var css = new Cesium.Color(this.pathLineNum*0.1, 1 - this.pathLineNum*0.3, this.pathLineNum*0.4, 1).toCssHexString();
-
-            const pathLineInfo = {
-              pathPointEntities: pathPointEntities,
-              pathLineEntity: PathLine,
-              pathLineNum: this.pathLineNum,
-              pathLineLength: pathPoints.length,
-              pathLineColor: PathLine.polyline.material.color,
-              pathLineColorCss: css,
-              pathLineCostg: this.gWeight,
-              pathLineCosth: this.hWeight,
-            };
-            this.pathLineNum = (this.pathLineNum || 0) + 1;
-            console.log('新增路径，当前 pathLines 长度=', this.pathLines.length, 'next pathLineNum=', this.pathLineNum);
-            this.pathLines.push(pathLineInfo);
-            try { this.pickPath(); } catch (e) { /* ignore */ }
                        
             return;
         }
@@ -1327,7 +1420,16 @@ class SlopeAspect {
             const baseMoveCost = this.GetCost(current, neighbor);
             const turnPen = this.turningPenalty(current.parent, current, neighbor);
             const g = current.g + baseMoveCost + turnPen;
-            const h = this.Heuristic(neighbor, {x: endPoint.x, y: endPoint.y});  
+            //const h = this.Heuristic(neighbor, {x: endPoint.x, y: endPoint.y}); 
+            // 优先使用预计算的潜力场作为启发式（更贴近代价）
+            let h;
+            if (this.potentialField && this.potentialField[neighbor.x] && Number.isFinite(this.potentialField[neighbor.x][neighbor.y])) {
+              // 使用预计算的最小代价（从 neighbor 到目标的 cost-to-go）
+              h = this.potentialField[neighbor.x][neighbor.y];
+            } else {
+              // 回退：使用原始几何启发式
+              h = this.Heuristic(neighbor, {x: endPoint.x, y: endPoint.y});
+            } 
             const f = this.gWeight * g + this.hWeight * h;// 立即计算 f 并过滤异常/过大代价的节点，避免它们进入 openList
             // 参数：可调阈值，用于对f做约束，视你的数据量级调整（示例使用 1e6）
             const MAX_ACCEPTABLE_F = 1e6;
@@ -1362,6 +1464,8 @@ class SlopeAspect {
                 neighbor.f = f;
                 neighbor.parent = current;
                 openList.push(neighbor);// 将当前已处理路径节点的邻居节点都添加到openList
+
+                this.slopeCostGrid[neighbor.x][neighbor.y][5] = g; // 可视化当前节点g值
             }
         }
     }
@@ -1456,7 +1560,161 @@ class SlopeAspect {
     } 
   }
 
-  //构建多个格子多边形，相同颜色的格子放在同一数组下创建Instance
+  DrawPath(pathPoints) {
+    // 绘制路径
+    const CrossPoints = [];
+    const pathPointEntities = [];
+    for(let i = 0; i < pathPoints.length; i++){
+      CrossPoints.push(pathPoints[i].Cartesian3Grid);
+      const PathPoint = new Cesium.Entity({
+        id: 'slope_path_point' + this.pathLineNum + i,
+        position: pathPoints[i].Cartesian3Grid,
+        point: {
+          pixelSize: 8,
+          color: Cesium.Color.fromCssColorString('#fdfdfdff'),
+          disableDepthTest: Number.POSITIVE_INFINITY,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        }
+      });
+      pathPointEntities.push(PathPoint);
+      this.viewer.entities.add(PathPoint);
+      PathPoint.isPath = true;
+    }
+
+    const PathLine = new Cesium.Entity({
+      id: 'slope_path_line' + this.pathLineNum,
+      polyline: {
+          positions: CrossPoints,
+          width: 5,//边界线宽
+          material: new Cesium.Color(this.pathLineNum*0.1, 1 - this.pathLineNum*0.3, this.pathLineNum*0.4, 1), // 边界线颜色
+          clampToGround: true,
+      }
+    })
+    viewer.entities.add(PathLine);
+    PathLine.isPath = true;
+    var css = new Cesium.Color(this.pathLineNum*0.1, 1 - this.pathLineNum*0.3, this.pathLineNum*0.4, 1).toCssHexString();
+
+    const pathLineInfo = {
+      pathPointEntities: pathPointEntities,
+      pathLineEntity: PathLine,
+      pathLineNum: this.pathLineNum,
+      pathLineLength: pathPoints.length,
+      pathLineColor: PathLine.polyline.material.color,
+      pathLineColorCss: css,
+      pathLineCostg: this.gWeight,
+      pathLineCosth: this.hWeight,
+    };
+    this.pathLineNum = (this.pathLineNum || 0) + 1;
+    console.log('新增路径，当前 pathLines 长度=', this.pathLines.length, 'next pathLineNum=', this.pathLineNum);
+    this.pathLines.push(pathLineInfo);
+    try { this.pickPath(); } catch (e) { /* ignore */ }
+    
+    return;
+  }
+
+  //绘制通行代价图
+  DrawCostMap() {
+    // 1. 收集所有有效的 g 值（this.slopeCostGrid[i][j][5]）
+    const gValues = [];
+    for (let i = 0; i < this.slopeCostGrid.length; i++) {
+      for (let j = 0; j < this.slopeCostGrid[i].length; j++) {
+        const cell = this.slopeCostGrid[i][j];
+        if (cell && cell.length && typeof cell[5] === "number" && Number.isFinite(cell[5])) {
+          gValues.push(cell[5]);
+        }
+      }
+    }
+
+    if (gValues.length === 0) {
+      console.warn("没有可用的 g 值来绘制代价图");
+      return;
+    }
+
+    // 2. 可选：使用分位数截断以去掉极端异常值（防止极端值主导颜色映射）
+    // 如果想启用截断，取消注释下面两行并调整 pct（例如 0.02 表示去掉最低2%和最高2%）。
+    // const pct = 0.02;
+    // const [minG, maxG] = getPercentileRange(gValues, pct);
+
+    // 3. 直接使用最小/最大做归一化（未截断）
+    const minG = Math.min(...gValues);
+    const maxG = Math.max(...gValues);
+
+    // 防止除0（当所有值相等时）
+    const range = (maxG - minG) || 1e-9;
+
+    // 4. 遍历格子，按归一化值生成颜色并绘制面
+    // 先清理旧的 costPolygons（如果需要重复绘制时避免叠加）
+    this.costPolygons.forEach((p) => {
+      try { this.viewer.scene.primitives.remove(p.primitive); } catch (e) {}
+    });
+    this.costPolygons = [];
+
+    for (let i = 0; i < this.slopeCostGrid.length; i++) {
+      for (let j = 0; j < this.slopeCostGrid[i].length; j++) {
+        const cell = this.slopeCostGrid[i][j];
+        if (!cell || cell.length === 0) continue;
+        const g = cell[5];
+        if (typeof g !== "number" || !Number.isFinite(g)) continue;
+
+        // 归一化到 [0,1]
+        let t = (g - minG) / range;
+        // 可选：应用响应曲线（比如平方根）来增强低值对比： t = Math.sqrt(t);
+        // 可选：限制 t 的范围以减少极端颜色： t = Math.min(1, Math.max(0, t));
+
+        // 颜色插值：绿 -> 红 (r = t, g = 1 - t, b = 0)
+        const r = t;
+        const gcol = 1 - t;
+        const b = 0;
+        const alpha = 1.0;
+
+        const color = new Cesium.Color(r, gcol, b, alpha);
+
+        // 创建几何实例并绘制 GroundPrimitive（贴地）
+        const polygonInstance = new Cesium.GeometryInstance({
+          id: '通行代价：' + g.toFixed(4) + '  ' + i + '行' + j + '列',
+          geometry: new Cesium.PolygonGeometry({
+            polygonHierarchy: new Cesium.PolygonHierarchy(cell[4]),
+            height: 0,
+            vertexFormat: Cesium.MaterialAppearance.VERTEX_FORMAT,
+          }),
+        });
+
+        const material = new Cesium.Material({
+          fabric: {
+            type: "Color",
+            uniforms: {
+              color: color,
+            },
+          },
+        });
+        const appearance = new Cesium.MaterialAppearance({
+          material: material,
+          translucent: color.alpha < 1.0,
+          flat: true,
+        });
+        const primitive = new Cesium.GroundPrimitive({
+          geometryInstances: polygonInstance,
+          appearance: appearance,
+        });
+        this.viewer.scene.primitives.add(primitive);
+
+        // 保存用于后续调整（比如改变透明度）
+        this.costPolygons.push({
+          primitive: primitive,
+          positions: cell[4],
+          baseColor: color,
+          alpha: color.alpha,
+          rawG: g,
+          normG: t,
+        });
+      }
+    }
+
+    // 5. 输出调试信息
+    console.log("DrawCostMap: g 值范围", minG, maxG, "（count:", gValues.length, "）");
+  }
+
+  //绘制坡度坡向图，相同颜色的格子放在同一数组下创建Instance
   createPolygonInsrance(PosArray, colorHex, config) {
     //PosArray = aspect/slopePosArray[i]
     //const color = Cesium.Color.fromCssColorString(colorHex);
@@ -1518,54 +1776,6 @@ class SlopeAspect {
     return polygonInfo;
   }
 
-  //坡向箭头线绘制（目前用不上20250902）
-  // createArrowInstance(
-  //   targetPoint,
-  //   center,
-  //   diagonalPoint,
-  //   heightDifference,
-  //   curSlope
-  // ) {
-  //   let cartographic_0 = new Cesium.Cartographic(
-  //     (targetPoint.longitude + center.longitude) / 2,
-  //     (targetPoint.latitude + center.latitude) / 2,
-  //     (targetPoint.height + center.height) / 2
-  //   );
-  //   let cartographic_1 = new Cesium.Cartographic(
-  //     (diagonalPoint.longitude + center.longitude) / 2,
-  //     (diagonalPoint.latitude + center.latitude) / 2,
-  //     (diagonalPoint.height + center.height) / 2
-  //   );
-  //   //偏移的
-  //   let positions1 =
-  //     heightDifference > 0
-  //       ? [
-  //         Cesium.Cartographic.toCartesian(cartographic_0),
-  //         Cesium.Cartographic.toCartesian(cartographic_1),
-  //       ]
-  //       : [
-  //         Cesium.Cartographic.toCartesian(cartographic_1),
-  //         Cesium.Cartographic.toCartesian(cartographic_0),
-  //       ];
-  //   //箭头线
-  //   const instance = new Cesium.GeometryInstance({
-  //     id: {
-  //       type: "SlopeAspect",
-  //       value: curSlope,
-  //     },
-  //     geometry: new Cesium.GroundPolylineGeometry({
-  //       positions: positions1,
-  //       width: this.arrowWidth,
-  //     }),
-  //     attributes: {
-  //       color: Cesium.ColorGeometryInstanceAttribute.fromColor(
-  //         Cesium.Color.BLUE.withAlpha(0.6)
-  //       ),
-  //       show: new Cesium.ShowGeometryInstanceAttribute(true), //显示或者隐藏
-  //     },
-  //   });
-  //   return instance;
-  // }
   createArrowInstance(targetPoint, center, curAspect) {
     let positions1 = [Cesium.Cartographic.toCartesian(center), targetPoint];
 
@@ -1710,8 +1920,8 @@ class SlopeAspect {
       findLatitudeRange.push(fixedLat);
       let height = ellipse[0].height;
       let degreeCoordinate = [longitude,latitude,height];
-      // slopeCostArray存储格式：[Cartesian坐标，坡度值，经纬高坐标，坡度代价值]
-      this.slopeCostArray.push([Cesium.Cartographic.toCartesian(ellipse[0]), this.curSlope, degreeCoordinate, []]);//只存中心点
+      // slopeCostArray存储格式：[Cartesian坐标，坡度值，经纬高坐标，坡度代价值，单网格点数组，总代价值f]
+      this.slopeCostArray.push([Cesium.Cartographic.toCartesian(ellipse[0]), this.curSlope, degreeCoordinate, [], positions, []]);//只存中心点
 
       //this.slopePolygons.push(slopePolygonPrimitive);
       //this.slopeColor2 = Cesium.Color.fromCssColorString(slopeColor);
@@ -1736,7 +1946,7 @@ class SlopeAspect {
       //   this.curAspect
       // );
       // instances.push(arrowInstance);
-      /* 根据config选择
+      /* 根据config选择绘制箭头线还是坡度面
                 let config = this.config
                 // console.log(config);
                 if (config) {
@@ -1811,11 +2021,11 @@ class SlopeAspect {
     lonInterval = this.arrayMinMax(lonIntervalArray)[0];//找非0最小经度间隔
     latInterval = this.arrayMinMax(latIntervalArray)[0];//找非0最小纬度间隔
     lonX = Math.round(latRange / latInterval) + 1;//行列号（x为列号，y为行号）
-    latY = Math.round(longRange / lonInterval) + 1;console.log('lonX',lonX,'latY',latY);
+    latY = Math.round(longRange / lonInterval) + 1;
     
-    console.log('经度间隔',(lonIntervalArray));
-    console.log('纬度间隔',(latIntervalArray));
-    console.log('y网格数量',lonX,'x网格数量',latY);
+    // console.log('经度间隔',(lonIntervalArray));
+    // console.log('纬度间隔',(latIntervalArray));
+    // console.log('y网格数量',lonX,'x网格数量',latY);
 
     for(let i = 0; i < latY; i++){ //初始化二维网格
       this.slopeCostGrid[i] = [];
@@ -1858,8 +2068,9 @@ class SlopeAspect {
       lonJump++;
     }
     console.log('this.slopeCostGrid',this.slopeCostGrid);   
-
-    // for(let i = 0; i < latY; i++){ //用于测试，找出每个网格中心点 位置(二维数组版)
+    
+    //用于测试，找出每个网格中心点 位置(二维数组版)
+    // for(let i = 0; i < latY; i++){ 
     //   for(let j = 0; j < lonX; j++){
     //     const color1 = Cesium.Color.WHITE;
     //     const slopePoint = new Cesium.Entity({

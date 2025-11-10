@@ -351,6 +351,10 @@
                 <input id="clearAll" type="button" class="btn btn--primary" value="清除所有" />
                 <input id="GetSlopePath" type="button" class="btn btn--primary" value="获取坡度路径" />
                 <input id="ClearPath" type="button" class="btn btn--primary" value="清除路径" />
+                <!-- 新增：覆盖区绘制控制按钮 -->
+                <input id="drawRoadArea" type="button" class="btn btn--primary" value="绘制道路覆盖" />
+                <input id="drawWaterArea" type="button" class="btn btn--danger" value="绘制水域覆盖" />
+                <input id="clearOverrides" type="button" class="btn" value="清除覆盖" />
                 <!-- <input id="toggle" type="button" class="btn btn--primary" value="坡（度/向）切换" /> -->
             </div>
             
@@ -384,6 +388,10 @@
                 <label>
                     是否渲染坡度坡向：
                     <input type="checkbox" id="drawFlag" checked/>
+                </label>
+                <label>
+                    是否渲染通行代价图：
+                    <input type="checkbox" id="drawCostMap"/>
                 </label>
                 <label>
                     显示坡度：
@@ -855,7 +863,7 @@
                 <div class="label">文件地址：</div>
                 <div class="ctl">
                     <div class="input">
-                        <input type="text" id="loadDataUrl_text" class="loadDataUrl_text" placeholder="数据地址url" value="../data/DEM/yajiangxian_Tile_ctb/" />
+                        <input type="text" id="loadDataUrl_text" class="loadDataUrl_text" placeholder="数据地址url" value="./data/DEM/yajiangxian_Tile_ctb/" />
                     </div>
                 </div>
             </div>

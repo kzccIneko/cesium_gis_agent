@@ -293,22 +293,6 @@ var EventModel = {
         // 使实例对页面脚本可见
         window.SlopeAnalysis = SlopeAnalysis = new SlopeAspect(viewer);        
         
-        document.getElementById('slope-layer').addEventListener('change', function () {
-            SlopeAnalysis.slopeLayerVisibility();//坡度显示隐藏
-            if (document.getElementById('aspect-layer').checked) {
-                document.getElementById('aspect-layer').checked = false;
-                SlopeAnalysis.aspectLayerVisibility();
-            }
-        });
-        document.getElementById('aspect-layer').addEventListener('change', function () {
-            SlopeAnalysis.aspectLayerVisibility();//坡向显示隐藏
-            if (document.getElementById('slope-layer').checked) {
-                document.getElementById('slope-layer').checked = false;
-                SlopeAnalysis.slopeLayerVisibility();
-            }
-        });
-        
-        
         document.querySelector('#slopeByNum').addEventListener('click', () => {
             let config = 1
             let num = $("#Num").val();
@@ -378,16 +362,45 @@ var EventModel = {
             alpha.addEventListener('input', function () {
                 document.getElementById('SAalpha_val').innerText = alpha.value;
                 SlopeAnalysis.area_alpha = alpha.value; //可通过这个传递透明度参数
-                    
+    
                 SlopeAnalysis.updateAlpha(alpha.value);           
             })
         })
+
+        document.getElementById('slope-layer').addEventListener('change', function () {
+            SlopeAnalysis.slopeLayerVisibility();//坡度显示隐藏
+            if (document.getElementById('aspect-layer').checked) {
+                document.getElementById('aspect-layer').checked = false;
+                SlopeAnalysis.aspectLayerVisibility();
+            }
+        });
+        document.getElementById('aspect-layer').addEventListener('change', function () {
+            SlopeAnalysis.aspectLayerVisibility();//坡向显示隐藏
+            if (document.getElementById('slope-layer').checked) {
+                document.getElementById('slope-layer').checked = false;
+                SlopeAnalysis.slopeLayerVisibility();
+            }
+        });
 
         document.querySelector('#drawFlag').addEventListener('click', () => { 
                 SlopeAnalysis.drawFlag = !SlopeAnalysis.drawFlag;
                 document.getElementById('drawFlag').checked = SlopeAnalysis.drawFlag;
                 console.log(SlopeAnalysis.drawFlag);
         })// 是否渲染坡度坡向
+        document.getElementById('drawCostMap').addEventListener('change', function () {
+            let alpha = document.getElementById("SAalpha");
+
+            SlopeAnalysis.drawCostMapFlag = !SlopeAnalysis.drawCostMapFlag;
+            document.getElementById('drawCostMap').checked = SlopeAnalysis.drawCostMapFlag;
+            console.log(SlopeAnalysis.drawCostMapFlag);
+
+            alpha.addEventListener('input', function () {
+                document.getElementById('SAalpha_val').innerText = alpha.value;
+                SlopeAnalysis.area_alpha = alpha.value; //可通过这个传递透明度参数
+    
+                SlopeAnalysis.updateAlpha(alpha.value);           
+            })
+        })// 是否渲染通行代价图
 
         document.querySelector('#GetSlopePath').addEventListener('click', () => { 
             SlopeAnalysis.reFindPathFlag = true;    
@@ -410,6 +423,19 @@ var EventModel = {
             SlopeAnalysis.clearAll()
         })
 
+        // 覆盖区绘制与清除按钮绑定
+        document.getElementById('drawRoadArea').addEventListener('click', () => {
+        if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
+        window.SlopeAnalysis.startDrawOverride('road');
+        });
+        document.getElementById('drawWaterArea').addEventListener('click', () => {
+        if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
+        window.SlopeAnalysis.startDrawOverride('water');
+        });
+        document.getElementById('clearOverrides').addEventListener('click', () => {
+        if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
+        window.SlopeAnalysis.clearOverrideAreas();
+        });
 
 
     },
@@ -649,7 +675,7 @@ var EventModel = {
     },
     //加载三维模型
     load3Dtiles: function () {
-        let tileset = new Cesium.Cesium3DTileset({ url: '/data/3DTiles/white/tileset.json' });
+        let tileset = new Cesium.Cesium3DTileset({ url: './data/3DTiles/white/tileset.json' });
         viewer.scene.primitives.add(tileset);
         viewer.flyTo(tileset);
     },
