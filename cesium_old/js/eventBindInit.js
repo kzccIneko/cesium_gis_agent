@@ -387,24 +387,16 @@ var EventModel = {
                 document.getElementById('drawFlag').checked = SlopeAnalysis.drawFlag;
                 console.log(SlopeAnalysis.drawFlag);
         })// 是否渲染坡度坡向
-        document.getElementById('drawCostMap').addEventListener('change', function () {
-            let alpha = document.getElementById("SAalpha");
 
-            SlopeAnalysis.drawCostMapFlag = !SlopeAnalysis.drawCostMapFlag;
-            document.getElementById('drawCostMap').checked = SlopeAnalysis.drawCostMapFlag;
-            console.log(SlopeAnalysis.drawCostMapFlag);
-
-            alpha.addEventListener('input', function () {
-                document.getElementById('SAalpha_val').innerText = alpha.value;
-                SlopeAnalysis.area_alpha = alpha.value; //可通过这个传递透明度参数
-    
-                SlopeAnalysis.updateAlpha(alpha.value);           
-            })
-        })// 是否渲染通行代价图
 
         document.querySelector('#GetSlopePath').addEventListener('click', () => { 
-            SlopeAnalysis.reFindPathFlag = true;    
-            SlopeAnalysis.reFindPath();
+            if(SlopeAnalysis.slopeCostGrid.length == 0){
+                alert('请先生成坡度/坡向图层，再进行路径计算');
+            }
+            else{
+                SlopeAnalysis.reFindPathFlag = true;    
+                SlopeAnalysis.reFindPath();
+            }
         })
 
         document.querySelector('#ClearPath').addEventListener('click', () => { 
@@ -417,7 +409,12 @@ var EventModel = {
         document.querySelector('#keepStartEnd').addEventListener('change', () => {
             SlopeAnalysis.keepStartEndFlag = !SlopeAnalysis.keepStartEndFlag;
             document.querySelector('#keepStartEnd').checked = SlopeAnalysis.keepStartEndFlag;
-        })
+        })// 保持起点和终点
+
+        document.querySelector('#equTimeCost').addEventListener('click', () => {
+            SlopeAnalysis.equTimeCost = !SlopeAnalysis.equTimeCost;
+            document.querySelector('#equTimeCost').checked = SlopeAnalysis.equTimeCost;
+        })// 等效时间计算代价
 
         document.querySelector('#clearAll').addEventListener('click', () => {
             SlopeAnalysis.clearAll()

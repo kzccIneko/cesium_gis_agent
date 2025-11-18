@@ -332,10 +332,15 @@
                 <div class="input" style="width: 80px; background-color: none;">
                     <input type="text" required="required" id="gWeight" name="gWeight" value="1"/>
                 </div>
-                <label for="hWeight">&nbsp;&nbsp;&nbsp;&nbsp;h权重：</label>
+                <label for="hWeight">&nbsp;&nbsp;h权重：</label>
                 <div class="input" style="width: 80px; background-color: none;">
                     <input type="text" required="required" id="hWeight" name="hWeight" value="1"/>
                 </div>
+                <label for="carWeight">&nbsp;&nbsp;车重：
+                <div class="input" style="width: 80px; background-color: none;">
+                    <input type="text" required="required" id="carWeight" name="carWeight" value="1500"/>
+                </div>
+                /kg</label>
             </div>
                 
             <div class="row">
@@ -351,6 +356,8 @@
                 <input id="clearAll" type="button" class="btn btn--primary" value="清除所有" />
                 <input id="GetSlopePath" type="button" class="btn btn--primary" value="获取坡度路径" />
                 <input id="ClearPath" type="button" class="btn btn--primary" value="清除路径" />
+            </div>
+            <div class="row">
                 <!-- 新增：覆盖区绘制控制按钮 -->
                 <input id="drawRoadArea" type="button" class="btn btn--primary" value="绘制道路覆盖" />
                 <input id="drawWaterArea" type="button" class="btn btn--danger" value="绘制水域覆盖" />
@@ -390,8 +397,8 @@
                     <input type="checkbox" id="drawFlag" checked/>
                 </label>
                 <label>
-                    是否渲染通行代价图：
-                    <input type="checkbox" id="drawCostMap"/>
+                    等效时间计算代价：
+                    <input type="checkbox" id="equTimeCost" />
                 </label>
                 <label>
                     显示坡度：
@@ -405,7 +412,8 @@
                     保留起/终点？：
                     <input type="checkbox" id="keepStartEnd" />
                 </label>
-                <p>透明度设置:<span id = "SAalpha_val">1</span></p><!--"SA" means slope aspect:)-->
+
+                <p>透明度设置:<span id = "SAalpha_val">1</span></p> <!--"SA" means slope aspect:)-->
                 <div class="row">
                     <input type="range" id="SAalpha" min="0" max="1" step="0.005" value="1">
                 </div>
