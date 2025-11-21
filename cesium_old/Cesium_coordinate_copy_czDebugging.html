@@ -12,6 +12,8 @@
     <!--引入Cesium样式文件-->
     <link rel="stylesheet" href="libs/Cesium-1.93/Build/Cesium/Widgets/widgets.css" />
     <!-- <link rel="stylesheet" href="../Cesium-1.93\Apps\Sandcastle\templates\bucket.css"> -->
+    <!-- 添加 ECharts二维绘图 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
     <!-- 引入罗盘和geotiff控件(geo控件用不了)和TiffImageryProvider -->
     <script src="./libs/CesiumExtend/viewerCesiumNavigationMixin.min.js"></script>
     <script src="./node_modules/geotiff/dist-browser/geotiff.js"></script>
@@ -354,6 +356,10 @@
             </div>
             <div class="row">
                 <input id="clearAll" type="button" class="btn btn--primary" value="清除所有" />
+                <input id="ShowRoughness" type="button" class="btn btn--primary" value="陡峭度曲线" />
+                <input id="ShowRoughnessRate" type="button" class="btn btn--primary" value="陡峭度变化曲线" />                 
+            </div>
+            <div class="row"> 
                 <input id="GetSlopePath" type="button" class="btn btn--primary" value="获取坡度路径" />
                 <input id="ClearPath" type="button" class="btn btn--primary" value="清除路径" />
             </div>
@@ -1213,6 +1219,7 @@
 <script src="./libs/slope/CreatePolygonOnGround.js" defer></script>
 <script src="./libs/slope/SlopeAspect copy debug.js" defer></script>
 <script src="./libs/slope/SelectPathPannel.js" defer></script>
+<script src="./libs/slope/RoughAnalysis.js"></script>
 
 <!-- vue和element plus插件 -->
 <!-- 

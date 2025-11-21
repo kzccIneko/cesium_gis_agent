@@ -147,7 +147,6 @@ class SlopeAspect {
     this.slopePolygons = []; //存放坡度primitive
     this.aspectPolygons = []; //存放坡向primitive
     this.heightPolygons = []; //存放高度primitive
-    this.costPolygons = []; //存放通行代价primitive
     this.drawFlag = true; //是否渲染坡度坡向
 
     // 覆盖区支持：用户绘制的 road/water 覆盖区信息与可视实体缓存
@@ -156,6 +155,7 @@ class SlopeAspect {
 
     this.openList = []; //OPEN列表 每个openList用于找一次（一个）路径点，xyz信息，每个格子一个node，用于存储：1.已发现但尚未探索的节点 2.新发现的邻居节点（其实一个意思）
     this.closeList = new Set(); //记录已被访问过的节点，用set.has判断是否存在
+    this.pathPoints = [];// 路径点数据集合
     this.pathLines = []; //路径线Entity集合
     this.reFindPathFlag = false;//绘制路径
     this.clearPathFlag = false;//清除路径
@@ -213,14 +213,6 @@ class SlopeAspect {
       polygon.primitive.appearance.translucent = parseFloat(newAlpha) < 1;
     });
 
-    this.costPolygons.forEach((polygon) => {
-      polygon.alpha = parseFloat(newAlpha);
-
-      // 更新颜色透明度 - 使用MaterialAppearance方式
-      const newColor = polygon.baseColor.withAlpha(parseFloat(newAlpha));
-      polygon.primitive.appearance.material.uniforms.color = newColor;
-      polygon.primitive.appearance.translucent = parseFloat(newAlpha) < 1;
-    });
   }
 
   clearAll() {
@@ -240,11 +232,6 @@ class SlopeAspect {
       this.viewer.scene.primitives.remove(element.primitive);
     });
     this.aspectPolygons = [];
-
-    this.costPolygons.forEach((element) => {
-      this.viewer.scene.primitives.remove(element.primitive);
-    });
-    this.costPolygons = [];
     
     //删除所有点
     this.viewer.entities.removeAll();
@@ -257,6 +244,8 @@ class SlopeAspect {
     this.pathLines = [];
     this.keepStartPoint = null;
     this.keepEndPoint = null;
+    this.pathLineNum = 0;
+    this.pathPoints = [];
 
   }
 
@@ -276,6 +265,7 @@ class SlopeAspect {
 
     this.pathLineNum = 0;//清空多条路径
     this.pathLines = [];//清空路径信息
+    this.pathPoints = [];//清空路径点
     if (this.handler) {
       this.handler.destroy();
       this.handler = undefined;
@@ -296,11 +286,6 @@ class SlopeAspect {
       }
     });
     toRemove.forEach((ent) => this.viewer.entities.remove(ent));
-
-    this.costPolygons.forEach((element) => {
-      this.viewer.scene.primitives.remove(element.primitive);
-    });
-    this.costPolygons = [];//清除通行代价图
 
     
     if(this.reFindPathFlag){
@@ -328,14 +313,6 @@ class SlopeAspect {
       });
       //this.mapPrimitive2.show = !this.mapPrimitive2.show;
       console.log("aspectChange");
-    }
-  }
-  costMapLayerVisibility() {
-    if (this.costPolygons && this.costPolygons.length >= 2) {
-      this.costPolygons.forEach((element) => {
-        element.primitive.show = !element.primitive.show;
-      });
-      console.log("costMapChange");
     }
   }
 
@@ -389,9 +366,27 @@ class SlopeAspect {
     const showBtn = document.getElementById("pathShowBtn");
     const hideBtn = document.getElementById("pathHideBtn");
     if (showBtn) {
+      // 点击“显示”：除了显示对应路径实体外，同时把选中的路径传给 RoughAnalysis 绘制粗糙度曲线
       showBtn.onclick = () => {
         const selected = Array.from(sel.selectedOptions).map(o => o.value);
+        // 先按原有逻辑显示路径实体
         this._applyPathSelection(selected, true);
+
+        // 再绘制选中路径的粗糙度曲线（如果已加载 RoughAnalysis 和 echarts）
+        try {
+          // 把 option.value（pathLineNum）解析为数字索引数组
+          const indices = selected.map(v => Number(v)).filter(n => Number.isFinite(n));
+          if (indices.length === 0) return;
+
+          // 确保 RoughAnalysis 可用（脚本应已在页面中引入）
+          window._RoughAnalysisInstance = window._RoughAnalysisInstance || new RoughAnalysis();
+          // pathPoints：嵌套数组，this.pathPoints[i] 为第 i 条路径点数组
+          // pathLines：路径元信息数组，包含颜色等用于配色
+          window._RoughAnalysisInstance.showMultipleRoughness(indices, this.pathPoints, this.pathLines);
+        } catch (err) {
+          // 只打印错误，不影响原有路径显示功能
+          console.warn('绘制粗糙度曲线失败', err);
+        }
       };
     }
     if (hideBtn) {
@@ -523,7 +518,7 @@ class SlopeAspect {
         const currentNode = nodeFromGrid(cx, cy);
         let moveCost = 0;
         if(this.equTimeCost){
-          moveCost = this.CarWeightCost_GetCost(neighborNode, currentNode);
+          moveCost = this.CarWeightCost_GetCost(neighborNode, currentNode).totalT;
         }
         else{
           // 注意：GetCost(from,to) 计算 from->to 的代价，这里反向松弛用 neighbor->current
@@ -1068,10 +1063,11 @@ class SlopeAspect {
     //const G = 9.8;// 重力加速度
     //const DragF = this.carWeight * G;// 牵引力
     const Vc = current.v;// 当前速度
+    console.log('Vc2', Vc)
     //const a0 = DragF / this.carWeight;// 加速度
     const dx = Math.abs(current.x - end.x);
     const dy = Math.abs(current.y - end.y);
-    const S = Math.sqrt(dx * dx + dy * dy) * 10;// 当前点到终点距离
+    const S = Math.sqrt(dx * dx + dy * dy);// 当前点到终点距离
     //const T = -Vc + Math.sqrt(Vc*Vc + 2*a0*S) / a0;// 距离等效时间
     const T = S / Vc;// 距离等效时间
     return T;
@@ -1079,38 +1075,60 @@ class SlopeAspect {
   //上下坡转向等效时间
   CarWeightCost_GetCost(from, to){
     const G = 9.8;
-    const DragF = this.carWeight * G;// 牵引力
-    //const Vc = from.v;// 当前速度
-    const Vc = G * Math.sin((35 * Math.PI) / 180); //当前速度 = 最大坡度速度
-    const slopeAngle = from.slope;// 坡度角(角度)
-    const slopeAngle_Rad = (Number((from.slope + to.slope) / 2) || 0) * Math.PI / 180;// 坡度角(弧度)
-    const a0 = DragF / this.carWeight;// 牵引力加速度
+    const DragF = 0;// 牵引力
     const dx = Math.abs(from.x - to.x);
     const dy = Math.abs(from.y - to.y);
-    const S = Math.sqrt(dx * dx + dy * dy) * 10;// 当前点到下一点距离
+    //const S = Math.sqrt(dx * dx + dy * dy);// 当前点到下一点距离
+    const S = this.distance;
+    //const Vc = from.v;// 当前速度
+    const slopeAngle = to.slope;// 目标点坡度角(角度)
+    const slopeAngle_Rad = (Number(to.slope) || 0) * Math.PI / 180;// 目标点坡度角(弧度)
+    const a0 = DragF / this.carWeight;// 牵引力加速度
+    let Vc = Math.sqrt(2 * G*Math.sin(28 * (Math.PI / 180)) * S); //当前速度 = 最大坡度速度
 
     const ap = a0 - G * Math.sin(slopeAngle_Rad);// 坡度加速度
-    const slopeT = (Math.sqrt(Vc*Vc + 2*ap*S) - Vc) / ap;// 坡度分量等效时间
-
-    const atmax = 0.4*G; // 最大转向加速度（待验证和推导具体公式）
-    const turnAngle_Rad = to.turnAngle !== undefined ? ((to.turnAngle * Math.PI) / 180) : 0;// 转向角(弧度)
-    const k = Math.abs(2 * Math.tan(turnAngle_Rad / 2) / S);// 曲率
-    const Vtmax = Math.sqrt(atmax / k); // 最大转向速度
-
-    let SL = S; // 初始转向路程等于总路程
-    let Vn = Vc;// 下一节点速度
-    let turnT = 0;// 转向分量等效时间
-    if (Vtmax < Vc) { 
-      SL = S - Math.max(0, (Vtmax*Vtmax - Vc*Vc) / (2*ap)); // 转向路程
-      Vn = Vtmax;
-      turnT = Math.abs((Vtmax - Vc) / ap) + (Math.sqrt(Vtmax*Vtmax + 2*ap*SL) - Vtmax) / ap;// 转向分量等效时间
+    console.log('from', from, 'ap', ap, 'Vc1', Vc);
+    let slopeT = (Math.sqrt(Vc*Vc + 2*ap*S) - Vc) / ap / to.slopeCost;// 坡度分量等效时间
+    if(Number.isNaN(slopeT)){ slopeT = 999999; }
+    
+    let turnT = 0;
+    let R = S;// 转向半径（未达到速度限制，原速转弯）
+    if(this.usePotentialFieldFlag){
+      const turnAngle_Rad = to.turnAngle !== undefined ? ((to.turnAngle * Math.PI) / 180) : 0;
+      let SL = S * turnAngle_Rad;
+      turnT = SL / Vc;
     }
-    else{
-      Vn = Math.sqrt(Vc*Vc + 2*ap*SL); // 下一节点速度
+    else{ 
+      const atmax = G*Math.sin((28 - to.slope)*Math.PI / 180); // 最大转向加速度（坡度阈值-当前坡度算出来的重力加速度分量）
+      const turnAngle_Rad = to.turnAngle !== undefined ? ((to.turnAngle / 180) * Math.PI) : 0;// 转向角(弧度)
+      const k = Math.abs(2 * Math.tan(turnAngle_Rad / 2) / S) == 0 ? 1e-6 : Math.abs(2 * Math.tan(turnAngle_Rad / 2) / S);// 曲率
+      const Vtmax = Math.sqrt(atmax / k); // 最大转向速度
+      let SL = S * turnAngle_Rad; // 初始转向路程等于总路程
+      console.log('Vtmax', Vtmax, 'Vc', Vc);
+      if (Number.isFinite(Vtmax) && Vtmax < Vc && !Number.isNaN(Vtmax)) { 
+        //SL = S - Math.max(0, (Vtmax*Vtmax - Vc*Vc) / (2*ap)); // 转向路程
+        const SS =  Math.max(0, (Vtmax*Vtmax - Vc*Vc) / (2*atmax));
+        const TS = (Vtmax - Vc) / atmax;
+        Vc = Vtmax;
+        const ST = (to.turnAngle/180)*Math.PI*S - SS;
+        const TT = ST / Vc;
+          
+        //turnT = Math.abs((Vtmax - Vc) / ap) + (Math.sqrt(Vtmax*Vtmax + 2*ap*SL) - Vtmax) / ap;// 转向分量等效时间
+        turnT = TS + TT;  
+        console.log(111);
+      }
+      else{
+        turnT = SL / Vc;
+        // if(1 < to.turnAngle && to.turnAngle < 91){
+        //   turnT = SL / Vc;
+        // }
+        // else if(to.turnAngle < 1){ R = 0; turnT = 0; }
+        // else{R = 999999; turnT = 999999;}    
+      }
     }
     const totalT = slopeT + turnT;
-    
-    return { totalT, Vn };
+        console.log('Angle', to.turnAngle, 'R', R, '\nturnT', turnT, 'slopeT', slopeT, 'totalT', totalT);
+    return { slopeT, turnT, Vc };
   }
 
   Heuristic(a, b) {
@@ -1204,18 +1222,18 @@ class SlopeAspect {
     try{
       //循环遍历dirs找到中心像元邻域8个像元
       for (let [dx, dy] of dirs) {
-          nx = node.x + dx;
-          ny = node.y + dy;
-          
-          if (nx >= 0 && nx < xSize && ny >= 0 && ny < ySize && this.slopeCostGrid[nx][ny].length != 0) {
-              neighbors.push(new findPathNode(
-                nx, ny,// x, y
-                this.slopeCostGrid[nx][ny][2][2],// z
-                this.slopeCostGrid[nx][ny][0],// Cartesian3Grid
-                this.slopeCostGrid[nx][ny][3], // slopeCost
-                this.slopeCostGrid[nx][ny][1], // slope
-              ));
-          }
+        nx = node.x + dx;
+        ny = node.y + dy;
+        
+        if (nx >= 0 && nx < xSize && ny >= 0 && ny < ySize && this.slopeCostGrid[nx][ny].length != 0) {
+          neighbors.push(new findPathNode(
+            nx, ny,// x, y
+            this.slopeCostGrid[nx][ny][2][2],// z
+            this.slopeCostGrid[nx][ny][0],// Cartesian3Grid
+            this.slopeCostGrid[nx][ny][3], // slopeCost
+            this.slopeCostGrid[nx][ny][1], // slope
+          ));
+        }
       }     
       return neighbors;
     } 
@@ -1237,7 +1255,7 @@ class SlopeAspect {
     let starty = -1;
     let endx = -1;
     let endy = -1;
-    var pathPoints = []; //途径点(包含起点和终点)用于绘制
+    this.pathPoints[this.pathLineNum] = []; //途径点(包含起点和终点)用于绘制
     let openList = [];
     let closeList = new Set();
     let nodeInfoMap = new Map(); //节点信息
@@ -1247,9 +1265,9 @@ class SlopeAspect {
     
     // 初始化pathPoints i j , 在别的地方做了
     // for(let i = 0; i < this.slopeCostGrid.length-1; i++){
-    //   pathPoints[i] = [];
+    //   this.pathPoints[i] = [];
     //   for (let j = 0; j < this.slopeCostGrid[i].length-1; j++) {
-    //     pathPoints[i][j] = [];
+    //     this.pathPoints[i][j] = [];
     //   }
     // }
     
@@ -1333,24 +1351,14 @@ class SlopeAspect {
         }
         const current = openList[currentIndex];
         const currentKey = `${current.x},${current.y}`;
-        // if(current.parent === null){}
-        // else{
-        //   current.parent.turnAngle = current.turnAngle;
-        //   console.log('current', current, '\n current.turnAngle*******************',current.turnAngle);
-        // }// 不对！！！当前判断的总代价最小点不一定是路径点
 
         // 检查是否到达终点（当前节点是否为终点）
         if (current.x === endPoint.x && current.y === endPoint.y) {
             // 回溯路径
-            pathPoints = [];
+            this.pathPoints[this.pathLineNum] = [];
             let temp = current;
             while (temp) {
-              if(temp.parent === null){}
-              else{
-                temp.parent.turnAngle = temp.turnAngle;
-                console.log('current', current, '\n current.turnAngle*******************',current.turnAngle);
-              }
-              pathPoints.unshift({x: temp.x,
+              this.pathPoints[this.pathLineNum].unshift({x: temp.x,
                                   y: temp.y,
                                   z: temp.z,
                                   slopeCost: temp.slopeCost,
@@ -1364,10 +1372,25 @@ class SlopeAspect {
               });
               temp = temp.parent;// 通过父节点parent回溯路径
             }
-            const pathPoint1 = pathPoints[0];//路径点1
-            const pathPoint2 = pathPoints[1];//路径点2
-            const pathPoint3 = pathPoints[pathPoints.length-1];//路径点3
-            const pathPoint4 = pathPoints[pathPoints.length-2];//路径点4
+
+            if(this.equTimeCost){
+              // 把每个节点的转角“往前移一位”：node.turnAngle = nextNode.turnAngle
+              for (let i = 0; i < this.pathPoints[this.pathLineNum].length - 1; i++) {
+                const node = this.pathPoints[this.pathLineNum][i];
+                const next = this.pathPoints[this.pathLineNum][i + 1];
+                // console.log('node', node, 'next', next);
+                // 仅当 next 有候选角时回填到 node（即 node 离开时的真实转向）
+                if (!Number.isFinite(node.turnAngle)) {
+                  node.turnAngle = next.turnAngle;
+                  // console.log('node.turnAngle', node.turnAngle, 'next.turnAngle', next.turnAngle);
+                } 
+              }
+            }
+            
+            const pathPoint1 = this.pathPoints[this.pathLineNum][0];//路径点1
+            const pathPoint2 = this.pathPoints[this.pathLineNum][1];//路径点2
+            const pathPoint3 = this.pathPoints[this.pathLineNum][this.pathPoints[this.pathLineNum].length-1];//路径点3
+            const pathPoint4 = this.pathPoints[this.pathLineNum][this.pathPoints[this.pathLineNum].length-2];//路径点4
             const pathPoint1Carto = Cesium.Cartographic.fromCartesian(pathPoint1.Cartesian3Grid);//路径点1的经纬度
             const pathPoint2Carto = Cesium.Cartographic.fromCartesian(pathPoint2.Cartesian3Grid);//路径点2的经纬度
             const pathPoint3Carto = Cesium.Cartographic.fromCartesian(pathPoint3.Cartesian3Grid);//路径点3的经纬度
@@ -1430,23 +1453,23 @@ class SlopeAspect {
             }
             /******/
             if(S1direction != S2direction){
-              pathPoints.shift();//点击点的方向和路径点1、2的方向对比判断
+              this.pathPoints[this.pathLineNum].shift();//点击点的方向和路径点1、2的方向对比判断
             }
             if(E1direction != E2direction){
-              pathPoints.pop();//点击点的方向和路径点3、4的方向对比判断
+              this.pathPoints[this.pathLineNum].pop();//点击点的方向和路径点3、4的方向对比判断
             }
-            pathPoints.push({x: 0, y: 0, z: 0, Cartesian3Grid: endendPoint});
-            pathPoints.unshift({x: 0, y: 0, z: 0, Cartesian3Grid: startstartPoint});
-            console.log('pathPoints',pathPoints);
+            this.pathPoints[this.pathLineNum].push({x: 0, y: 0, z: 0, Cartesian3Grid: endendPoint});
+            this.pathPoints[this.pathLineNum].unshift({x: 0, y: 0, z: 0, Cartesian3Grid: startstartPoint});
+            console.log('this.pathPoints',this.pathPoints);
 
             const endTime = performance.now();
             console.log('找到路径！路径长度：' + 
-                  pathPoints.length + '，搜索时间：' + 
+                  this.pathPoints[this.pathLineNum].length + '，搜索时间：' + 
                   Math.round(endTime - startTime) + 'ms，搜索节点数：' + 
                   closeList.size);
         
             // 绘制路径
-            this.DrawPath(pathPoints);
+            this.DrawPath();
         
             return;
         }
@@ -1468,10 +1491,14 @@ class SlopeAspect {
             if(this.equTimeCost){ //等效时间计算代价
               // 计算转角（度），并保存到节点
               const turnAngleDeg = this.computeTurnAngle(current.parent, current, neighbor);
-              neighbor.turnAngle = turnAngleDeg; // 供可视或后续算法使用
-              const{ totalT, Vn } = this.CarWeightCost_GetCost(current, neighbor);
+              neighbor.turnAngle = turnAngleDeg; // 根据邻域即时计算的转角，不是最终路径的转角, 仅用于计算g值
+              const{ slopeT: slopeT, turnT: turnT, Vc: Vn } = this.CarWeightCost_GetCost(current, neighbor);
               neighbor.v = Vn; // 保存下一节点速度，供后续计算使用
-              g = current.g + (totalT / neighbor.slopeCost);
+
+              g = current.g + slopeT + turnT;
+              if(this.potentialField && this.potentialField[neighbor.x] && Number.isFinite(this.potentialField[neighbor.x][neighbor.y])){
+                h = this.potentialField[neighbor.x][neighbor.y];
+              }
               h = this.CarWeightCost_Heuristic(neighbor, endPoint);
               f = this.gWeight * g + this.hWeight * h;
             }
@@ -1483,11 +1510,9 @@ class SlopeAspect {
               //const h = this.Heuristic(neighbor, {x: endPoint.x, y: endPoint.y}); 
               // 优先使用预计算的潜力场作为启发式（更贴近代价）
               if (this.potentialField && this.potentialField[neighbor.x] && Number.isFinite(this.potentialField[neighbor.x][neighbor.y])) {
-                // 使用预计算的最小代价（从 neighbor 到目标的 cost-to-go）
-                h = this.potentialField[neighbor.x][neighbor.y];
+                h = this.potentialField[neighbor.x][neighbor.y];// 使用预计算的最小代价（从 neighbor 到目标的 cost-to-go）
               } else {
-                // 回退：使用原始几何启发式
-                h = this.Heuristic(neighbor, {x: endPoint.x, y: endPoint.y});
+                h = this.Heuristic(neighbor, endPoint);// 回退：使用原始几何启发式
               } 
               f = this.gWeight * g + this.hWeight * h;// 立即计算 f 并过滤异常/过大代价的节点，避免它们进入 openList
               // 参数：可调阈值，用于对f做约束，视你的数据量级调整（示例使用 1e6）
@@ -1524,18 +1549,14 @@ class SlopeAspect {
                 neighbor.f = f;
                 neighbor.parent = current;
                 openList.push(neighbor);// 将当前已处理路径节点的邻居节点都添加到openList
-
-                this.slopeCostGrid[neighbor.x][neighbor.y][5] = g; // 可视化当前节点g值
             }
         }
     }
 
     alert('未找到可行路径！');
 
-
-    console.log('pathPoint', pathPoints);
+    console.log('pathPoint', this.pathPoints);
     console.log('slopeCostGrid', this.slopeCostGrid);
-
   }
 
 
@@ -1620,15 +1641,15 @@ class SlopeAspect {
     } 
   }
 
-  DrawPath(pathPoints) {
+  DrawPath() {
     // 绘制路径
     const CrossPoints = [];
     const pathPointEntities = [];
-    for(let i = 0; i < pathPoints.length; i++){
-      CrossPoints.push(pathPoints[i].Cartesian3Grid);
+    for(let i = 0; i < this.pathPoints[this.pathLineNum].length; i++){
+      CrossPoints.push(this.pathPoints[this.pathLineNum][i].Cartesian3Grid);
       const PathPoint = new Cesium.Entity({
         id: 'slope_path_point' + this.pathLineNum + i,
-        position: pathPoints[i].Cartesian3Grid,
+        position: this.pathPoints[this.pathLineNum][i].Cartesian3Grid,
         point: {
           pixelSize: 8,
           color: Cesium.Color.fromCssColorString('#fdfdfdff'),
@@ -1658,7 +1679,7 @@ class SlopeAspect {
       pathPointEntities: pathPointEntities,
       pathLineEntity: PathLine,
       pathLineNum: this.pathLineNum,
-      pathLineLength: pathPoints.length,
+      pathLineLength: this.pathPoints[this.pathLineNum].length,
       pathLineColor: PathLine.polyline.material.color,
       pathLineColorCss: css,
       pathLineCostg: this.gWeight,
@@ -1882,15 +1903,14 @@ class SlopeAspect {
       findLatitudeRange.push(fixedLat);
       let height = ellipse[0].height;
       let degreeCoordinate = [longitude, latitude, height];
-      // slopeCostArray存储格式：[Cartesian坐标，坡度值，经纬高坐标，坡度代价值，单网格绘制9点数组，总代价值f，当前点速度v]
-      //                        [0            ,1     ,2         ,3         ,4               ,5         ,6          ]
+      // slopeCostArray存储格式：[Cartesian坐标，坡度值，经纬高坐标，坡度代价值，单网格绘制9点数组，]
+      //                        [0            ,1     ,2         ,3         ,4               ,         ]
       this.slopeCostArray.push([
         Cesium.Cartographic.toCartesian(ellipse[0]), //Cartesian坐标
-        this.curSlope, //坡度值
+        this.curSlope, //坡度值slope
         degreeCoordinate, //经纬高坐标
-        [], //坡度代价值
+        [], //坡度代价值slopeCost
         positions, //单网格绘制9点数组
-        [], //总代价值f
       ]); //只存中心点
 
       //this.slopePolygons.push(slopePolygonPrimitive);

@@ -422,18 +422,49 @@ var EventModel = {
 
         // 覆盖区绘制与清除按钮绑定
         document.getElementById('drawRoadArea').addEventListener('click', () => {
-        if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
-        window.SlopeAnalysis.startDrawOverride('road');
+            if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
+            window.SlopeAnalysis.startDrawOverride('road');
         });
         document.getElementById('drawWaterArea').addEventListener('click', () => {
-        if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
-        window.SlopeAnalysis.startDrawOverride('water');
+            if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
+            window.SlopeAnalysis.startDrawOverride('water');
         });
         document.getElementById('clearOverrides').addEventListener('click', () => {
-        if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
-        window.SlopeAnalysis.clearOverrideAreas();
+            if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
+            window.SlopeAnalysis.clearOverrideAreas();
         });
 
+        document.querySelector('#ShowRoughness')?.addEventListener('click', () => {
+            let pathLineNum = window.SlopeAnalysis.pathLineNum - 1;// 每一个当前pathLineNum都是为下一条将要绘制的县准备的，即对应数字是没数据的pathPoints
+            let pathPoints = window.SlopeAnalysis.pathPoints;
+
+           if (!window.SlopeAnalysis || !Array.isArray(pathPoints[pathLineNum]) || pathPoints[pathLineNum].length === 0) {
+               return alert('请先计算并绘制路径');
+           }
+           // 创建或复用 RoughAnalysis 实例（RoughAnalysis.js 需已被引入）
+           window._RoughAnalysisInstance = window._RoughAnalysisInstance || new RoughAnalysis();
+           // 仅把 this.pathPoints 传入（直接使用已有数据）
+           // window._RoughAnalysisInstance.showRoughnessChart(pathPoints[pathLineNum]);
+           const total = pathPoints.length;
+           const indices = Array.from({length: total}, (_, i) => i);
+           window._RoughAnalysisInstance.showMultipleRoughness(indices, pathPoints, window.SlopeAnalysis.pathLines);
+       });// 陡峭度分析绘制二维图
+
+       document.querySelector('#ShowRoughnessRate')?.addEventListener('click', () => {
+            let pathLineNum = window.SlopeAnalysis.pathLineNum - 1;// 每一个当前pathLineNum都是为下一条将要绘制的县准备的，即对应数字是没数据的pathPoints
+            let pathPoints = window.SlopeAnalysis.pathPoints;
+
+           if (!window.SlopeAnalysis || !Array.isArray(pathPoints[pathLineNum]) || pathPoints[pathLineNum].length === 0) {
+               return alert('请先计算并绘制路径');
+           }
+           // 创建或复用 RoughAnalysis 实例（RoughAnalysis.js 需已被引入）
+           window._RoughAnalysisInstance = window._RoughAnalysisInstance || new RoughAnalysis();
+           // 仅把 this.pathPoints 传入（直接使用已有数据）
+           // window._RoughAnalysisInstance.showRoughnessChart(pathPoints[pathLineNum]);
+           const total = pathPoints.length;
+           const indices = Array.from({length: total}, (_, i) => i);
+           window._RoughAnalysisInstance.showMultipleRoughnessRate(indices, pathPoints, window.SlopeAnalysis.pathLines);
+       });// 陡峭度变化分析绘制二维图
 
     },
     //坐标定位
