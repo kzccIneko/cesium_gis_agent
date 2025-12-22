@@ -55,7 +55,7 @@
   function updateButtonState() {
     const sa = window.SlopeAnalysis;
     if (!sa) {
-      btn.textContent = ' 反向搜索：未初始化';
+      btn.textContent = ' 反向搜索：关闭';
       btn.className = 'btn';
       return;
     }
@@ -67,7 +67,7 @@
   // 切换处理：切换标志
   btn.addEventListener('click', () => {
     if (!window.SlopeAnalysis) {
-      alert('SlopeAnalysis 未就绪，请稍后重试');
+      alert('请先进行地形分析');
       return;
     }
     const sa = window.SlopeAnalysis;

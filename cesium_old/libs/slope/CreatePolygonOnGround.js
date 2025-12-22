@@ -20,21 +20,48 @@ const CreatePolygonOnGround = function (viewer, resultList, options, callback) {
   let id = options.id || setSessionid(); //Polygon的id
   if (viewer.entities.getById(id))
     throw new Error("the id parameter is an unique value");
+
+    // 清理之前可能存在的绘制实体
+  try {
+    // 移除之前可能创建的boxLinePolygon实体
+    if (viewer.entities.getById('boxLinePolygon')) {
+      viewer.entities.removeById('boxLinePolygon');
+    }
+    
+    // 移除之前可能创建的临时多边形实体
+    if (viewer.entities.getById(id)) {
+      viewer.entities.removeById(id);
+    }
+  } catch (e) {
+    console.warn("Warning: Failed to remove previous entities:", e);
+  }
+
+  // 如果存在之前创建的多边形相关的handler，则销毁它
+  if (SlopeAnalysis.handler) {
+    try {
+      SlopeAnalysis.handler.destroy();
+    } catch (e) {
+      console.warn("Failed to destroy previous handler:", e);
+    }
+  }
+
   let color = options.color || Cesium.Color.RED; //Polygon的填充色
   let outlineColor = options.outlineColor || color.withAlpha(1); //Polygon的轮廓线颜色
   let outlineWidth = options.outlineWidth || 2; //Polygon的轮廓线宽度
-  const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
-  let toolTip = "左键点击开始绘制";
+  let handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+  SlopeAnalysis.handler = handler;
+  let toolTip = "左键点击开始绘制, 右键取消";
   let anchorpoints = [];
   let polygon = undefined;
   let boxLinePolygon = undefined;
   let drawStatus = true;
+
   handler.setInputAction(function (event) {
     let pixPos = event.position;
     let cartesian = getCatesian3FromPX(viewer, pixPos);
     if (anchorpoints.length == 0) 
     {
-      toolTip = "左键添加第二个点";
+      toolTip = "左键添加点，Ctrl+Z回退，右键完成绘制";
       anchorpoints.push(cartesian);
       let linePoints = new Cesium.CallbackProperty(function () {
         let verPoints = anchorpoints.concat([anchorpoints[0]]);
@@ -93,8 +120,16 @@ const CreatePolygonOnGround = function (viewer, resultList, options, callback) {
   }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
   handler.setInputAction(function (event) {
     anchorpoints.pop();
-    polygon.pottingPoint = anchorpoints;
-    resultList.push(polygon);
+    if (anchorpoints.length < 3) {
+      viewer.entities.removeAll();
+      handler.destroy();
+      drawStatus = false;
+      showNotification("请至少添加三个点");
+    }
+    if (anchorpoints.length >= 3 && Cesium.defined(polygon)) {
+      polygon.pottingPoint = anchorpoints;
+      resultList.push(polygon);
+    }
     handler.destroy();
     CreateRemindertip(toolTip, event.position, false);
     drawStatus = false;
@@ -108,7 +143,7 @@ const CreatePolygonOnGround = function (viewer, resultList, options, callback) {
       }
       anchorpoints.pop();
       if (anchorpoints.length == 2) {
-        toolTip = "左键添加第二个点";
+        toolTip = "左键添加点，Ctrl+Z回退，右键完成绘制";
       }
     }
   };
@@ -217,3 +252,31 @@ function setSessionid(num) {
   return pwd;
 }
 // export default CreatePolygonOnGround;
+
+// 自定义通知函数，非阻塞式提示，代替alert（alert可能会导致鼠标状态丢失）
+function showNotification(message) {
+  // 创建通知元素
+  const notification = document.createElement('div');
+  notification.innerText = message;
+  notification.style.cssText = `
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    z-index: 10000;
+    font-family: Arial, sans-serif;
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // x秒后自动移除通知
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification);
+    }
+  }, 4000);
+}

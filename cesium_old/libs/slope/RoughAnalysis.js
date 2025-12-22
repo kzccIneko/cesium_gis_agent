@@ -9,6 +9,9 @@
   function RoughAnalysis() {
     this._lastResults = null; // 缓存最近一次计算结果
     this.lastRoughness = null;// 保存上一点陡峭度
+    this.lastHeight = null;   // 保存上一点高度
+    this.roughnessRates = [];// 保存所有路径所有点的陡峭度变化率
+    this.heightRates = [];// 保存所有路径所有点的高度变化率
   }
 
   /**
@@ -104,12 +107,18 @@
       const roughnessRate = Math.abs((roughness - this.lastRoughness) / delta);
       this.lastRoughness = roughness;// 保存当前陡峭度给下一轮用
 
+      //高程变化量
+      const heightRate = (centerH - this.lastHeight) / delta;
+      this.lastHeight = centerH;// 保存当前高度给下一轮用
+
       results.push({
-        distance: cumulativeDistance, // 累计行驶距离（m）
+        distance: cumulativeDistance,  // 累计行驶距离（m）
+        height: centerH,               // 当前点高度（m）
+        heightRate: heightRate,        // 高度变化率（m/m）
         roughness: roughness,         // 陡峭度（相对无量纲值）
-        roughnessRate: roughnessRate,// 陡峭度变化
+        roughnessRate: roughnessRate, // 陡峭度变化
         H_mapped: H_mapped,           // 调试用映射后 9 值
-        nodeIndex: i,
+        nodeIndex: i,                 // 当前节点索引
         nodeX: node.x, nodeY: node.y
       });
     }
@@ -124,34 +133,15 @@
    * showMultipleRoughness(indices, pathCollection, pathLines)
    * - 在同一张图上绘制多条路径的“距离 vs 粗糙度”曲线
    * - indices: 数组，pathCollection 中待绘制路径的索引
-   * - pathCollection: 嵌套数组，pathCollection[i] 为第 i 条路径的点数组（每点含 Cartesian3Grid 或 z）
+   * - pathCollection: 嵌套数组，pathCollection[i] 为第 i 条路径的点数组（每点含 Cartesian3Grid 或 z），文件中为SlopeAnalysis.pathPoints
    * - pathLines: 路径元信息数组（用于取颜色/name），可选
    */
-    RoughAnalysis.prototype.showMultipleRoughness = function (indices, pathCollection, pathLines) {
+RoughAnalysis.prototype.showMultipleRoughness = function (indices, pathCollection, pathLines) {
         if (!Array.isArray(indices) || indices.length === 0) return alert('请先选择要显示的路径');
         if (!Array.isArray(pathCollection) || pathCollection.length === 0) return alert('没有路径数据可用');
-
         // 准备图表容器（与单条曲线逻辑一致）
         let container = document.getElementById('roughnessChartContainer');
         if (!container) {
-            //   const panel = document.createElement('div');
-            //   panel.id = 'roughnessChartPanel';
-            //   panel.style.position = 'absolute';
-            //   panel.style.right = '12px';
-            //   panel.style.top = '120px';
-            //   panel.style.width = '720px';
-            //   panel.style.height = '420px';
-            //   panel.style.background = '#fff';
-            //   panel.style.border = '1px solid #ccc';
-            //   panel.style.zIndex = 99999;
-            //   panel.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)';
-            //   panel.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid #eee;">' +
-            //                     '<div style="font-weight:600">陡峭度曲线 (距离 vs 陡峭度) — 多路径</div>' +
-            //                     '<div><button id="closeRoughChartBtn">关闭</button></div></div>' +
-            //                     '<div id="roughnessChartContainer" style="width:100%;height:calc(100% - 40px);"></div>';
-            //   document.body.appendChild(panel);
-            //   container = document.getElementById('roughnessChartContainer');
-            //   document.getElementById('closeRoughChartBtn').onclick = function () { panel.remove(); };
             const panel = document.createElement('div');
             panel.id = 'roughnessChartPanel';
             panel.style.position = 'absolute';
@@ -163,7 +153,7 @@
             panel.style.border = '1px solid #ccc';
             panel.style.zIndex = 99999;
             panel.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)';
-            panel.style.resize = 'both';
+            panel.style.resize = 'both';// 原改变窗口大小方法，只能拖拽右下角
             panel.style.overflow = 'hidden';
 
             panel.innerHTML = ''
@@ -171,7 +161,11 @@
             +      '<div style="font-weight:600">陡峭度曲线 (距离 ： 陡峭度) — 多路径</div>'
             +      '<div><button id="closeRoughChartBtn">关闭</button></div>'
             +    '</div>'
-            +    '<div id="roughnessChartContainer" style="width:100%;height:calc(100% - 40px);overflow:auto;"></div>';
+            +    '<div id="roughnessChartContainer" style="width:100%;height:calc(100% - 40px);overflow:auto;"></div>'
+            +    '<div id="resize-top" style="position:absolute;top:0;left:0;right:0;height:5px;cursor:n-resize;z-index:10;background:transparent;"></div>'
+            +    '<div id="resize-right" style="position:absolute;right:0;top:0;bottom:0;width:5px;cursor:e-resize;z-index:10;background:transparent;"></div>'
+            +    '<div id="resize-bottom" style="position:absolute;bottom:0;left:0;right:0;height:5px;cursor:s-resize;z-index:10;background:transparent;"></div>'
+            +    '<div id="resize-left" style="position:absolute;left:0;top:0;bottom:0;width:5px;cursor:w-resize;z-index:10;background:transparent;"></div>';
             document.body.appendChild(panel);
             container = document.getElementById('roughnessChartContainer');
             const closeBtnMulti = document.getElementById('closeRoughChartBtn');
@@ -199,6 +193,82 @@
                     window.addEventListener('mouseup', endDrag);
                 }
             })(panel, 'roughMultiHeader');
+
+            // 四边拖拽调整大小功能
+            (function makeResizable(p) {
+              const resizeElements = {      //见panel.innerHTML中对应id
+                top: document.getElementById('resize-top'),
+                right: document.getElementById('resize-right'),
+                bottom: document.getElementById('resize-bottom'),
+                left: document.getElementById('resize-left')
+              };
+
+              // 最小窗口尺寸
+              const minWidth = 300;
+              const minHeight = 200;
+
+              // 各个方向的拖拽处理
+              Object.keys(resizeElements).forEach(dir => {
+                const el = resizeElements[dir];
+                if (!el) return;
+
+                el.addEventListener('mousedown', function (e) {
+                  e.preventDefault();
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const startWidth = parseInt(document.defaultView.getComputedStyle(p).width, 10);
+                  const startHeight = parseInt(document.defaultView.getComputedStyle(p).height, 10);
+                  const startLeft = p.offsetLeft;
+                  const startTop = p.offsetTop;
+
+                  function doDrag(e) {
+                    switch (dir) {
+                      case 'top':
+                        const dy = startY - e.clientY;
+                        const newHeight = startHeight + dy;
+                        if (newHeight >= minHeight) {
+                          p.style.height = newHeight + 'px';
+                          p.style.top = (startTop - dy) + 'px';
+                        }
+                        break;
+                      case 'right':
+                        const dx = e.clientX - startX;
+                        const newWidth = startWidth + dx;
+                        if (newWidth >= minWidth) {
+                          p.style.width = newWidth + 'px';
+                        }
+                        break;
+                      case 'bottom':
+                        const dy2 = e.clientY - startY;
+                        const newHeight2 = startHeight + dy2;
+                        if (newHeight2 >= minHeight) {
+                          p.style.height = newHeight2 + 'px';
+                        }
+                        break;
+                      case 'left':
+                        const dx2 = startX - e.clientX;
+                        const newWidth2 = startWidth + dx2;
+                        if (newWidth2 >= minWidth) {
+                          p.style.width = newWidth2 + 'px';
+                          p.style.left = (startLeft - dx2) + 'px';
+                        }
+                        break;
+                    }
+
+                    // 触发图表重绘
+                    window.dispatchEvent(new Event('resize'));
+                  }
+
+                  function stopDrag() {
+                    document.documentElement.removeEventListener('mousemove', doDrag, false);
+                    document.documentElement.removeEventListener('mouseup', stopDrag, false);
+                  }
+
+                  document.documentElement.addEventListener('mousemove', doDrag, false);
+                  document.documentElement.addEventListener('mouseup', stopDrag, false);
+                });
+              });
+            })(panel);
         }
 
     const series = [];
@@ -209,7 +279,8 @@
       if (!Number.isFinite(idx) || !pathCollection[idx] || pathCollection[idx].length === 0) continue;
       const seq = this.analyzePathRoughness(pathCollection[idx]);
       if (!seq || seq.length === 0) continue;
-      const data = seq.map(d => [Number(d.distance.toFixed(2)), Number(d.roughness.toFixed(6))]);
+      const seqForChart = (seq.length > 2) ? seq.slice(1, -1) : seq;// 去掉首1尾1点后再映射为图表数据（如果长度 <=2 则保留全部）
+      const data = seqForChart.map(d => [Number(d.distance.toFixed(2)), Number(d.roughness.toFixed(6)), Number(d.nodeIndex)]);// 图表中折线各点数据
 
       // 尝试从 pathLines 取颜色
       let color = null;
@@ -233,7 +304,7 @@
         name: name,
         type: 'line',
         data: data,
-        showSymbol: false,
+        showSymbol: true,// 显示数据圆圈点
         smooth: false,
         lineStyle: { width: 2, color: color },
         itemStyle: { color: color }
@@ -246,7 +317,7 @@
     try { chart = echarts.init(container); } catch (e) { return alert('ECharts 未加载'); }
     const option = {
       title: { text: '行驶距离 ： 陡峭度', left: 'center', textStyle: { fontSize: 12 } },
-      tooltip: { trigger: 'axis', formatter: params => params.map(p => `${p.seriesName}: 距离 ${p.value[0]} m, 陡峭度 ${p.value[1]}`).join('<br/>') },
+      tooltip: { trigger: 'axis', formatter: params => params.map(p => `${p.seriesName}: 点 ${p.value[2]}, 距离 ${p.value[0]} m, 陡峭度 ${p.value[1]}`).join('<br/>') },
       legend: { data: legendNames, top: 30, left: '20%' },
       grid: { left: '8%', right: '6%', top: 60, bottom: '12%' },
       xAxis: { type: 'value', name: '行驶距离 (m)', nameLocation: 'middle', nameGap: 25 },
@@ -301,18 +372,22 @@ RoughAnalysis.prototype.showMultipleRoughnessRate = function (indices, pathColle
             panel.style.border = '1px solid #ccc';
             panel.style.zIndex = 99999;
             panel.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)';
-            panel.style.resize = 'both';
+            panel.style.resize = 'both';// 原调节窗口大小功能，只能右下角拖拽调节
             panel.style.overflow = 'hidden';
 
             panel.innerHTML = ''
             +    '<div id="roughRateMultiHeader" style="height:40px;display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid #eee;cursor:move;background:#fafafa;">'
             +      '<div style="font-weight:600">陡峭度变化曲线 (距离 ： 陡峭度变化) — 多路径</div>'
-            +      '<div><button id="closeRoughRateChartBtn">关闭</button></div>'
+            +      '<div><button id="closeroughRateChartBtn">关闭</button></div>'
             +    '</div>'
-            +    '<div id="roughnessRateChartContainer" style="width:100%;height:calc(100% - 40px);overflow:auto;"></div>';
+            +    '<div id="roughnessRateChartContainer" style="width:100%;height:calc(100% - 40px);overflow:auto;"></div>'
+            +    '<div id="resize-rate-top" style="position:absolute;top:0;left:0;right:0;height:5px;cursor:n-resize;z-index:10;background:transparent;"></div>'
+            +    '<div id="resize-rate-right" style="position:absolute;right:0;top:0;bottom:0;width:5px;cursor:e-resize;z-index:10;background:transparent;"></div>'
+            +    '<div id="resize-rate-bottom" style="position:absolute;bottom:0;left:0;right:0;height:5px;cursor:s-resize;z-index:10;background:transparent;"></div>'
+            +    '<div id="resize-rate-left" style="position:absolute;left:0;top:0;bottom:0;width:5px;cursor:w-resize;z-index:10;background:transparent;"></div>';
             document.body.appendChild(panel);
             container = document.getElementById('roughnessRateChartContainer');
-            const closeBtnMulti = document.getElementById('closeRoughRateChartBtn');
+            const closeBtnMulti = document.getElementById('closeroughRateChartBtn');
             if (closeBtnMulti) closeBtnMulti.onclick = function () { panel.remove(); };
 
             // 可拖拽头部
@@ -337,6 +412,102 @@ RoughAnalysis.prototype.showMultipleRoughnessRate = function (indices, pathColle
                     window.addEventListener('mouseup', endDrag);
                 }
             })(panel, 'roughRateMultiHeader');
+
+          // 四边拖拽调整大小功能
+          (function makeResizable(p) {
+            const resizeElements = {      //见panel.innerHTML中对应id
+              top: document.getElementById('resize-rate-top'),
+              right: document.getElementById('resize-rate-right'),
+              bottom: document.getElementById('resize-rate-bottom'),
+              left: document.getElementById('resize-rate-left')
+            };
+
+            // 最小窗口尺寸
+            const minWidth = 300;
+            const minHeight = 200;
+
+            // 检查是否有resize元素
+            let hasResizableElements = false;
+            Object.keys(resizeElements).forEach(dir => {
+              if (resizeElements[dir]) hasResizableElements = true;
+            });
+
+            if (!hasResizableElements) return;
+
+            // 各个方向的拖拽处理
+            Object.keys(resizeElements).forEach(dir => {
+              const el = resizeElements[dir];
+              if (!el) return;
+
+              el.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const startWidth = parseInt(document.defaultView.getComputedStyle(p).width, 10);
+                const startHeight = parseInt(document.defaultView.getComputedStyle(p).height, 10);
+                const startLeft = p.offsetLeft;
+                const startTop = p.offsetTop;
+
+                function doDrag(e) {
+                  switch (dir) {
+                    case 'top':
+                      const dy = startY - e.clientY;
+                      const newHeight = startHeight + dy;
+                      if (newHeight >= minHeight) {
+                        p.style.height = newHeight + 'px';
+                        p.style.top = (startTop - dy) + 'px';
+                      }
+                      break;
+                    case 'right':
+                      const dx = e.clientX - startX;
+                      const newWidth = startWidth + dx;
+                      if (newWidth >= minWidth) {
+                        p.style.width = newWidth + 'px';
+                      }
+                      break;
+                    case 'bottom':
+                      const dy2 = e.clientY - startY;
+                      const newHeight2 = startHeight + dy2;
+                      if (newHeight2 >= minHeight) {
+                        p.style.height = newHeight2 + 'px';
+                      }
+                      break;
+                    case 'left':
+                      const dx2 = startX - e.clientX;
+                      const newWidth2 = startWidth + dx2;
+                      if (newWidth2 >= minWidth) {
+                        p.style.width = newWidth2 + 'px';
+                        p.style.left = (startLeft - dx2) + 'px';
+                      }
+                      break;
+                  }
+
+                  // 触发图表重绘
+                  try {
+                    if (window._roughRateCharts && window._roughRateCharts.length > 0) {
+                      const chartObj = window._roughRateCharts.find(c => c.container === container);
+                      if (chartObj && chartObj.chart) {
+                        chartObj.chart.resize({
+                          width: container.clientWidth,
+                          height: container.clientHeight
+                        });
+                      }
+                    }
+                  } catch (e) {
+                    console.warn('图表resize失败:', e);
+                  }
+                }
+
+                function stopDrag() {
+                  document.documentElement.removeEventListener('mousemove', doDrag, false);
+                  document.documentElement.removeEventListener('mouseup', stopDrag, false);
+                }
+
+                document.documentElement.addEventListener('mousemove', doDrag, false);
+                document.documentElement.addEventListener('mouseup', stopDrag, false);
+              });
+            });
+          })(panel);
         }
 
     const series = [];
@@ -347,7 +518,9 @@ RoughAnalysis.prototype.showMultipleRoughnessRate = function (indices, pathColle
       if (!Number.isFinite(idx) || !pathCollection[idx] || pathCollection[idx].length === 0) continue;
       const seq = this.analyzePathRoughness(pathCollection[idx]);
       if (!seq || seq.length === 0) continue;
-      const data = seq.map(d => [Number(d.distance.toFixed(2)), Number(d.roughnessRate.toFixed(6))]);
+      const seqForChart = (seq.length > 3) ? seq.slice(2, -1) : seq;// 去掉首2尾1点后再映射为图表数据（如果长度 <=2 则保留全部）
+      const data = seqForChart.map(d => [Number(d.distance.toFixed(2)), Number(d.roughnessRate.toFixed(6)), Number(d.nodeIndex)]);// 图表中折线各点数据
+      this.roughnessRates[idx] = seqForChart.map(d => d.roughnessRate);//用于计算最值和均值
 
       // 尝试从 pathLines 取颜色
       let color = null;
@@ -371,11 +544,16 @@ RoughAnalysis.prototype.showMultipleRoughnessRate = function (indices, pathColle
         name: name,
         type: 'line',
         data: data,
-        showSymbol: false,
+        showSymbol: true,
         smooth: false,
         lineStyle: { width: 2, color: color },
         itemStyle: { color: color }
       });
+
+      const roughnessRateMax = Math.max(...this.roughnessRates[idx].flat());
+      console.log('idx', idx, 'roughnessRateMax', roughnessRateMax);
+      const roughnessRateAvg = this.roughnessRates[idx].flat().reduce((a, b) => a + b, 0) / this.roughnessRates[idx].flat().length;
+      console.log('idx', idx, 'roughnessRateAvg', roughnessRateAvg);
     }
 
     if (series.length === 0) return alert('所选路径无有效陡峭度变化数据');
@@ -384,11 +562,253 @@ RoughAnalysis.prototype.showMultipleRoughnessRate = function (indices, pathColle
     try { chart = echarts.init(container); } catch (e) { return alert('ECharts 未加载'); }
     const option = {
       title: { text: '行驶距离 ： 陡峭度变化', left: 'center', textStyle: { fontSize: 12 } },
-      tooltip: { trigger: 'axis', formatter: params => params.map(p => `${p.seriesName}: 距离 ${p.value[0]} m, 陡峭度变化 ${p.value[1]}`).join('<br/>') },
+      tooltip: { trigger: 'axis', formatter: params => params.map(p => `${p.seriesName}: 点 ${p.value[2]}, 距离 ${p.value[0]} m, 陡峭度变化 ${p.value[1]}`).join('<br/>') },
       legend: { data: legendNames, top: 30, left: '20%' },
       grid: { left: '8%', right: '6%', top: 60, bottom: '12%' },
       xAxis: { type: 'value', name: '行驶距离 (m)', nameLocation: 'middle', nameGap: 25 },
       yAxis: { type: 'value', name: '陡峭度变化 (m)', nameLocation: 'middle', nameGap: 30 },
+      series: series
+    };
+    chart.setOption(option);
+    //window.addEventListener('resize', () => { try { chart.resize(); } catch(e){} });
+     // 图表resize处理函数
+    function handleChartResize() {
+        try {
+            // 强制重新计算图表尺寸，让图标尺寸适配窗口大小
+            chart.resize({
+                width: container.clientWidth,
+                height: container.clientHeight
+            });
+        } catch (e) {
+            console.warn('图表resize失败:', e);
+        }
+    }
+    
+    // 监听窗口resize事件
+    window.addEventListener('resize', handleChartResize);
+    
+    // 监听容器元素的resize事件（使用ResizeObserver API如果支持）
+    // if (window.ResizeObserver) {
+    //     const resizeObserver = new ResizeObserver(handleChartResize);
+    //     resizeObserver.observe(container);
+    // }
+    try {
+      if (typeof window.ResizeObserver === 'function' && container) {
+        const resizeObserver = new ResizeObserver(handleChartResize);
+        // 观察 container（若 container 为 null，observe 会抛错，故已检查）
+        resizeObserver.observe(container);
+        // 如果面板存在，把 observer 存到 panel 上，关闭面板时可以断开观察
+        if (typeof panel !== 'undefined' && panel && panel.nodeType === 1) {
+          panel._resizeObserver = resizeObserver;
+        } else {
+          // 备份到全局数组，防止找不到 panel
+          window._roughResizeObservers = window._roughResizeObservers || [];
+          window._roughResizeObservers.push(resizeObserver);
+        }
+      }
+    } catch (e) {
+      console.warn('RoughAnalysis: ResizeObserver 注册失败或发生异常：', e);
+    }
+    
+    // 保存图表实例引用，以便外部可以访问
+    if (!window._roughRateCharts) window._roughRateCharts = [];
+    window._roughRateCharts.push({ chart, container, resize: handleChartResize });
+    };
+ 
+
+RoughAnalysis.prototype.showMultipleHeightRate = function (indices, pathCollection, pathLines) {
+        if (!Array.isArray(indices) || indices.length === 0) return alert('请先选择要显示的路径');
+        if (!Array.isArray(pathCollection) || pathCollection.length === 0) return alert('没有路径数据可用');
+        // 准备图表容器（与单条曲线逻辑一致）
+        let container = document.getElementById('heightRateChartContainer');
+        if (!container) {
+            const panel = document.createElement('div');
+            panel.id = 'heightRateChartPanel';
+            panel.style.position = 'absolute';
+            panel.style.left = 'calc(50% - 360px)';
+            panel.style.top = '120px';
+            panel.style.width = '720px';
+            panel.style.height = '420px';
+            panel.style.background = '#fff';
+            panel.style.border = '1px solid #ccc';
+            panel.style.zIndex = 99999;
+            panel.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)';
+            panel.style.resize = 'both';// 原改变窗口大小方法，只能拖拽右下角
+            panel.style.overflow = 'hidden';
+
+            panel.innerHTML = ''
+            +    '<div id="heightRateMultiHeader" style="height:40px;display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid #eee;cursor:move;background:#fafafa;">'
+            +      '<div style="font-weight:600">高程变化率曲线 (距离 ： 高程变化率) — 多路径</div>'
+            +      '<div><button id="closeheightRateChartBtn">关闭</button></div>'
+            +    '</div>'
+            +    '<div id="heightRateChartContainer" style="width:100%;height:calc(100% - 40px);overflow:auto;"></div>'
+            +    '<div id="resize-heightRate-top" style="position:absolute;top:0;left:0;right:0;height:5px;cursor:n-resize;z-index:10;background:transparent;"></div>'
+            +    '<div id="resize-heightRate-right" style="position:absolute;right:0;top:0;bottom:0;width:5px;cursor:e-resize;z-index:10;background:transparent;"></div>'
+            +    '<div id="resize-heightRate-bottom" style="position:absolute;bottom:0;left:0;right:0;height:5px;cursor:s-resize;z-index:10;background:transparent;"></div>'
+            +    '<div id="resize-heightRate-left" style="position:absolute;left:0;top:0;bottom:0;width:5px;cursor:w-resize;z-index:10;background:transparent;"></div>';
+            document.body.appendChild(panel);
+            container = document.getElementById('heightRateChartContainer');
+            const closeBtnMulti = document.getElementById('closeheightRateChartBtn');
+            if (closeBtnMulti) closeBtnMulti.onclick = function () { panel.remove(); };
+
+            // 可拖拽头部
+            (function makeDraggable(p, headerId) {
+                const header = document.getElementById(headerId);
+                if (!header) return;
+                header.addEventListener('mousedown', startDrag);
+                function startDrag(e) {
+                    e.preventDefault();
+                    const rect = p.getBoundingClientRect();
+                    const offsetX = e.clientX - rect.left;
+                    const offsetY = e.clientY - rect.top;
+                    function onMove(ev) {
+                        p.style.left = Math.max(0, ev.clientX - offsetX) + 'px';
+                        p.style.top = Math.max(0, ev.clientY - offsetY) + 'px';
+                    }
+                    function endDrag() {
+                        window.removeEventListener('mousemove', onMove);
+                        window.removeEventListener('mouseup', endDrag);
+                    }
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', endDrag);
+                }
+            })(panel, 'heightRateMultiHeader');
+
+            // 四边拖拽调整大小功能
+            (function makeResizable(p) {
+              const resizeElements = {      //见panel.innerHTML中对应id
+                top: document.getElementById('resize-heightRate-top'),
+                right: document.getElementById('resize-heightRate-right'),
+                bottom: document.getElementById('resize-heightRate-bottom'),
+                left: document.getElementById('resize-heightRate-left')
+              };
+
+              // 最小窗口尺寸
+              const minWidth = 300;
+              const minHeight = 200;
+
+              // 各个方向的拖拽处理
+              Object.keys(resizeElements).forEach(dir => {
+                const el = resizeElements[dir];
+                if (!el) return;
+
+                el.addEventListener('mousedown', function (e) {
+                  e.preventDefault();
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const startWidth = parseInt(document.defaultView.getComputedStyle(p).width, 10);
+                  const startHeight = parseInt(document.defaultView.getComputedStyle(p).height, 10);
+                  const startLeft = p.offsetLeft;
+                  const startTop = p.offsetTop;
+
+                  function doDrag(e) {
+                    switch (dir) {
+                      case 'top':
+                        const dy = startY - e.clientY;
+                        const newHeight = startHeight + dy;
+                        if (newHeight >= minHeight) {
+                          p.style.height = newHeight + 'px';
+                          p.style.top = (startTop - dy) + 'px';
+                        }
+                        break;
+                      case 'right':
+                        const dx = e.clientX - startX;
+                        const newWidth = startWidth + dx;
+                        if (newWidth >= minWidth) {
+                          p.style.width = newWidth + 'px';
+                        }
+                        break;
+                      case 'bottom':
+                        const dy2 = e.clientY - startY;
+                        const newHeight2 = startHeight + dy2;
+                        if (newHeight2 >= minHeight) {
+                          p.style.height = newHeight2 + 'px';
+                        }
+                        break;
+                      case 'left':
+                        const dx2 = startX - e.clientX;
+                        const newWidth2 = startWidth + dx2;
+                        if (newWidth2 >= minWidth) {
+                          p.style.width = newWidth2 + 'px';
+                          p.style.left = (startLeft - dx2) + 'px';
+                        }
+                        break;
+                    }
+
+                    // 触发图表重绘
+                    window.dispatchEvent(new Event('resize'));
+                  }
+
+                  function stopDrag() {
+                    document.documentElement.removeEventListener('mousemove', doDrag, false);
+                    document.documentElement.removeEventListener('mouseup', stopDrag, false);
+                  }
+
+                  document.documentElement.addEventListener('mousemove', doDrag, false);
+                  document.documentElement.addEventListener('mouseup', stopDrag, false);
+                });
+              });
+            })(panel);
+        }
+
+    const series = [];
+    const legendNames = [];
+    const palette = ['#ff5722','#2196f3','#4caf50','#9c27b0','#ff9800','#03a9f4','#8bc34a','#e91e63','#607d8b'];
+
+    for (let idx of indices) {
+      if (!Number.isFinite(idx) || !pathCollection[idx] || pathCollection[idx].length === 0) continue;
+      const seq = this.analyzePathRoughness(pathCollection[idx]);
+      if (!seq || seq.length === 0) continue;
+      const seqForChart = (seq.length > 3) ? seq.slice(2, -1) : seq;// 去掉首2尾1点后再映射为图表数据（如果长度 <=2 则保留全部）
+      const data = seqForChart.map(d => [Number(d.distance.toFixed(2)), Number(d.heightRate.toFixed(6)), Number(d.nodeIndex)]);// 图表中折线各点数据
+      this.heightRates[idx] = seqForChart.map(d => Math.abs(d.heightRate));//用于计算最值和均值
+
+      // 尝试从 pathLines 取颜色
+      let color = null;
+      try {
+        if (Array.isArray(pathLines) && pathLines[idx]) {
+          const pl = pathLines[idx];
+          if (pl.pathLineColorCss) color = pl.pathLineColorCss;
+          else if (pl.colorStr) color = pl.colorStr;
+          else if (pl.name && pl.color) color = pl.color;
+          else if (pl.polyline && pl.polyline.material && pl.polyline.material.color && pl.polyline.material.color._value) {
+            const cc = pl.polyline.material.color._value;
+            color = `rgba(${Math.round(cc.red*255)},${Math.round(cc.green*255)},${Math.round(cc.blue*255)},${cc.alpha})`;
+          }
+        }
+      } catch (e) { color = null; }
+      if (!color) color = palette[idx % palette.length];
+
+      const name = (pathLines && pathLines[idx] && pathLines[idx].name) ? pathLines[idx].name : `路径 ${idx}`;
+      legendNames.push(name);
+      series.push({
+        name: name,
+        type: 'line',
+        data: data,
+        showSymbol: true,// 显示数据圆圈点
+        smooth: false,
+        lineStyle: { width: 2, color: color },
+        itemStyle: { color: color }
+      });
+
+      const heightRateMax = Math.max(...this.heightRates[idx].flat());// 绝对值最大值
+      console.log('idx', idx, 'heightRateMax', heightRateMax);
+      const heightRateAvg = this.heightRates[idx].flat().reduce((a, b) => a + b, 0) / this.heightRates[idx].flat().length;// 绝对值平均值
+      console.log('idx', idx, 'heightRateAvg', heightRateAvg);
+    }
+    
+
+    if (series.length === 0) return alert('所选路径无有效高程变化数据');
+
+    let chart;
+    try { chart = echarts.init(container); } catch (e) { return alert('ECharts 未加载'); }
+    const option = {
+      title: { text: '行驶距离 ： 高程变化率', left: 'center', textStyle: { fontSize: 12 } },
+      tooltip: { trigger: 'axis', formatter: params => params.map(p => `${p.seriesName}: 点 ${p.value[2]}, 距离 ${p.value[0]} m, 高程变化率 ${p.value[1]}`).join('<br/>') },
+      legend: { data: legendNames, top: 30, left: '20%' },
+      grid: { left: '8%', right: '6%', top: 60, bottom: '12%' },
+      xAxis: { type: 'value', name: '行驶距离 (m)', nameLocation: 'middle', nameGap: 25 },
+      yAxis: { type: 'value', name: '高程变化率', nameLocation: 'middle', nameGap: 30 },
       series: series
     };
     chart.setOption(option);
@@ -416,11 +836,13 @@ RoughAnalysis.prototype.showMultipleRoughnessRate = function (indices, pathColle
     }
     
     // 保存图表实例引用，以便外部可以访问
-    if (!window._roughRateCharts) window._roughRateCharts = [];
-    window._roughRateCharts.push({ chart, container, resize: handleChartResize });
-    };
- 
+    if (!window._roughCharts) window._roughCharts = [];
+    window._roughCharts.push({ chart, container, resize: handleChartResize });
+};
+
+    // 正确暴露到全局作用域
   global.RoughAnalysis = RoughAnalysis;
+
 })(window);
 
 

@@ -344,7 +344,71 @@
                 </div>
                 /kg</label>
             </div>
-                
+            <div class="row"> 
+                <label for="DragF">牵引力：
+                <div class="input" style="width: 80px; background-color: none;">
+                    <input type="text" required="required" id="DragF" name="DragF" value="2250"/>
+                </div>
+                /N</label>
+            </div>
+            <div class="row">
+                <label for="valleyThresholdRatio">山谷线阈值比例：</label>
+                <div class="input" style="width: 80px; background-color: none;">
+                    <input type="text" required="required" id="valleyThresholdRatio" name="valleyThresholdRatio" value="0.5"/>
+                </div>
+                <label for="ridgeThresholdRatio">山脊线阈值比例：</label>
+                <div class="input" style="width: 80px; background-color: none;">
+                    <input type="text" required="required" id="ridgeThresholdRatio" name="ridgeThresholdRatio" value="0.5"/>
+                </div>
+            </div>
+
+            <div class="row">
+                邻域搜索方式：
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;路径分析曲线图：
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;寻路方法选择：
+                <div class="ctl">
+                    <div class="input">
+                        <select class="GetNeighborMethod_select">
+                            <option value="8Neighbor" style="color: black;">8邻域</option>
+                            <option value="5Neighbor" style="color: black;">5邻域</option>
+                        </select>
+                    </div>
+                    <div class="input">
+                        <select class="PathAnalysisChart_select">
+                            <option value="ShowRoughness" style="color: black;">陡峭度曲线</option>
+                            <option value="ShowRoughnessRate" style="color: black;">陡峭度变化曲线</option>
+                            <option value="ShowHeightRate" style="color: black;">高程变化率曲线</option>
+                        </select>
+                    </div>
+                    <div class="input">
+                        <select class="PathPlanningMethod_select">
+                            <option value="OriginA*" style="color: black;">原始A*</option>
+                            <option value="equTimeCost_BaseDragF" style="color: black;">固定牵引力等效时间</option>
+                            <option value="OriginRRT" style="color: black;">原始RRT</option>
+                            <option value="equTimeCost_BaseV" style="color: rgb(95, 95, 95);" disabled>固定速度等效时间</option>
+                        </select>
+                    </div>
+                </div>
+            </div> 
+
+            <div class="row"> 
+                <label for="Weight1">权重1：</label>
+                <div class="input" style="width: 80px; background-color: none;">
+                    <input type="text" required="required" id="Weight1" name="Weight1" value="5"/>
+                </div>
+                <label for="Weight2">权重2：</label>
+                <div class="input" style="width: 80px; background-color: none;">
+                    <input type="text" required="required" id="Weight2" name="Weight2" value="5"/>
+                </div>
+                <label for="Weight3">权重3：</label>
+                <div class="input" style="width: 80px; background-color: none;">
+                    <input type="text" required="required" id="Weight3" name="Weight3" value="5"/>
+                </div>
+                <input id="ShowAHP" type="button" class="btn btn--primary" value="AHP综合分析" />
+                <input id="Ridge_Valley_Analysis" type="button" class="btn btn--primary" value="山脊山谷线提取" />
+            </div>
+
+
             <div class="row">
                 <!--<input id="drawPolygon" type="button" class="layui-btn layui-btn-sm layui-btn-normal" value="绘制多边形"/>-->
                 <input id="slopeByNum" type="button" class="btn btn--primary" value="坡度分析-等分处理" disabled/>
@@ -356,35 +420,36 @@
             </div>
             <div class="row">
                 <input id="clearAll" type="button" class="btn btn--primary" value="清除所有" />
-                <input id="ShowRoughness" type="button" class="btn btn--primary" value="陡峭度曲线" />
-                <input id="ShowRoughnessRate" type="button" class="btn btn--primary" value="陡峭度变化曲线" />                 
+                <label> &nbsp;&nbsp;保留起/终点？：
+                    <input type="checkbox" id="keepStartEnd" />
+                </label>                
             </div>
-            <div class="row"> 
+            <div class="row" style="position: relative;"> 
                 <input id="GetSlopePath" type="button" class="btn btn--primary" value="获取坡度路径" />
                 <input id="ClearPath" type="button" class="btn btn--primary" value="清除路径" />
+                <button id="pathListToggleBtn" class="btn btn--primary">路径列表</button><!-- 路径可视化控制：点击按钮打开浮动面板 -->
+                <!-- 浮动面板：默认隐藏 (顶部加换行提供间隙) -->
+                <p> </p>
+                <div id="pathListPanel" style="width: 330px; z-index:9999; display:none; background: rgba(11, 28, 55, 0.4); border:1px solid #ccc; padding-left:8px; padding-bottom: 0px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+                    <div v-html="text" style="display:flex; align-items:center;">
+                        <select id="pathListSelect" multiple size="6" style="min-width:220px;"></select>
+                        <div style="display:inline-block;vertical-align:top;margin-left:8px;">
+                        <button id="pathShowBtn" class="btn btn--primary" style="display:block;margin: 6px;">显示</button>
+                        <button id="pathHideBtn" class="btn btn--danger" style="display:block;margin: 6px;">隐藏</button>
+                        <button id="pathCloseBtn" class="btn btn--primary" style="display:block;margin: 6px;">关闭</button>
+                        </div>
+                    </div>
+                </div>
             </div>
+            
+            
+
             <div class="row">
                 <!-- 新增：覆盖区绘制控制按钮 -->
                 <input id="drawRoadArea" type="button" class="btn btn--primary" value="绘制道路覆盖" />
                 <input id="drawWaterArea" type="button" class="btn btn--danger" value="绘制水域覆盖" />
                 <input id="clearOverrides" type="button" class="btn" value="清除覆盖" />
                 <!-- <input id="toggle" type="button" class="btn btn--primary" value="坡（度/向）切换" /> -->
-            </div>
-            
-            <!-- 路径可视化控制：点击按钮打开浮动面板 -->
-            <div class="row" style="margin-top:8px;">
-              <button id="pathListToggleBtn" class="btn btn--primary">路径列表</button>
-            </div>
-            <!-- 浮动面板：默认隐藏 -->
-            <div id="pathListPanel" style="position:absolute; z-index:9999; display:none; background:#fff; border:1px solid #ccc; padding:8px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-              <div v-html="text" style="display:flex; align-items:center;">
-                <select id="pathListSelect" multiple size="6" style="min-width:220px;"></select>
-                <div style="display:inline-block;vertical-align:top;margin-left:8px;">
-                  <button id="pathShowBtn" class="btn btn--primary" style="display:block;margin-bottom:6px;">显示</button>
-                  <button id="pathHideBtn" class="btn btn--danger" style="display:block;margin-bottom:6px;">隐藏</button>
-                  <button id="pathCloseBtn" class="btn" style="display:block;">关闭</button>
-                </div>
-              </div>
             </div>
 
             <!-- 反向寻路开关按钮 -->
@@ -403,10 +468,6 @@
                     <input type="checkbox" id="drawFlag" checked/>
                 </label>
                 <label>
-                    等效时间计算代价：
-                    <input type="checkbox" id="equTimeCost" />
-                </label>
-                <label>
                     显示坡度：
                     <input type="checkbox" id="slope-layer" />
                 </label>
@@ -415,8 +476,8 @@
                     <input type="checkbox" id="aspect-layer" /> <!--不加 checked 默认不勾选-->
                 </label>
                 <label>
-                    保留起/终点？：
-                    <input type="checkbox" id="keepStartEnd" />
+                    显示代价：
+                    <input type="checkbox" id="cost-layer" />
                 </label>
 
                 <p>透明度设置:<span id = "SAalpha_val">1</span></p> <!--"SA" means slope aspect:)-->
@@ -859,19 +920,12 @@
             <div class="form-row">
                 <div class="label">添加文件：</div>
                     <div class="upload-area" id="uploadArea">
-                            <p>拖拽文件到此处上传</p>
-                            <p>或</p>
-                            <button class="btn" id="selectButton">选择文件</button>
+                            <p>点击选择文件</p>
+                            <p>或拖拽文件到此处上传</p>
                         <input type="file" id="fileInput" class="file-input" multiple>
                     </div>
                                   
             </div>     
-            
-            <div class="form-row">   
-                <div class="file-info" id="fileInfo">
-                    <div id="fileList" class="file-list"></div>
-                </div>  
-            </div>
 
             <div class="form-row">
                 <div class="label">文件地址：</div>
@@ -879,6 +933,10 @@
                     <div class="input">
                         <input type="text" id="loadDataUrl_text" class="loadDataUrl_text" placeholder="数据地址url" value="./data/DEM/yajiangxian_Tile_ctb/" />
                     </div>
+                    <label>
+                    手动输入坐标：
+                    <input type="checkbox" id="ManuallyInput" checked/>
+                </label>
                 </div>
             </div>
 
@@ -980,77 +1038,45 @@
             <img src="img/modal/close.png" title="关闭" />
         </span>
     </div>
-    <div class="content">
-        <div class="container-fluid">
+    <div class="content" style="height: auto;">
             <div class="row flex">
-                <!-- <div class="col-xs-2">
-                    <input type="checkbox" value="toolbar" checked />
+                <div style="margin: 8px;">地图阴影
+                    <input style="margin: 0;" type="checkbox" value="mapShadows" />
                 </div>
-                <div class="col-xs-4">工具条</div> -->
-                
+
+                <div style="margin: 8px;">全屏显示
+                    <input style="margin: 0;" type="checkbox" value="fullscreen-controls" checked />
+                </div>
+
+                <div style="margin: 8px;">罗盘
+                    <input style="margin: 0;" type="checkbox" value="compass" checked />
+                </div>
+
+                <div style="margin: 8px;">导航控件
+                    <input style="margin: 0;" type="checkbox" value="navigation-controls" checked />
+                </div>
+
+                <div style="margin: 8px;">比例尺
+                    <input style="margin: 0;" type="checkbox" value="distance-legend" checked />
+                </div>
             </div>
-        </div>
-        <div class="container-fluid">
-            <div class="row flex">
-                <div class="col-xs-2">
-                    <input type="checkbox" value="mapShadows" />
-                </div>
-                <div class="col-xs-4">地图阴影</div>
 
-                <!-- <div class="col-xs-2">
-                    <input type="checkbox" value="mousePosition" />
-                </div>
-                <div class="col-xs-4">鼠标位置</div> -->
-
-                <!-- <div class="col-xs-2">
-                    <input type="checkbox" value="waterMap" />
-                </div>
-                <div class="col-xs-4">水体效果</div> -->
-
-                <div class="col-xs-2">
-                    <input type="checkbox" value="compass" checked />
-                </div>
-                <div class="col-xs-4">罗盘</div>
-            </div>
-        </div>
-        <div class="container-fluid">
-            <div class="row flex">
-                <div class="col-xs-2">
-                    <input type="checkbox" value="navigation-controls" checked />
-                </div>
-                <div class="col-xs-4">导航控件</div>
-
-                <div class="col-xs-2">
-                    <input type="checkbox" value="distance-legend" checked />
-                </div>
-                <div class="col-xs-4">比例尺</div>
-            </div>
-        </div>
-        <div class="container-fluid">
+        <!-- <div class="form-row">
             <div class="row flex">              
                 <div class="col-xs-2">
-                    <input type="checkbox" value="fullscreen-controls" checked />
-                </div>
-                <div class="col-xs-4">全屏显示</div>
-                <!-- <div class="col-xs-2">
                     <input type="checkbox" value="time-controls" checked />
                 </div>
-                <div class="col-xs-4">时间轴</div> -->
+                <div class="col-xs-4">时间轴</div>               
+                <div class="col-xs-2">
+                    <input type="checkbox" value="waterMap" />
+                </div>
+                <div class="col-xs-4">水体效果</div>
+                <div class="col-xs-2">
+                    <input type="checkbox" value="toolbar" checked />
+                </div>
+                <div class="col-xs-4">工具条</div>
             </div>
-        </div>
-        <!-- <div class="container-fluid">
-           <div class="row flex">
-             <div class="col-xs-2">
-               <input type="checkbox" value="VRButton" />
-             </div>
-             <div class="col-xs-4">开启VR</div>
-
-             <div class="col-xs-2">
-               <input type="checkbox" value="waterMap" />
-             </div>
-             <div class="col-xs-4">水体效果</div>
-           </div>
-         </div>-->
+        </div> -->
     </div>
 </div>
 <!--********************************************************鼠标位置窗口***************************-->
@@ -1218,6 +1244,7 @@
 <script src="./libs/slope/ReminderTip.js" defer></script>
 <script src="./libs/slope/CreatePolygonOnGround.js" defer></script>
 <script src="./libs/slope/SlopeAspect copy debug.js" defer></script>
+<script src="./libs/slope/PathPlanning_RRT.js" defer></script>
 <script src="./libs/slope/SelectPathPannel.js" defer></script>
 <script src="./libs/slope/RoughAnalysis.js"></script>
 

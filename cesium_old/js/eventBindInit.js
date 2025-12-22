@@ -291,7 +291,7 @@ var EventModel = {
         $('#slopeWindow').css('display', 'block');
 /*AAA这里注释掉了一段内容，放在末尾*/ 
         // 使实例对页面脚本可见
-        window.SlopeAnalysis = SlopeAnalysis = new SlopeAspect(viewer);        
+        window.SlopeAnalysis = SlopeAnalysis = new SlopeAspect(viewer); 
         
         document.querySelector('#slopeByNum').addEventListener('click', () => {
             let config = 1
@@ -301,7 +301,7 @@ var EventModel = {
             SlopeAnalysis.clearAll()
             document.getElementById('slope-layer').checked = true
             document.getElementById('aspect-layer').checked = false
-            SlopeAnalysis.createNew4Num(num, config)//分割网格横纵轴数量
+            SlopeAnalysis.createNew4Num(num, config)//等分分割网格横纵轴数量
 
             alpha.addEventListener('input', function () {
                 document.getElementById('SAalpha_val').innerText = alpha.value;
@@ -321,7 +321,7 @@ var EventModel = {
             SlopeAnalysis.clearAll()
             document.getElementById('slope-layer').checked = true
             document.getElementById('aspect-layer').checked = false
-            SlopeAnalysis.createNew4Distance(distance, config)//网格划分分辨率
+            SlopeAnalysis.createNew4Distance(distance, config)//等距分割网格划分分辨率
 
             alpha.addEventListener('input', function () {
                 document.getElementById('SAalpha_val').innerText = alpha.value;
@@ -397,45 +397,96 @@ var EventModel = {
                 SlopeAnalysis.reFindPathFlag = true;    
                 SlopeAnalysis.reFindPath();
             }
-        })
+        });// 计算+绘制路径
 
         document.querySelector('#ClearPath').addEventListener('click', () => { 
             SlopeAnalysis.reFindPathFlag = false; 
             SlopeAnalysis.clearPathFlag = true;   
             SlopeAnalysis.reFindPath();
             SlopeAnalysis.clearPathFlag = false;
-        })
+        });// 清除路径
 
         document.querySelector('#keepStartEnd').addEventListener('change', () => {
             SlopeAnalysis.keepStartEndFlag = !SlopeAnalysis.keepStartEndFlag;
             document.querySelector('#keepStartEnd').checked = SlopeAnalysis.keepStartEndFlag;
-        })// 保持起点和终点
+        });// 保持起点和终点
 
-        document.querySelector('#equTimeCost').addEventListener('click', () => {
-            SlopeAnalysis.equTimeCost = !SlopeAnalysis.equTimeCost;
-            document.querySelector('#equTimeCost').checked = SlopeAnalysis.equTimeCost;
-        })// 等效时间计算代价
-
-        document.querySelector('#clearAll').addEventListener('click', () => {
-            SlopeAnalysis.clearAll()
-        })
+        document.querySelector('.PathPlanningMethod_select')?.addEventListener('change', function() {
+            var selectedMethod = $('.PathPlanningMethod_select').val();
+            switch(selectedMethod) {
+                case 'OriginA*':
+                    SlopeAnalysis.equTimeCostV = false;
+                    SlopeAnalysis.equTimeCostDragF = false;
+                    SlopeAnalysis.useOriginRRTFlag = false;
+                    break;
+                case 'equTimeCost_BaseV':
+                    SlopeAnalysis.equTimeCostV = true;
+                    SlopeAnalysis.equTimeCostDragF = false;
+                    SlopeAnalysis.useOriginRRTFlag = false;
+                    break;
+                case 'equTimeCost_BaseDragF':
+                    SlopeAnalysis.equTimeCostV = false;
+                    SlopeAnalysis.equTimeCostDragF = true;
+                    SlopeAnalysis.useOriginRRTFlag = false;
+                    break;
+                case 'OriginRRT':
+                    SlopeAnalysis.equTimeCostV = false;
+                    SlopeAnalysis.equTimeCostDragF = false;
+                    SlopeAnalysis.useOriginRRTFlag = true;
+                    break;
+                default:
+                    console.log('未知的寻路方法');
+            }
+        });// 选择寻路方法
 
         // 覆盖区绘制与清除按钮绑定
         document.getElementById('drawRoadArea').addEventListener('click', () => {
             if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
             window.SlopeAnalysis.startDrawOverride('road');
-        });
+        });// 道路覆盖区
         document.getElementById('drawWaterArea').addEventListener('click', () => {
             if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
             window.SlopeAnalysis.startDrawOverride('water');
-        });
+        });// 水体覆盖区
         document.getElementById('clearOverrides').addEventListener('click', () => {
             if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
             window.SlopeAnalysis.clearOverrideAreas();
+        });// 清除覆盖区
+
+        //下拉选择图表显示
+        document.querySelector('.PathAnalysisChart_select')?.addEventListener('change', function() {
+            var selectedChart = $('.PathAnalysisChart_select').val();
+            // 根据选择的值触发相应的图表显示
+            switch(selectedChart) {
+                case 'ShowRoughness':
+                    showRoughnessChart();
+                    break;
+                case 'ShowRoughnessRate':
+                    showRoughnessRateChart();
+                    break;
+                case 'ShowHeightRate':
+                    showHeightRateChart();
+                    break;
+                default:
+                    console.log('未知的图表选项');
+            }
         });
 
-        document.querySelector('#ShowRoughness')?.addEventListener('click', () => {
-            let pathLineNum = window.SlopeAnalysis.pathLineNum - 1;// 每一个当前pathLineNum都是为下一条将要绘制的县准备的，即对应数字是没数据的pathPoints
+        function showRoughnessChart() {
+            let pathLineNum = window.SlopeAnalysis.pathLineNum - 1;// 每一个当前pathLineNum都是为下一条将要绘制的线准备的，即对应数字是没数据的pathPoints
+            let pathPoints = window.SlopeAnalysis.pathPoints;
+
+            if (!window.SlopeAnalysis || !Array.isArray(pathPoints[pathLineNum]) || pathPoints[pathLineNum].length === 0) {
+               return alert('请先计算并绘制路径');
+            }
+            // 创建或复用 RoughAnalysis 实例（RoughAnalysis.js 需已被引入）
+            window._RoughAnalysisInstance = window._RoughAnalysisInstance || new RoughAnalysis();
+            const total = pathPoints.length;
+            const indices = Array.from({length: total}, (_, i) => i);
+            window._RoughAnalysisInstance.showMultipleRoughness(indices, pathPoints, window.SlopeAnalysis.pathLines);
+        }// 陡峭度分析绘制二维图
+        function showRoughnessRateChart() {
+            let pathLineNum = window.SlopeAnalysis.pathLineNum - 1;// 每一个当前pathLineNum都是为下一条将要绘制的线准备的，即对应数字是没数据的pathPoints
             let pathPoints = window.SlopeAnalysis.pathPoints;
 
            if (!window.SlopeAnalysis || !Array.isArray(pathPoints[pathLineNum]) || pathPoints[pathLineNum].length === 0) {
@@ -443,28 +494,41 @@ var EventModel = {
            }
            // 创建或复用 RoughAnalysis 实例（RoughAnalysis.js 需已被引入）
            window._RoughAnalysisInstance = window._RoughAnalysisInstance || new RoughAnalysis();
-           // 仅把 this.pathPoints 传入（直接使用已有数据）
-           // window._RoughAnalysisInstance.showRoughnessChart(pathPoints[pathLineNum]);
-           const total = pathPoints.length;
-           const indices = Array.from({length: total}, (_, i) => i);
-           window._RoughAnalysisInstance.showMultipleRoughness(indices, pathPoints, window.SlopeAnalysis.pathLines);
-       });// 陡峭度分析绘制二维图
-
-       document.querySelector('#ShowRoughnessRate')?.addEventListener('click', () => {
-            let pathLineNum = window.SlopeAnalysis.pathLineNum - 1;// 每一个当前pathLineNum都是为下一条将要绘制的县准备的，即对应数字是没数据的pathPoints
-            let pathPoints = window.SlopeAnalysis.pathPoints;
-
-           if (!window.SlopeAnalysis || !Array.isArray(pathPoints[pathLineNum]) || pathPoints[pathLineNum].length === 0) {
-               return alert('请先计算并绘制路径');
-           }
-           // 创建或复用 RoughAnalysis 实例（RoughAnalysis.js 需已被引入）
-           window._RoughAnalysisInstance = window._RoughAnalysisInstance || new RoughAnalysis();
-           // 仅把 this.pathPoints 传入（直接使用已有数据）
-           // window._RoughAnalysisInstance.showRoughnessChart(pathPoints[pathLineNum]);
            const total = pathPoints.length;
            const indices = Array.from({length: total}, (_, i) => i);
            window._RoughAnalysisInstance.showMultipleRoughnessRate(indices, pathPoints, window.SlopeAnalysis.pathLines);
-       });// 陡峭度变化分析绘制二维图
+        }// 陡峭度变化分析绘制二维图
+        function showHeightRateChart() { 
+            let pathLineNum = window.SlopeAnalysis.pathLineNum - 1;// 每一个当前pathLineNum都是为下一条将要绘制的线准备的，即对应数字是没数据的pathPoints
+            let pathPoints = window.SlopeAnalysis.pathPoints;
+
+            if (!window.SlopeAnalysis || !Array.isArray(pathPoints[pathLineNum]) || pathPoints[pathLineNum].length === 0) {
+               return alert('请先计算并绘制路径');
+            }
+            window._RoughAnalysisInstance = window._RoughAnalysisInstance || new RoughAnalysis();
+            const total = pathPoints.length;
+            const indices = Array.from({length: total}, (_, i) => i);
+            window._RoughAnalysisInstance.showMultipleHeightRate(indices, pathPoints, window.SlopeAnalysis.pathLines);  
+        }// 高程变化率分析绘制二维图
+
+
+        
+        document.querySelector('#ShowAHP')?.addEventListener('click', () => { 
+            SlopeAnalysis.AHPanalysistest();
+        });// AHP综合分析
+
+        document.querySelector('#Ridge_Valley_Analysis')?.addEventListener('click', () => { 
+            // if(SlopeAnalysis.slopeCostGrid.length == 0){alert('请生成二维高程栅格，再提取山脊与山谷')}//在函数内实现判断了
+            SlopeAnalysis.Ridge_Valley_Analysis();
+        });// 山脊与山谷提取
+
+        document.querySelector('#clearAll').addEventListener('click', () => {
+            SlopeAnalysis.clearAll();
+        });// 清除所有
+
+        $('.close').click(function () {
+            SlopeAnalysis.clearAll();
+        });// 关闭窗口时清除所有内容
 
     },
     //坐标定位
@@ -881,34 +945,12 @@ var EventModel = {
 
         // 存储已创建的Blob URLs
         let blobUrls = [];
-        
         // 获取DOM元素
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
-        const selectButton = document.getElementById('selectButton');
-        const fileInfo = document.getElementById('fileInfo');
-        const fileList = document.getElementById('fileList');
-        // const storedFilesSection = document.getElementById('storedFilesSection');
-        // const storedFilesList = document.getElementById('storedFilesList');
-        const statusArea = document.getElementById('statusArea');
-        
-        // 显示状态信息
-        function showStatus(message, type) {
-            statusArea.innerHTML = `<div class="status status-${type}">${message}</div>`;
-            setTimeout(() => {
-                statusArea.innerHTML = '';
-            }, 3000);
-        }
         
         // 点击上传区域时触发文件选择
         uploadArea.addEventListener('click', (e) => {
-            fileInput.click();
-        });
-        
-        // 点击选择文件按钮时触发文件选择
-        selectButton.addEventListener('click', (e) => {
-            // 阻止事件冒泡，避免触发uploadArea的点击事件
-            e.stopPropagation();
             fileInput.click();
         });
         
@@ -961,30 +1003,13 @@ var EventModel = {
         // 处理文件
         function handleFiles(files) {
             if (files.length > 0) {
-                // 显示文件信息区域
-                fileInfo.style.display = 'block';
-                
-                // 清空之前的文件列表
-                fileList.innerHTML = '';
                 
                 // 遍历所有文件并显示信息
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
                     
-                    // 检查是否为图片文件
-                    if (!file.type.startsWith('image/')) {
-                        showStatus('请选择图片文件', 'error');
-                        continue;
-                    }
-                    
                     const fileItem = document.createElement('div');
                     fileItem.className = 'file-item';
-                    
-                    // 创建文件预览
-                    const imgPreview = document.createElement('img');
-                    imgPreview.className = 'file-preview';
-                    imgPreview.src = URL.createObjectURL(file);
-                    blobUrls.push(imgPreview.src); // 保存引用以便后续清理
                     
                     // 创建Blob URL
                     const blobUrl = URL.createObjectURL(file);
@@ -992,41 +1017,25 @@ var EventModel = {
                     console.log('blobUrl', blobUrl);
                     console.log('file', file);
                     console.log('blobUrls',blobUrls);
-                    
-                    fileItem.innerHTML = `
-                        <div class="file-item-content" style="color: #000;">
-                            <strong>文件名:</strong> ${file.name}<br>
-                            <strong>文件大小:</strong> ${formatFileSize(file.size)}<br>
-                            <div class="url-display">${blobUrl}</div>
-                        </div>
-                    `;
-                    document.getElementById("loadDataUrl_text").value = blobUrl;
-                    // 添加预览图片
-                    fileItem.insertBefore(imgPreview, fileItem.firstChild);
-                    fileList.appendChild(fileItem);
+                
+                    document.getElementById("loadDataUrl_text").value = blobUrl;// 将Blob URL设置到输入框
                 }
             }
-        }
-        
-        
-        // 格式化文件大小
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-        
+        } 
         // 页面卸载时清理Blob URLs
         window.addEventListener('beforeunload', () => {
             blobUrls.forEach(url => {
                 URL.revokeObjectURL(url);
             });
         });
+        
 
 
-
+        var ManuallyInputFlag = true;
+        var ManuallyInput = document.getElementById('ManuallyInput');
+        ManuallyInput.addEventListener('change', function () {                              
+           ManuallyInputFlag = document.getElementById('maskalpha_val').checked;
+        });
 
         $('#loadDataWin .cansole_btn').click(function () {
             $('#loadDataWin').css('display', 'none');
@@ -1041,15 +1050,18 @@ var EventModel = {
             // });
             // viewer.terrainProvider = terrainProvider;
 
-            let L = $('#Ldestination_lng').val();
-            let R = $('#Rdestination_lng').val();
-            let U = $('#Udestination_lat').val();
-            let D = $('#Ddestination_lat').val();
-            console.log(L, R, U, D);//左上右下点经纬度输入(测试用)
-            viewer.camera.flyTo({
-                destination: Cesium.Rectangle.fromDegrees(L, U, R, D)
-            });//视角去输入的位置
-                        
+            let L, R, U, D;
+            if(ManuallyInputFlag == true){
+                L = $('#Ldestination_lng').val();
+                R = $('#Rdestination_lng').val();
+                U = $('#Udestination_lat').val();
+                D = $('#Ddestination_lat').val();
+                console.log(L, R, U, D);//左上右下点经纬度输入(测试用)
+                viewer.camera.flyTo({
+                    destination: Cesium.Rectangle.fromDegrees(L, U, R, D)
+                });//视角去输入的位置
+            }
+                       
             if (dataUrl == '' || dataType == '') {
                 showMessageInfo('地址不能为空');
                 return;
@@ -1057,42 +1069,44 @@ var EventModel = {
                 switch (dataType) {
                     case 'Terrain':
                         var terrainProvider = new Cesium.CesiumTerrainProvider({
-                            url: dataUrl //指向layer.json
+                            url: dataUrl //指向terrain文件夹1
                         });
                         viewer.terrainProvider = terrainProvider;
                         //viewer.scene.globe._surface.tileProvider._debug.wireframe = true;//网格渲染模式
 
                         let pointcolor = 0;
+                        let area1, area2, line;// 声明蓝色遮罩部分和边界线
                         console.log(dataUrl);
                         
-                        var maskalpha = document.getElementById('maskalpha');
-                        maskalpha.addEventListener('input', function () {                              
-                            document.getElementById('maskalpha_val').innerText = maskalpha.value;
-                            console.log(maskalpha.value);
-                            maskalphaUpdate();
-                        });                                                    
+                        if(ManuallyInputFlag == true){
+                            var maskalpha = document.getElementById('maskalpha');
+                            maskalpha.addEventListener('input', function () {                              
+                                document.getElementById('maskalpha_val').innerText = maskalpha.value;
+                                console.log(maskalpha.value);
+                                maskalphaUpdate();
+                            });                                                    
 
-                        const maskpointsArray = [
-                            L, D,
-                            R, D,
-                            R, U,
-                            L, U,
-                            L, D,
-                        ]//DEM角点数据(在数组里可以用索引$获取值，但是在console.log或者if等函数里不能用此方法获取值，只能传递给实例化变量获取，为什么？？)
-                        console.log('数组：',maskpointsArray);
-                        
-                        var maskpoints = Cesium.Cartesian3.fromDegreesArray(
-                            maskpointsArray
-                        );//DEM范围
-                        var positive;
-                        var negative;                        
-                        if(L>=0 && R>=0){
-                              positive = maskpoints;
-                        }
-                        else {negative = maskpoints;}
-                        
-                        //框出DEM图像(图像外地球其他区域全部做遮罩)
-                            const area1 = new Cesium.Entity({
+                            const maskpointsArray = [
+                                L, D,
+                                R, D,
+                                R, U,
+                                L, U,
+                                L, D,
+                            ]//DEM角点数据(在数组里可以用索引$获取值，但是在console.log或者if等函数里不能用此方法获取值，只能传递给实例化变量获取，为什么？？)
+                            console.log('数组：',maskpointsArray);
+                            
+                            var maskpoints = Cesium.Cartesian3.fromDegreesArray(
+                                maskpointsArray
+                            );//DEM范围
+                            var positive;
+                            var negative;                        
+                            if(L>=0 && R>=0){
+                                positive = maskpoints;
+                            }
+                            else {negative = maskpoints;}
+                            
+                            //框出DEM图像(图像外地球其他区域全部做遮罩)
+                            area1 = new Cesium.Entity({
                                 id: 1,
                                 polygon: {
                                     hierarchy: {
@@ -1111,7 +1125,7 @@ var EventModel = {
                                     material: Cesium.Color.BLUE.withAlpha(maskalpha.value)//外部颜色
                                 }
                             });console.log(positive);console.log(negative);console.log(maskpoints);
-                            const area2 = new Cesium.Entity({
+                            area2 = new Cesium.Entity({
                                 id: 2,
                                 polygon: {
                                     hierarchy: {
@@ -1130,7 +1144,7 @@ var EventModel = {
                                     material: Cesium.Color.BLUE.withAlpha(maskalpha.value)//外部颜色
                                 }
                             })                
-                            const line = new Cesium.Entity({
+                            line = new Cesium.Entity({
                                 id: 5,
                                 polyline: {
                                     positions: maskpoints,
@@ -1152,7 +1166,8 @@ var EventModel = {
                                 viewer.entities.add(area2)
                                 viewer.entities.add(line)
                             }
-                        
+                        }
+                                          
 
                         viewer.scene.globe.depthTestAgainstTerrain = true; //开启地形检测，默认为false
                         //获取鼠标单击处的经度、纬度、高程
@@ -1235,12 +1250,31 @@ var EventModel = {
                         var tileset = new Tileset(dataUrl);
                         break;
                     case 'KML':
-                        //data/kml/gdpPerCapita2008.kmz
-                        var kml = new KML(dataUrl);
+                        var kmlUrl = dataUrl;
+                        new Cesium.KmlDataSource.load(kmlUrl, {
+                            camera: viewer.scene.camera,
+                            canvas: viewer.scene.canvas,
+                            clampToGround: true
+                        }).then(function(dataSource) {
+                            viewer.dataSources.add(dataSource);
+                            viewer.flyTo(dataSource);
+                        });
+
                         break;
                     case 'GeoJson':
-                        //data/GeoJson/ne_10m_us_states.topojson
-                        var geojson = new GeoJson(dataUrl);
+                        var geojsonUrl = dataUrl;// 路径需要具体到文件xxxx.json
+                        new Cesium.GeoJsonDataSource.load(geojsonUrl, {
+                                clampToGround: true, // 是否贴地（仅对Polygon/Line有效）
+                                stroke: Cesium.Color.BLACK,// 边缘线颜色(在terrain上无法使用outlines(strokes))
+                                fill: Cesium.Color.ORANGE.withAlpha(0.6),
+                                strokeWidth: 5,
+                                markerSize: 10,
+                                markerSymbol: '●'
+                            }).then(function (dataSource) { 
+                                viewer.dataSources.add(dataSource);
+                                viewer.flyTo(dataSource);
+                                //styleEntities(dataSource); // 可选：进一步按属性着色
+                        });
                         break;
                     case 'GLB':
                         var position = Cesium.Cartesian3.fromDegrees(103.5, 29.8, 2000.0);
@@ -1662,22 +1696,6 @@ var EventModel = {
                         $('.cesium-viewer-vrContainer').css('display', 'none');
                     }
                     break;
-                case 'mousePosition':
-                    var ele = document.querySelector('.mousePosition_div');
-                    if ($(this).is(':checked')) {
-                        var position = MapStatic.getMousePosition(ele);
-                    } else {
-                        var position = MapStatic.removeMousePosition(ele);
-                    }
-                    break;
-                // var cameraM = new CameraM();
-                // if($(this).is(':checked')){
-                // 	ele.style.display='block';
-                // 	cameraM.addChangeEventListener(MapStatic.showMousePosition);
-                // }else{
-                // 	ele.style.display='none';
-                // 	cameraM.removeChangeEventListener(MapStatic.showMousePosition);
-                // }
                 case 'compass':
                     if ($(this).is(':checked')) {
                         $('.compass').css('display', 'block');
