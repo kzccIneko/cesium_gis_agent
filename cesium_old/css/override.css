@@ -175,6 +175,56 @@
   --shadow-color: rgba(51, 97, 85, 0.8);
 }
 
+/* .navbar {
+  background-color: rgba(5, 26, 55, 0.9) !important;
+  position: relative;
+}
+.navbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background-color: rgba(10, 46, 79, 0.9);
+}
+.navbar .container-fluid {
+  margin: 0;
+  padding: 0 10px;
+}
+.navbar .dropdown-toggle {
+  color: #fff;
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  background: none !important;
+}
+.navbar .dropdown-toggle img {
+  margin-right: 10px;
+  width: 30px;
+  height: 30px;
+}
+.navbar .dropdown-toggle .caret {
+  margin-left: 10px;
+}
+.navbar .dropdown-menu {
+  background-color: rgba(5, 26, 55, 0.8);
+  border: 1px solid #0a2e4f;
+  border-radius: 4px;
+  list-style: none;
+  padding: 10px 0;
+  left: 0 !important;
+}
+.navbar .dropdown-menu a {
+  padding: 10px !important;
+  color: #fff !important;
+  cursor: pointer;
+}
+.navbar .dropdown-menu a:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+} */
+
 .navbar {
   background-color: rgba(5, 26, 55, 0.9) !important;
   position: relative;
@@ -223,6 +273,230 @@
 }
 .navbar .dropdown-menu a:hover {
   background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ==================== 响应式布局：导航栏自适应 ==================== */
+
+/* 大屏幕（默认）：≥1200px，保持原有样式 */
+@media screen and (min-width: 1200px) {
+  .navbar .navbar-nav > li > .dropdown-toggle {
+    font-size: 16px;
+    padding: 15px 15px;
+  }
+  .navbar .dropdown-menu {
+    min-width: 160px;
+  }
+}
+
+/* 中等屏幕：992px - 1199px */
+@media screen and (max-width: 1199px) and (min-width: 992px) {
+  .navbar .navbar-nav > li > .dropdown-toggle {
+    font-size: 14px;
+    padding: 15px 12px;
+  }
+  .navbar .dropdown-toggle img {
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+  }
+  .navbar .dropdown-toggle .caret {
+    margin-left: 6px;
+  }
+  .navbar .dropdown-menu {
+    min-width: 140px;
+  }
+  .navbar .dropdown-menu a {
+    padding: 8px 12px !important;
+    font-size: 13px;
+  }
+}
+
+/* 小屏幕：768px - 991px */
+@media screen and (max-width: 991px) and (min-width: 768px) {
+  .navbar .navbar-nav > li > .dropdown-toggle {
+    font-size: 13px;
+    padding: 15px 8px;
+  }
+  .navbar .dropdown-toggle img {
+    width: 20px;
+    height: 20px;
+    margin-right: 6px;
+  }
+  .navbar .dropdown-toggle .caret {
+    margin-left: 4px;
+  }
+  .navbar .dropdown-menu {
+    min-width: 120px;
+  }
+  .navbar .dropdown-menu a {
+    padding: 6px 10px !important;
+    font-size: 12px;
+  }
+}
+
+/* 超小屏幕：<768px，启用折叠菜单 */
+@media screen and (max-width: 767px) {
+  /* 显示汉堡菜单按钮 */
+  .navbar-toggle {
+    display: block !important;
+    float: right;
+    margin-right: 15px;
+    margin-top: 8px;
+    padding: 9px 10px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+  }
+  
+  .navbar-toggle .icon-bar {
+    display: block;
+    width: 22px;
+    height: 2px;
+    border-radius: 1px;
+    background-color: #fff;
+  }
+  
+  .navbar-toggle .icon-bar + .icon-bar {
+    margin-top: 4px;
+  }
+  
+  /* 折叠状态 */
+  .navbar-collapse {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  
+  .navbar-collapse.collapse {
+    display: none !important;
+  }
+  
+  .navbar-collapse.collapse.in {
+    display: block !important;
+    overflow-y: auto !important;
+  }
+  
+  /* 垂直排列菜单项 */
+  .navbar-nav {
+    float: none !important;
+    margin: 0 -10px;
+  }
+  
+  .navbar-nav > li {
+    float: none;
+  }
+  
+  .navbar-nav > li > .dropdown-toggle {
+    padding: 12px 15px;
+    font-size: 14px;
+    display: flex;
+  }
+  
+  /* 下拉菜单嵌入式显示 */
+  .navbar-nav .open .dropdown-menu {
+    position: static;
+    float: none;
+    width: auto;
+    margin-top: 0;
+    background-color: rgba(5, 16, 33, 0.95);
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  
+  .navbar-nav .open .dropdown-menu > li > a {
+    padding: 8px 15px 8px 45px !important;
+    font-size: 13px;
+  }
+  
+  .navbar-nav .open .dropdown-menu > li > a:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+}
+/* ==================== LOGO 和标题响应式布局 ==================== */
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  color: #fff;
+  padding: 10px 15px;
+  white-space: nowrap; /* 防止文字换行 */
+}
+
+.navbar-brand img {
+  margin-right: 10px;
+  flex-shrink: 0; /* 防止图标被压缩 */
+}
+
+.navbar-brand span {
+  font-size: 18px;
+  font-weight: bold;
+  transition: font-size 0.2s;
+}
+
+/* 大屏幕：保持原样 */
+@media screen and (min-width: 1200px) {
+  .navbar-brand span {
+    font-size: 18px;
+  }
+}
+
+/* 中等屏幕：缩小字体 */
+@media screen and (max-width: 1199px) and (min-width: 992px) {
+  .navbar-brand span {
+    font-size: 16px;
+  }
+  .navbar-brand img {
+    width: 45px !important;
+    height: 28px !important;
+  }
+}
+
+/* 小屏幕：进一步缩小 */
+@media screen and (max-width: 991px) and (min-width: 768px) {
+  .navbar-brand span {
+    font-size: 14px;
+  }
+  .navbar-brand img {
+    width: 40px !important;
+    height: 25px !important;
+    margin-right: 8px;
+  }
+}
+
+/* 超小屏幕：文字简化 */
+@media screen and (max-width: 767px) {
+  .navbar-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .navbar-brand {
+    padding: 10px 10px;
+  }
+  
+  .navbar-brand span {
+    font-size: 14px;
+  }
+  
+  .navbar-brand img {
+    width: 35px !important;
+    height: 22px !important;
+    margin-right: 6px;
+  }
+}
+
+/* 确保 LOGO 和菜单在同一行 */
+.navbar .container-fluid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap; /* 小屏幕允许换行 */
+}
+
+.navbar-header {
+  display: flex;
+  align-items: center;
 }
 
 .flex {

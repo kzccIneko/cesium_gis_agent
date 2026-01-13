@@ -301,6 +301,7 @@ var EventModel = {
             SlopeAnalysis.clearAll()
             document.getElementById('slope-layer').checked = true
             document.getElementById('aspect-layer').checked = false
+            document.getElementById('cost-layer').checked = false
             SlopeAnalysis.createNew4Num(num, config)//等分分割网格横纵轴数量
 
             alpha.addEventListener('input', function () {
@@ -310,7 +311,6 @@ var EventModel = {
                 SlopeAnalysis.updateAlpha(alpha.value);           
             })
         })
-
         document.querySelector('#slopeByDistance').addEventListener('click', () => {
             let config = 1
             let distance = $("#Distance").val();
@@ -321,6 +321,7 @@ var EventModel = {
             SlopeAnalysis.clearAll()
             document.getElementById('slope-layer').checked = true
             document.getElementById('aspect-layer').checked = false
+            document.getElementById('cost-layer').checked = false
             SlopeAnalysis.createNew4Distance(distance, config)//等距分割网格划分分辨率
 
             alpha.addEventListener('input', function () {
@@ -330,7 +331,6 @@ var EventModel = {
                 SlopeAnalysis.updateAlpha(alpha.value);           
             })    
         })
-
         document.querySelector('#aspectByNum').addEventListener('click', () => {
             let config = 0
             let num = $("#Num").val();
@@ -339,6 +339,7 @@ var EventModel = {
             SlopeAnalysis.clearAll()
             document.getElementById('slope-layer').checked = false
             document.getElementById('aspect-layer').checked = true
+            document.getElementById('cost-layer').checked = false
             SlopeAnalysis.createNew4Num(num, config)
 
             alpha.addEventListener('input', function () {
@@ -348,7 +349,6 @@ var EventModel = {
                 SlopeAnalysis.updateAlpha(alpha.value);           
             })
         })
-
         document.querySelector('#aspectByDistance').addEventListener('click', () => {
             let config = 0
             let distance = $("#Distance").val();
@@ -357,6 +357,7 @@ var EventModel = {
             SlopeAnalysis.clearAll()
             document.getElementById('slope-layer').checked = false
             document.getElementById('aspect-layer').checked = true
+            document.getElementById('cost-layer').checked = false
             SlopeAnalysis.createNew4Distance(distance, config)
 
             alpha.addEventListener('input', function () {
@@ -365,7 +366,11 @@ var EventModel = {
     
                 SlopeAnalysis.updateAlpha(alpha.value);           
             })
-        })
+        });
+
+        document.getElementById('raiseToTop').addEventListener('click', () => {
+            SlopeAnalysis.raisePrimitiveToTop();
+        });// 提升图元到最顶层显示
 
         document.getElementById('slope-layer').addEventListener('change', function () {
             SlopeAnalysis.slopeLayerVisibility();//坡度显示隐藏
@@ -373,12 +378,31 @@ var EventModel = {
                 document.getElementById('aspect-layer').checked = false;
                 SlopeAnalysis.aspectLayerVisibility();
             }
+            if(document.getElementById('cost-layer').checked){
+                document.getElementById('cost-layer').checked = false;
+                SlopeAnalysis.costLayerVisibility();
+            }
         });
         document.getElementById('aspect-layer').addEventListener('change', function () {
             SlopeAnalysis.aspectLayerVisibility();//坡向显示隐藏
             if (document.getElementById('slope-layer').checked) {
                 document.getElementById('slope-layer').checked = false;
                 SlopeAnalysis.slopeLayerVisibility();
+            }
+            if(document.getElementById('cost-layer').checked){
+                document.getElementById('cost-layer').checked = false;
+                SlopeAnalysis.costLayerVisibility();
+            }
+        });
+        document.getElementById('cost-layer').addEventListener('change', function () {
+            SlopeAnalysis.costLayerVisibility();//代价图层显示隐藏
+            if (document.getElementById('slope-layer').checked) {
+                document.getElementById('slope-layer').checked = false;
+                SlopeAnalysis.slopeLayerVisibility();
+            }
+            if (document.getElementById('aspect-layer').checked) {
+                document.getElementById('aspect-layer').checked = false;
+                SlopeAnalysis.aspectLayerVisibility();
             }
         });
 
@@ -417,21 +441,31 @@ var EventModel = {
                 case 'OriginA*':
                     SlopeAnalysis.equTimeCostV = false;
                     SlopeAnalysis.equTimeCostDragF = false;
+                    SlopeAnalysis.useAHPMethod = false;
                     SlopeAnalysis.useOriginRRTFlag = false;
                     break;
                 case 'equTimeCost_BaseV':
                     SlopeAnalysis.equTimeCostV = true;
                     SlopeAnalysis.equTimeCostDragF = false;
+                    SlopeAnalysis.useAHPMethod = false;
                     SlopeAnalysis.useOriginRRTFlag = false;
                     break;
                 case 'equTimeCost_BaseDragF':
                     SlopeAnalysis.equTimeCostV = false;
                     SlopeAnalysis.equTimeCostDragF = true;
+                    SlopeAnalysis.useAHPMethod = false;
+                    SlopeAnalysis.useOriginRRTFlag = false;
+                    break;
+                case 'AHPMethod':
+                    SlopeAnalysis.equTimeCostV = false;
+                    SlopeAnalysis.equTimeCostDragF = false;
+                    SlopeAnalysis.useAHPMethod = true;
                     SlopeAnalysis.useOriginRRTFlag = false;
                     break;
                 case 'OriginRRT':
                     SlopeAnalysis.equTimeCostV = false;
                     SlopeAnalysis.equTimeCostDragF = false;
+                    SlopeAnalysis.useAHPMethod = false;
                     SlopeAnalysis.useOriginRRTFlag = true;
                     break;
                 default:
@@ -441,15 +475,15 @@ var EventModel = {
 
         // 覆盖区绘制与清除按钮绑定
         document.getElementById('drawRoadArea').addEventListener('click', () => {
-            if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
+            if (!window.SlopeAnalysis || window.SlopeAnalysis.slopeCostGrid.length === 0) return alert('请先初始化坡度分析');
             window.SlopeAnalysis.startDrawOverride('road');
         });// 道路覆盖区
         document.getElementById('drawWaterArea').addEventListener('click', () => {
-            if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
+            if (!window.SlopeAnalysis || window.SlopeAnalysis.slopeCostGrid.length === 0) return alert('请先初始化坡度分析');
             window.SlopeAnalysis.startDrawOverride('water');
         });// 水体覆盖区
         document.getElementById('clearOverrides').addEventListener('click', () => {
-            if (!window.SlopeAnalysis) return alert('请先初始化坡度分析');
+            if (!window.SlopeAnalysis || window.SlopeAnalysis.slopeCostGrid.length === 0) return alert('请先初始化坡度分析');
             window.SlopeAnalysis.clearOverrideAreas();
         });// 清除覆盖区
 
@@ -511,7 +545,12 @@ var EventModel = {
             window._RoughAnalysisInstance.showMultipleHeightRate(indices, pathPoints, window.SlopeAnalysis.pathLines);  
         }// 高程变化率分析绘制二维图
 
-
+        document.getElementById('openTipBtn')?.addEventListener('click', () => { 
+            window.SlopeAnalysis.openTip();
+        });
+        document.getElementById('closeTipBtn')?.addEventListener('click', () => { 
+            window.SlopeAnalysis.closeTip();
+        });
         
         document.querySelector('#ShowAHP')?.addEventListener('click', () => { 
             SlopeAnalysis.AHPanalysistest();
@@ -519,15 +558,15 @@ var EventModel = {
 
         document.querySelector('#Ridge_Valley_Analysis')?.addEventListener('click', () => { 
             // if(SlopeAnalysis.slopeCostGrid.length == 0){alert('请生成二维高程栅格，再提取山脊与山谷')}//在函数内实现判断了
-            SlopeAnalysis.Ridge_Valley_Analysis();
+            window.SlopeAnalysis.Ridge_Valley_Analysis();
         });// 山脊与山谷提取
 
         document.querySelector('#clearAll').addEventListener('click', () => {
-            SlopeAnalysis.clearAll();
+            window.SlopeAnalysis.clearAll();
         });// 清除所有
 
         $('.close').click(function () {
-            SlopeAnalysis.clearAll();
+            window.SlopeAnalysis.clearAll();
         });// 关闭窗口时清除所有内容
 
     },
@@ -767,7 +806,7 @@ var EventModel = {
     },
     //加载三维模型
     load3Dtiles: function () {
-        let tileset = new Cesium.Cesium3DTileset({ url: './data/3DTiles/white/tileset.json' });
+        let tileset = new Cesium.Cesium3DTileset({ url: '/cesium_old/data/3DTiles/white/tileset.json' });
         viewer.scene.primitives.add(tileset);
         viewer.flyTo(tileset);
     },
@@ -894,7 +933,7 @@ var EventModel = {
         function loadModel() {
             viewer.flyTo(viewer.entities.add({
                 position: Cesium.Cartesian3.fromDegrees(116.32878855240442, 39.95208707482746, 0.0),
-                model: { uri: './src/qiche.gltf' }
+                model: { uri: '../measure/qiche.gltf' }
             }))
         }
 
@@ -1459,7 +1498,7 @@ var EventModel = {
                             }, Cesium.ScreenSpaceEventType.RIGHT_CLICK)
 
                             (async function() {
-                                const TIFFprovider = await TIFFImageryProvider.fromUrl('/data/Terrain/yajiangxian.tif');
+                                const TIFFprovider = await TIFFImageryProvider.fromUrl('../data/Terrain/yajiangxian.tif');
                                 console.log(TIFFprovider);
                             })();
                         

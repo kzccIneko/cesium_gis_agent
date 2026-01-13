@@ -102,9 +102,6 @@ colorMap.appendChild(ramp2);
 
 /************************************************************************/
 
-let curSlope_save = [];
-let curAspect_save = [];
-
 class findPathNode{
   constructor(x, y, z, Cartesian3Grid = [], slopeCost = 0, slope = 0, v = 0, turnAngle = 0, g = 0, h = 0, f = 0, parent = null) {
     this.x = x;
@@ -147,6 +144,7 @@ class SlopeAspect {
     this.slopePolygons = []; //存放坡度primitive
     this.aspectPolygons = []; //存放坡向primitive
     this.heightPolygons = []; //存放高度primitive
+    this.costPolygons = []; //存放通行代价primitive
     this.drawFlag = true; //是否渲染坡度坡向
 
     // 覆盖区支持：用户绘制的 road/water 覆盖区信息与可视实体缓存
@@ -171,15 +169,17 @@ class SlopeAspect {
     this.potentialField = null;// 反向搜索潜力场（二维数组），用于存储从每个点到目标的最小代价（cost-to-go）
     this.equTimeCostV = false;// 使用等效时间计算代价（固定速度）（坡度、距离、转向用时间表示代价）
     this.equTimeCostDragF = false;//（固定牵引力）
+    this.useAHPMethod = true;// AHP方法计算代价
     this.usePotentialFieldFlag = false;// 是否使用潜力场（反向 Dijkstra -> 从起点按 potential 最小方向跟随）进行全局寻路
     this.useOriginRRTFlag = false;// 是否使用原始RRT算法寻路
 
     this.elementC = [];// AHP分析法各元素重要性矩阵
+    this.weights = [];// AHP分析法各元素权重值数组
     this.ridgeValleyEntities = [];// 山脊线和山谷线实体集合
     this.valleyThresholdRatio = 0.4;// 山谷线阈值比例（相对于最大汇流累积）
     this.ridgeThresholdRatio = 0.4;// 山脊线阈值比例（相对于最大反向汇流累积）
   }
-  // 不会栈溢出的方法，一维数组找最大最小值，代替Math.min和Math.max
+  // 找一维数组最大最小值，代替Math.min和Math.max，不会栈溢出的方法
   arrayMinMax = (arr) => {
     // Math.min 和 Math.max 在大数组时报“Maximum call stack size exceeded.”
     return arr.reduce(
@@ -187,26 +187,14 @@ class SlopeAspect {
       [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]
     );
   };
-  update_curSlope() {
-    curSlope_save = this.curSlope;
-  }
-  return_curSlope() {
-    return curSlope_save;
-  }
-  update_curAspect() {
-    curAspect_save = this.curAspect;
-  }
-  return_curAspect() {
-    return curAspect_save;
-  }
-  return_alpha() {
-    return this.area_alpha;
+  // 判断是否为无穷大,true表示是无穷大，false表示不是
+  isInfinite(number) {
+    return number === Infinity || number === -Infinity;
   }
   
   updateAlpha(newAlpha) {
     this.slopePolygons.forEach((polygon) => {
       polygon.alpha = parseFloat(newAlpha);
-
       // 更新颜色透明度 - 使用MaterialAppearance方式
       const newColor = polygon.baseColor.withAlpha(parseFloat(newAlpha));
       polygon.primitive.appearance.material.uniforms.color = newColor;
@@ -215,13 +203,26 @@ class SlopeAspect {
 
     this.aspectPolygons.forEach((polygon) => {
       polygon.alpha = parseFloat(newAlpha);
-
       // 更新颜色透明度 - 使用MaterialAppearance方式
       const newColor = polygon.baseColor.withAlpha(parseFloat(newAlpha));
       polygon.primitive.appearance.material.uniforms.color = newColor;
       polygon.primitive.appearance.translucent = parseFloat(newAlpha) < 1;
     });
 
+    this.costPolygons.forEach((polygon) => {
+      polygon.alpha = parseFloat(newAlpha);
+      // 更新颜色透明度 - 使用MaterialAppearance方式
+      const newColor = polygon.baseColor.withAlpha(parseFloat(newAlpha));
+      polygon.primitive.appearance.material.uniforms.color = newColor;
+      polygon.primitive.appearance.translucent = parseFloat(newAlpha) < 1;
+    });
+
+  }
+
+  // 提升指定图元到最顶层显示
+  raisePrimitiveToTop() {
+    // 获取当前场景中的所有图元
+    const primitives = this.viewer.scene.primitives;console.log('primitives', primitives);
   }
 
   clearAll() {
@@ -241,6 +242,11 @@ class SlopeAspect {
       this.viewer.scene.primitives.remove(element.primitive);
     });
     this.aspectPolygons = [];
+
+    this.costPolygons.forEach((element) => {
+      this.viewer.scene.primitives.remove(element.primitive);
+    });
+    this.costPolygons = [];
     
     //删除所有点
     this.viewer.entities.removeAll();
@@ -269,13 +275,34 @@ class SlopeAspect {
     this.potentialField = null;// 重置潜力场
     console.log('keepStartEndFlag', this.keepStartEndFlag, 'clearPathFlag', this.clearPathFlag, 'useOriginRRTFlag', this.useOriginRRTFlag);
     
-    //绘制路径（保留原有路径）
+    // 绘制路径（使用代码内指定起终点）
+    if(document.getElementById('specifiedStartEnd').checked){
+      this.keepStartPoint = Cesium.Cartesian3.fromDegrees(100.655395, 29.494247, 3419.32);
+      this.keepEndPoint = Cesium.Cartesian3.fromDegrees(100.647575, 29.508656, 3386.11);
+      new Cesium.Entity({
+        position: this.keepStartPoint,
+        point: {
+          pixelSize: 10,
+          color: Cesium.Color.WHITE,
+        },
+      });
+      new Cesium.Entity({
+        position: this.keepEndPoint,
+        point: {
+          pixelSize: 10,
+          color: Cesium.Color.WHITE,
+        },
+      });
+      this.FindPath_AStar(this.keepStartPoint, this.keepEndPoint);
+      return;
+    }
+
+    // 绘制路径（保留原有路径）
     if(this.keepStartEndFlag && !this.clearPathFlag){
       if (this.useOriginRRTFlag) {
         this.FindPath_RRT();
         return;
       }
-
       // console.log('this.pathLineNum', this.pathLineNum, 'this.keepStartPoint', this.keepStartPoint, 'this.keepEndPoint', this.keepEndPoint);
       this.FindPath_AStar(this.keepStartPoint, this.keepEndPoint);
       return;
@@ -304,7 +331,7 @@ class SlopeAspect {
     });
     toRemove.forEach((ent) => this.viewer.entities.remove(ent));
 
-    // 重新绘制路径（删除原有路径）
+    // 重新绘制路径（删除原有路径）,reFindPathFlag 默认为false，即不保留原路径
     if(this.reFindPathFlag){
       this.GetSlopePath();
       this.reFindPathFlag = false;
@@ -324,15 +351,22 @@ class SlopeAspect {
   }
   aspectLayerVisibility() {
     if (this.aspectPolygons && this.aspectPolygons.length >= 2) {
-      //this.mapPrimitive1.show = !this.mapPrimitive1.show;
       this.aspectPolygons.forEach((element) => {
         element.primitive.show = !element.primitive.show;
       });
-      //this.mapPrimitive2.show = !this.mapPrimitive2.show;
       console.log("aspectChange");
     }
   }
+  costLayerVisibility() { 
+    if (this.costPolygons && this.costPolygons.length >= 2) {
+      this.costPolygons.forEach((element) => {
+        element.primitive.show = !element.primitive.show;
+      });
+      console.log("costChange");
+    }
+  }
 
+  // 提示实例信息
   openTip() {
     const $this = this;
     const viewer = this.viewer;
@@ -340,8 +374,10 @@ class SlopeAspect {
     this.handler.setInputAction(function (movement) {
       let endPos = movement.endPosition;
       var pick = viewer.scene.pick(endPos);
-      if (pick && pick.id && pick.id.type === "SlopeAspect") {
-        $this.toolTip = pick.id.value.toFixed(2);
+      if (pick && pick.id && (pick.id.type === "SlopeAspect" || pick.id.type === "Cost")) {
+        const name = pick.id.name || '';  // '坡度' 或 '坡向'
+        const value = pick.id.value;
+        $this.toolTip = `${name}: ${value.toFixed(2)}°`;
         CreateRemindertip($this.toolTip, endPos, true);
       } else {
         $this.toolTip = "";
@@ -349,11 +385,11 @@ class SlopeAspect {
       }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
   }
-
   closeTip() {
     if (this.handler) {
       this.handler.destroy();
       this.handler = undefined;
+      this.toolTip = "";
     }
   }
 
@@ -491,10 +527,10 @@ class SlopeAspect {
       return {
         x: i,
         y: j,
-        z: cell && cell[2] ? cell[2][2] : 0,
-        Cartesian3Grid: cell && cell[0] ? cell[0] : null,
-        slopeCost: cell && cell[3] ? cell[3] : null,
-        slope: cell && cell[1] ? cell[1] : null,
+        z: cell && cell.degreeCoordinate ? cell.degreeCoordinate[2] : 0,
+        Cartesian3Grid: cell && cell.Cartesian ? cell.Cartesian : null,
+        slopeCost: cell && cell.slopeCost ? cell.slopeCost : null,
+        slope: cell && cell.slope ? cell.slope : null,
       };
     };
 
@@ -519,7 +555,7 @@ class SlopeAspect {
         const currentNode = nodeFromGrid(cx, cy);
         let moveCost = 0;
         if(this.equTimeCostV){
-          moveCost = this.CarWeightCost_BaseV_GetCost(neighborNode, currentNode).totalT;
+          moveCost = this.GetCost_CarWeightCost_BaseV(neighborNode, currentNode).totalT;
         }
         else{
           // 注意：GetCost(from,to) 计算 from->to 的代价，这里反向松弛用 neighbor->current
@@ -596,7 +632,7 @@ class SlopeAspect {
 
 
           let mask = turf.polygon([boundary]);console.log('mask',mask);       
-          let gridSquare = turf.squareGrid(bbox, distance, { mask: mask });console.log('gridSquare',gridSquare);
+          let gridSquare = turf.squareGrid(bbox, distance, { mask: mask });//console.log('gridSquare',gridSquare);
           
           $this.createEllipse(gridSquare);
         }  
@@ -739,390 +775,16 @@ class SlopeAspect {
       }
     );
   }
-
-  AHPanalysistest(){
-    this.elementC = [$('#Weight1').val(), $('#Weight2').val(), $('#Weight3').val()];//测试数据
-    let RM = this.JudgeArray();//判断矩阵
-    console.log(RM);
-    const results = this.computeAHPWeightsAndConsistency(RM);
-
-    console.log('矩阵维度:', results.n);
-    console.log('特征向量法权重:', results.weights_eigen);
-    console.log('几何平均法权重:', results.weights_geom);
-    console.log('最大特征值 λ_max:', results.lambda_max);
-    console.log('一致性指标 CI:', results.CI);
-    console.log('随机一致性指标 RI:', results.RI);
-    console.log('一致性比率 CR:', results.CR);
-    console.log('通过一致性检验?', results.consistent ? '是 (CR < 0.1)' : '否 (CR >= 0.1)');
-  }
-
-  // 判断矩阵(目标层元素Ci对应设定重要性值)
-  JudgeArray(){
-    let elementC = this.elementC;
-    let RM = [];
-    for (let i = 0; i < elementC.length; i++) { 
-      RM[i] = []; // 初始化第 i 行
-      for (let j = 0; j < elementC.length; j++) { 
-          let aij = elementC[i] / elementC[j];// 判断矩阵内元素
-          RM[i].push(aij); 
-      }
-    }
-    return RM;
-  }
-
-  // ==================== AHP 层次分析法计算权重与一致性检验 ====================
-  /**
-   * computeAHPWeightsAndConsistency(RM)
-   * 输入: RM 为 n×n 的判断矩阵（二维数组）
-   * 输出: 包含特征向量法权重、几何平均法权重、最大特征值、CI、CR、一致性结论的对象
-   * 
-   * 第一部分：计算权重向量
-   *   方法1：特征向量法（幂迭代求主特征向量并归一化）
-   *   方法2：几何平均法（每行元素相乘开n次方根再归一化）
-   * 
-   * 第二部分：一致性检验
-   *   计算最大特征值 λ_max
-   *   计算一致性指标 CI = (λ_max - n) / (n - 1)
-   *   计算一致性比率 CR = CI / RI（RI为随机一致性指标）
-   *   判断 CR < 0.1 是否成立（成立则矩阵满足一致性要求）
-   */
-  computeAHPWeightsAndConsistency(RM) {
-    // ==================== 0. 输入校验与常量定义 ====================
-    
-    // 校验 RM 是否为方阵
-    if (!Array.isArray(RM) || RM.length === 0) {
-      throw new Error('AHP: RM 必须是非空的二维数组');
-    }
-    const n = RM.length; // 矩阵维度（阶数）
-    for (let i = 0; i < n; i++) {
-      if (!Array.isArray(RM[i]) || RM[i].length !== n) {
-        throw new Error('AHP: RM 必须是 n × n 的方阵');
-      }
-    }
-
-    // RI 表：随机一致性指标（Random Index）
-    // 来源于 Saaty 的 AHP 理论，常用于一致性检验
-    // 索引对应矩阵阶数 n，n=1和n=2时 RI=0（完全一致）
-    const RI_TABLE = {
-      1: 0.00, 2: 0.00, 3: 0.58, 4: 0.90, 5: 1.12,
-      6: 1.24, 7: 1.32, 8: 1.41, 9: 1.45, 10: 1.49,
-      11: 1.51, 12: 1.48, 13: 1.56, 14: 1.57, 15: 1.59
-    };
-    // 获取当前矩阵阶数对应的 RI 值（若超出表范围则使用近似值 1.59）
-    const RI = RI_TABLE[n] !== undefined ? RI_TABLE[n] : 1.59;
-
-    // ==================== 辅助函数定义 ====================
-
-    // 矩阵与向量相乘：计算 y = A * x
-    // A: n×n 矩阵，x: n×1 向量，返回 y: n×1 向量
-    const matVecMul = (A, x) => {
-      const m = A.length;
-      const y = new Array(m).fill(0); // 初始化结果向量
-      for (let i = 0; i < m; i++) {
-        let sum = 0;
-        for (let j = 0; j < A[i].length; j++) {
-          sum += A[i][j] * x[j]; // 累加第 i 行与 x 的内积
-        }
-        y[i] = sum;
-      }
-      return y;
-    };
-
-    // 向量归一化（按和归一）：使所有元素之和为 1
-    const normalizeSum = (v) => {
-      const sum = v.reduce((acc, val) => acc + val, 0); // 计算向量元素总和
-      if (sum === 0) return v.map(() => 0); // 避免除零
-      return v.map(x => x / sum); // 每个元素除以总和
-    };
-
-    // 计算向量的欧几里得范数（2-范数）：||v||₂ = sqrt(Σvᵢ²)
-    const norm2 = (v) => {
-      return Math.sqrt(v.reduce((acc, val) => acc + val * val, 0));
-    };
-
-    // ==================== 第一部分：方法1 - 特征向量法求权重 ====================
-    
-    // 使用幂迭代（Power Iteration）求主特征向量
-    // 原理：对于正互反矩阵，主特征向量对应最大特征值，反映各元素的相对权重
-    
-    // 初始化：取全 1 向量作为初始特征向量
-    let x = new Array(n).fill(1);
-    x = normalizeSum(x); // 归一化（和为 1）
-
-    // 幂迭代参数设置
-    const maxIter = 1000;        // 最大迭代次数
-    const tolerance = 1e-12;     // 收敛容差（残差阈值）
-    let lambda = 0;              // 当前近似特征值
-    let iter = 0;                // 迭代计数器
-    let residual = Infinity;     // 残差（衡量收敛程度）
-
-    // 开始幂迭代循环
-    for (iter = 0; iter < maxIter; iter++) {
-      // Step 1: 计算 y = A * x（矩阵向量乘法）
-      const y = matVecMul(RM, x);
-
-      // Step 2: 计算 Rayleigh 商估计特征值
-      // λ ≈ (x^T · y) / (x^T · x)，即 x 与 y 的内积除以 x 的模平方
-      const xDotY = x.reduce((acc, xi, idx) => acc + xi * y[idx], 0); // x^T · y
-      const xDotX = x.reduce((acc, xi) => acc + xi * xi, 0);          // x^T · x
-      const lambda_new = (xDotX === 0) ? 0 : (xDotY / xDotX);
-
-      // Step 3: 归一化 y 作为下一轮的 x
-      const y_norm = normalizeSum(y);
-
-      // Step 4: 计算残差 ||y_norm - x||₂（判断是否收敛）
-      residual = 0;
-      for (let i = 0; i < n; i++) {
-        const diff = y_norm[i] - x[i];
-        residual += diff * diff;
-      }
-      residual = Math.sqrt(residual); // 欧几里得距离
-
-      // Step 5: 更新变量准备下一次迭代
-      x = y_norm;          // 更新特征向量
-      lambda = lambda_new; // 更新特征值
-
-      // Step 6: 判断是否收敛（残差小于容差）
-      if (residual < tolerance) {
-        iter++; // 记录完成的迭代次数
-        break;  // 跳出循环
-      }
-    }
-
-    // 得到特征向量法的权重向量（x 已归一化，和为 1）
-    const weights_eigen = x.slice(); // 复制数组作为最终权重
-
-    // ==================== 计算最大特征值 λ_max ====================
-    
-    // 更稳健的方法：计算 (A*w)ᵢ / wᵢ 对所有 i 的平均值
-    // 原理：对于特征向量 w，有 A*w = λ*w，因此 λ = (A*w)ᵢ / wᵢ
-    const Aw = matVecMul(RM, weights_eigen); // 计算 A * w
-    let lambda_sum = 0;   // 累加各行的特征值估计
-    let lambda_count = 0; // 有效行数（权重非零的行）
-    
-    for (let i = 0; i < n; i++) {
-      const wi = weights_eigen[i];
-      // 只对权重非零的元素计算（避免除零）
-      if (Math.abs(wi) > 1e-15) {
-        lambda_sum += Aw[i] / wi; // λᵢ = (A*w)ᵢ / wᵢ
-        lambda_count++;
-      }
-    }
-    
-    // 取平均作为最大特征值 λ_max
-    const lambda_max = (lambda_count > 0) ? (lambda_sum / lambda_count) : lambda;
-
-    // ==================== 第一部分：方法2 - 几何平均法求权重 ====================
-    
-    // 原理：每行元素相乘取 n 次方根（即几何平均），再归一化
-    // 公式：wᵢ = (∏ⱼ aᵢⱼ)^(1/n) / Σₖ(∏ⱼ aₖⱼ)^(1/n)
-    
-    const geom = new Array(n).fill(0); // 存储每行的几何平均值
-    
-    for (let i = 0; i < n; i++) {
-      // 为避免浮点下溢/上溢，使用对数和方法
-      // 几何平均 = exp( (1/n) * Σ ln(aᵢⱼ) )
-      let logSum = 0;
-      for (let j = 0; j < n; j++) {
-        const aij = RM[i][j];
-        // 处理非正值情况（AHP 中不应出现，这里做容错处理）
-        if (aij <= 0) {
-          logSum += Math.log(Number.EPSILON); // 用极小正数代替
-        } else {
-          logSum += Math.log(aij); // 累加对数
-        }
-      }
-      // 计算第 i 行的几何平均值：exp(logSum / n)
-      geom[i] = Math.exp(logSum / n);
-    }
-    
-    // 归一化几何平均值得到权重向量（和为 1）
-    const weights_geom = normalizeSum(geom);
-
-    // ==================== 第二部分：一致性检验 ====================
-    
-    // Step 1: 计算一致性指标 CI (Consistency Index)
-    // 公式：CI = (λ_max - n) / (n - 1)
-    // 含义：衡量判断矩阵偏离完全一致性的程度
-    const CI = (lambda_max - n) / (n - 1);
-
-    // Step 2: 计算一致性比率 CR (Consistency Ratio)
-    // 公式：CR = CI / RI
-    // 含义：将 CI 与随机矩阵的平均 CI（即 RI）比较
-    const CR = (RI === 0) ? 0 : (CI / RI);
-
-    // Step 3: 判断一致性是否通过
-    // 准则：CR < 0.1 则认为矩阵具有满意的一致性
-    const consistent = isFinite(CR) ? (CR < 0.1) : false;
-
-    // ==================== 返回计算结果 ====================
-    
-    return {
-      n: n,                           // 矩阵维度（阶数）
-      weights_eigen: weights_eigen,   // 特征向量法得到的权重向量（和为 1）
-      weights_geom: weights_geom,     // 几何平均法得到的权重向量（和为 1）
-      lambda_max: lambda_max,         // 最大特征值 λ_max
-      CI: CI,                         // 一致性指标
-      RI: RI,                         // 随机一致性指标（查表得到）
-      CR: CR,                         // 一致性比率
-      consistent: consistent,         // 是否通过一致性检验（CR < 0.1）
-      details: {                      // 可选的调试信息
-        powerIterIters: iter,         // 幂迭代实际执行次数
-        powerIterResidual: residual   // 最终残差
-      }
-    };
-  }
-
-  // 开始绘制覆盖区（type: 'road' 或 'water'）
-  startDrawOverride(type = 'road') {
-      // 使用项目中已有的交互绘制函数 CreatePolygonOnGround(viewer, ..., callback)
-      const viewer = this.viewer;
-      const fillColor = type === 'road' ? Cesium.Color.YELLOW.withAlpha(0.4) : Cesium.Color.BLUE.withAlpha(0.4);
-      CreatePolygonOnGround(viewer, [], { color: fillColor, outlineColor: Cesium.Color.BLACK }, (polygon) => {
-        try {
-       // polygon.pottingPoint 为绘制多边形的 Cartesian3 顶点数组（你的项目中已有该约定）
-       const pts = polygon.pottingPoint || polygon.positions || [];
-       // 转换为经纬数组 [lon, lat]
-       const coords = pts.map(p => {
-         const c = Cesium.Cartographic.fromCartesian(p);
-         return [Cesium.Math.toDegrees(c.longitude), Cesium.Math.toDegrees(c.latitude)];
-       });
-       if (coords.length && (coords[0][0] !== coords[coords.length-1]?.[0] || coords[0][1] !== coords[coords.length-1]?.[1])) {
-         coords.push(coords[0]); // 闭合环
-       }
-       // 添加可视实体用于展示覆盖区（保存以便清理）
-       const ent = viewer.entities.add({
-         polygon: {
-           hierarchy: pts,
-           material: fillColor,
-           classificationType: Cesium.ClassificationType.TERRAIN
-         }
-       });
-       this.overrideAreas = this.overrideAreas || [];
-       this.overrideAreas.push({ type: type, polygonEntity: ent, coords: coords });
-       this.overrideAreaEntities.push(ent);
-       // 应用覆盖到格网并刷新可视化
-       this.applyOverridesToGrid();
-     } catch (e) {
-       console.error('startDrawOverride error', e);
-     } finally {
-       // 移除临时绘制实体（CreatePolygonOnGround 可能返回一个临时实体）
-       try { viewer.entities.remove(polygon); } catch (e) {}
-     }
-   });
- }
   
-  // 将覆盖区应用到 this.slopeCostGrid：road -> 增大 slopeCost（更易通行），water -> 设为极小（不可通行）
-  applyOverridesToGrid() {
-  if (!this.slopeCostGrid || this.slopeCostGrid.length === 0) return;
-  this.overrideAreas = this.overrideAreas || [];
-  // 遍历格网并检测每个格子中心是否在覆盖区内
-  for (let i = 0; i < this.slopeCostGrid.length; i++) {
-    for (let j = 0; j < this.slopeCostGrid[i].length; j++) {
-      const cell = this.slopeCostGrid[i][j];
-      if (!cell || cell.length === 0) continue;
-      const lon = Number(cell[2] && cell[2][0]);
-      const lat = Number(cell[2] && cell[2][1]);
-      if (!isFinite(lon) || !isFinite(lat)) continue;
 
-      // 确保有原始备份，方便恢复
-      if (cell._origSlope === undefined) cell._origSlope = cell[1];
-      if (cell._origSlopeCost === undefined) cell._origSlopeCost = cell[3];
 
-      // 先恢复为基于坡度的默认值（避免多次叠加）
-      cell[1] = cell._origSlope;
-      cell[3] = cell._origSlopeCost;
 
-      // 后添加的覆盖区优先级更高（覆盖数组按加入顺序保存）
-      for (let k = 0; k < this.overrideAreas.length; k++) {
-        const area = this.overrideAreas[k];
-        if (!area || !area.coords) continue;
-        if (this._pointInPolygon(lon, lat, area.coords)) {
-          if (area.type === "road") {
-            // road 等效为坡度 = 0（极易通行），并把 slopeCost 设为一个很大值以降低代价
-            cell[1] = 0; // 等效坡度0
-            cell[3] = Math.max(cell[3] || 1, 1000.0); // 增大代价因子，使通行更容易
-          } else if (area.type === "water") {
-            // water 等效为坡度极大（不可通行），使 slopeCost 极小 -> 代价极大
-            cell[1] = 99999; // 表示坡度极大（用于显示或其它逻辑）
-            cell[3] = 1e-6; // 极小的通行能力，GetCost 会返回非常大的代价
-          }
-          // 不 break：允许运行后续覆盖覆盖前面的（后画者优先）
-        }
-      }
-    }
-  }
-  // 覆盖改变后，潜力场与路径缓存失效须重算
-  this.potentialField = null;
-  // 若需要立即重新绘制代价图，调用者负责触发 DrawCostMap / FindPath
-}
-    
-  // 根据每个格子的 slope 值重新计算默认 slopeCost（用于恢复或首次计算）
-  recomputeSlopeCosts() {
-    if (!this.slopeCostGrid || this.slopeCostGrid.length === 0) return;
-    for (let i = 0; i < this.slopeCostGrid.length; i++) {
-      for (let j = 0; j < this.slopeCostGrid[i].length; j++) {
-        const cell = this.slopeCostGrid[i][j];
-        if (!cell || cell.length === 0) continue;
-        const slope = Number(cell[1]);
-        if (!isFinite(slope)) { cell[3] = 1e-6; continue; }
-        // 复用你原来在 FindPath 中的坡度->代价转换（用 Math.pow 替换 ^）
-        if (slope <= 5) {
-          cell[3] = 10 * 1;
-        } else if (slope > 5 && slope <= 9) {
-          cell[3] = (10 * (Math.pow(0.02 * (slope - 5), 3) - 3.183 * slope + 41.1103) / 25.18);
-        } else if (slope > 9 && slope <= 22) {
-          cell[3] = (10 * ((0.45 * Math.pow(22 - slope, 3) + 0.11 * Math.pow(9 - slope, 3)) / 78 + 0.653 * slope - 4.905) / 25.18);
-        } else if (slope > 22 && slope <= 35) {
-          cell[3] = (10 * ((0.11 * Math.pow(slope - 35, 3)) / 78 - 0.728 * slope + 25.490) / 25.18);
-        } else {
-          cell[3] = 1e-6;
-        }
-        // 同步原始备份
-        cell._origSlopeCost = cell[3];
-      }
-    }
-    this.potentialField = null;
-  }
-    
-  // 清除所有覆盖区（移除实体并恢复默认代价）
-  clearOverrideAreas() {
-    if (this.overrideAreas && this.overrideAreas.length) {
-      for (const a of this.overrideAreas) {
-        try { this.viewer.entities.remove(a.polygonEntity); } catch (e) {}
-      }
-      this.overrideAreas = [];
-      // 恢复默认 slopeCost
-      this.recomputeSlopeCosts();
-    }
-  }
-    
-  // 点在多边形内判定：优先使用 turf.booleanPointInPolygon（若加载了 turf），否则回退到射线法
-  _pointInPolygon(lon, lat, polyCoords) {
-    if (!polyCoords || polyCoords.length < 3) return false;
-    try {
-      if (typeof turf !== 'undefined' && turf.booleanPointInPolygon) {
-        const pt = turf.point([lon, lat]);
-        const poly = turf.polygon([polyCoords]);
-        return turf.booleanPointInPolygon(pt, poly);
-      }
-    } catch (e) { /* ignore */ }
-    // fallback: ray-casting
-    let inside = false;
-    for (let i = 0, j = polyCoords.length - 1; i < polyCoords.length; j = i++) {
-      const xi = polyCoords[i][0], yi = polyCoords[i][1];
-      const xj = polyCoords[j][0], yj = polyCoords[j][1];
-      const intersect = ((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi + 1e-12) + xi);
-      if (intersect) inside = !inside;
-    }
-    return inside;
-  }
 
 
   //获取对应坐标地形高度
   createEllipse(gridSquare) {
     let boxResults = []; //所有采样点的集合，存放地形高度提取位置（坐标），用于cesium.sampleTerrain(terrainProvider, level, position)函数最后的position参数
-    // console.log(gridSquare);
+
     for (let index = 0; index < gridSquare.features.length; index++) {
       const feature = gridSquare.features[index];
       const coordinates = feature.geometry.coordinates[0];
@@ -1177,89 +839,11 @@ class SlopeAspect {
 
       return result;
     }
-    //提取高程，并且按照十个点分为二维数组
-    // Cesium.sampleTerrainMostDetailed
-    // Cesium.sampleTerrain(this.viewer.scene.terrainProvider,11,boxResults)
-    // Cesium.sampleTerrainMostDetailed(
-    //   this.viewer.scene.terrainProvider,
-
-    //   boxResults
-    // )
 
     console.time("获取高程点所需时间");
 
-    // let num = Cesium.Cartographic.fromCartesian(viewer.camera.position).height;
-    // let levelTer = calculateValue(num);
-    // if (levelTer >= 14) {
-    //   Cesium.sampleTerrainMostDetailed(this.viewer.scene.terrainProvider, boxResults).then((updatePositions) => {
-    //     let arrr = [];
-    //     let ellipseResults = updatePositions.reduce(function (
-    //       pre,
-    //       item,
-    //       index,
-    //       updatePositions
-    //     ) {
-    //       var begin = index * 10;
-    //       var end = begin + 10;
-    //       var res = updatePositions.slice(begin, end);
-    //       if (res.length != 0) {
-    //         arrr[index] = res;
-    //       }
-    //       return arrr;
-    //     }, []);
-    //     this.calculateSlope(ellipseResults);
-    //   });
-    // } else {
-    //   if (levelTer)
-    //     Cesium.sampleTerrain(this.viewer.scene.terrainProvider, levelTer, boxResults).then((updatePositions) => {
-    //       let arrr = [];
-    //       let ellipseResults = updatePositions.reduce(function (
-    //         pre,
-    //         item,
-    //         index,
-    //         updatePositions
-    //       ) {
-    //         var begin = index * 10;
-    //         var end = begin + 10;
-    //         var res = updatePositions.slice(begin, end);
-    //         if (res.length != 0) {
-    //           arrr[index] = res;
-    //         }
-    //         return arrr;
-    //       }, []);
-    //       console.timeEnd('获取高程点所需时间')
+// CCC注释掉的一段，放在文件末尾
 
-    //       this.calculateSlope(ellipseResults);
-    //       console.timeEnd('从头到尾所花时间')
-
-    //     });
-    // }
-
-    // Cesium.sampleTerrainMostDetailed(
-    //   this.viewer.scene.terrainProvider,
-    //   boxResults
-    // ).then((updatePositions) => {
-    //   let arrr = [];
-    //   let ellipseResults = updatePositions.reduce(function (
-    //     pre,
-    //     item,
-    //     index,
-    //     updatePositions
-    //   ) {
-    //     var begin = index * 10;
-    //     var end = begin + 10;
-    //     var res = updatePositions.slice(begin, end);
-    //     if (res.length != 0) {
-    //       arrr[index] = res;
-    //     }
-    //     return arrr;
-    //   },
-    //   []);
-    //   console.timeEnd("获取高程点所需时间");
-    //   console.time("计算坡度所花时间");
-    //   this.calculateSlope(ellipseResults);
-    //   console.timeEnd("计算坡度所花时间");
-    // });
     Cesium.sampleTerrain(
       this.viewer.scene.terrainProvider,
       13,
@@ -1288,20 +872,10 @@ class SlopeAspect {
       this.calculateSlope();
     });
   }
-
-  // DrawHeight(DEMheight, HeightRange) {
-  //   for (let i = 0; i < DEMheight.length; i++) {
-  //     DEMheight[i].height =
-  //       (DEMheight[i].height - Math.min(...HeightRange)) /
-  //       (Math.max(...HeightRange) - Math.min(...HeightRange));
-  //   }
-  // }
-
-
   
 
   //基于固定牵引力计算
-  CarWeightCost_BaseDragF_Heuristic(current, end){
+  Heuristic_CarWeightCost_BaseDragF(current, end){
     const G = 9.8;
     const a0 = this.DragF / this.carWeight;// 牵引力加速度
     const Vc = current.v;// 当前速度（需要设成0才行？）
@@ -1312,7 +886,7 @@ class SlopeAspect {
     const T = (-Vc + Math.sqrt(Vc*Vc + 2*a0*L)) / a0;// 距离等效时间
     return T;
   }
-  CarWeightCost_BaseDragF_GetCost(from, to){
+  GetCost_CarWeightCost_BaseDragF(from, to){
     let height_Direction = 0;
     if (Math.abs(to.z - from.z) > 1e-10) { // 添加小阈值判断
         height_Direction = (to.z - from.z) / Math.abs(to.z - from.z);
@@ -1343,7 +917,6 @@ class SlopeAspect {
           slopeT = 999999;
       }
     }
-    
     //console.log('Vc1', Vc);
 
     let turnT = 0;
@@ -1377,140 +950,141 @@ class SlopeAspect {
     return { slopeT, turnT, Vc };
   }
   
-  //基于固定初始速度计算xxxx作废，不合理(?)
+  /*
+  //基于固定初始速度计算   作废，不合理(?)
   //平地距离等效时间（启发函数）
-  // CarWeightCost_BaseV_Heuristic(current, end){
-  //   //const G = 9.8;// 重力加速度
-  //   //const DragF = this.carWeight * G;// 牵引力
-  //   //const a0 = DragF / this.carWeight;// 加速度
-  //   const Vc = current.v;// 当前速度
-  //   const dx = Math.abs(current.x - end.x);
-  //   const dy = Math.abs(current.y - end.y);
-  //   const S = Math.sqrt(dx * dx + dy * dy);// 当前点到终点距离
-  //   //const T = -Vc + Math.sqrt(Vc*Vc + 2*a0*S) / a0;// 距离等效时间
-  //   const T = S / Vc;// 距离等效时间
-  //   return T;
-  // }
+  Heuristic_CarWeightCost_BaseV(current, end){
+    //const G = 9.8;// 重力加速度
+    //const DragF = this.carWeight * G;// 牵引力
+    //const a0 = DragF / this.carWeight;// 加速度
+    const Vc = current.v;// 当前速度
+    const dx = Math.abs(current.x - end.x);
+    const dy = Math.abs(current.y - end.y);
+    const S = Math.sqrt(dx * dx + dy * dy);// 当前点到终点距离
+    //const T = -Vc + Math.sqrt(Vc*Vc + 2*a0*S) / a0;// 距离等效时间
+    const T = S / Vc;// 距离等效时间
+    return T;
+  }
   //上下坡转向等效时间
-  // CarWeightCost_BaseV_GetCost(from, to){
-  //   const G = 9.8;
-  //   const DragF = 0;// 牵引力, 此方法牵引力为0，不用this.DragF
-  //   const dx = Math.abs(from.x - to.x);
-  //   const dy = Math.abs(from.y - to.y);
-  //   //const S = Math.sqrt(dx * dx + dy * dy);// 当前点到下一点距离
-  //   const S = this.distance;
-  //   //const Vc = from.v;// 当前速度
+  GetCost_CarWeightCost_BaseV(from, to){
+    const G = 9.8;
+    const DragF = 0;// 牵引力, 此方法牵引力为0，不用this.DragF
+    const dx = Math.abs(from.x - to.x);
+    const dy = Math.abs(from.y - to.y);
+    //const S = Math.sqrt(dx * dx + dy * dy);// 当前点到下一点距离
+    const S = this.distance;
+    //const Vc = from.v;// 当前速度
 
-  //   //const slopeAngle = to.slope;// 目标点坡度角(角度)(直接用to.slope了)
-  //   const slopeAngle_Rad = (Number(to.slope) || 0) * Math.PI / 180;// 目标点坡度角(弧度)
-  //   const a0 = DragF / this.carWeight;// 牵引力加速度（此方法为0）
-  //   let Vc = Math.sqrt(2 * G*Math.sin(this.maxSlope * (Math.PI / 180)) * S); //当前速度 = 最大坡度速度
-  //   const ap = a0 - G * Math.sin(slopeAngle_Rad);// 坡度加速度
-  //   let slopeT = (Math.sqrt(Vc*Vc + 2*ap*S) - Vc) / ap / to.slopeCost;// 坡度分量等效时间
-  //   if(Number.isNaN(slopeT)){ slopeT = 999999; }
+    //const slopeAngle = to.slope;// 目标点坡度角(角度)(直接用to.slope了)
+    const slopeAngle_Rad = (Number(to.slope) || 0) * Math.PI / 180;// 目标点坡度角(弧度)
+    const a0 = DragF / this.carWeight;// 牵引力加速度（此方法为0）
+    let Vc = Math.sqrt(2 * G*Math.sin(this.maxSlope * (Math.PI / 180)) * S); //当前速度 = 最大坡度速度
+    const ap = a0 - G * Math.sin(slopeAngle_Rad);// 坡度加速度
+    let slopeT = (Math.sqrt(Vc*Vc + 2*ap*S) - Vc) / ap / to.slopeCost;// 坡度分量等效时间
+    if(Number.isNaN(slopeT)){ slopeT = 999999; }
     
-  //   let turnT = 0;
-  //   let R = S;// 转向半径（未达到速度限制，原速转弯）
-  //   if(this.usePotentialFieldFlag){
-  //     const turnAngle_Rad = to.turnAngle !== undefined ? ((to.turnAngle * Math.PI) / 180) : 0;
-  //     let SL = S * turnAngle_Rad;
-  //     turnT = SL / Vc;
-  //   }
-  //   else{ 
-  //     const atmax = G*Math.sin((this.maxSlope - to.slope)*Math.PI / 180); // 最大转向加速度（坡度阈值-当前坡度算出来的重力加速度分量）
-  //     const turnAngle_Rad = to.turnAngle !== undefined ? ((to.turnAngle / 180) * Math.PI) : 0;// 转向角(弧度)
-  //     const k = Math.abs(2 * Math.tan(turnAngle_Rad / 2) / S) == 0 ? 1e-6 : Math.abs(2 * Math.tan(turnAngle_Rad / 2) / S);// 曲率
-  //     const Vtmax = Math.sqrt(atmax / k); // 最大转向速度
-  //     let SL = S * turnAngle_Rad; // 初始转向路程等于总路程
-  //     //console.log('from', from, 'ap', ap, 'Vtmax', Vtmax, 'Vc', Vc);
-  //     if (Number.isFinite(Vtmax) && Vtmax < Vc && !Number.isNaN(Vtmax)) { 
-  //       //SL = S - Math.max(0, (Vtmax*Vtmax - Vc*Vc) / (2*ap)); // 转向路程
-  //       let SS =  Math.max(0, (Vtmax*Vtmax - Vc*Vc) / (2*atmax));
-  //       let TS = Math.abs((Vtmax - Vc) / atmax);
-  //       let ST = 0, TT = 0;
-  //       Vc = Vtmax;
-  //       if((to.turnAngle/180)*Math.PI*S - SS > 0){
-  //         ST = (to.turnAngle/180)*Math.PI*S - SS;
-  //         TT = ST / Vc;
-  //       }
+    let turnT = 0;
+    let R = S;// 转向半径（未达到速度限制，原速转弯）
+    if(this.usePotentialFieldFlag){
+      const turnAngle_Rad = to.turnAngle !== undefined ? ((to.turnAngle * Math.PI) / 180) : 0;
+      let SL = S * turnAngle_Rad;
+      turnT = SL / Vc;
+    }
+    else{ 
+      const atmax = G*Math.sin((this.maxSlope - to.slope)*Math.PI / 180); // 最大转向加速度（坡度阈值-当前坡度算出来的重力加速度分量）
+      const turnAngle_Rad = to.turnAngle !== undefined ? ((to.turnAngle / 180) * Math.PI) : 0;// 转向角(弧度)
+      const k = Math.abs(2 * Math.tan(turnAngle_Rad / 2) / S) == 0 ? 1e-6 : Math.abs(2 * Math.tan(turnAngle_Rad / 2) / S);// 曲率
+      const Vtmax = Math.sqrt(atmax / k); // 最大转向速度
+      let SL = S * turnAngle_Rad; // 初始转向路程等于总路程
+      //console.log('from', from, 'ap', ap, 'Vtmax', Vtmax, 'Vc', Vc);
+      if (Number.isFinite(Vtmax) && Vtmax < Vc && !Number.isNaN(Vtmax)) { 
+        //SL = S - Math.max(0, (Vtmax*Vtmax - Vc*Vc) / (2*ap)); // 转向路程
+        let SS =  Math.max(0, (Vtmax*Vtmax - Vc*Vc) / (2*atmax));
+        let TS = Math.abs((Vtmax - Vc) / atmax);
+        let ST = 0, TT = 0;
+        Vc = Vtmax;
+        if((to.turnAngle/180)*Math.PI*S - SS > 0){
+          ST = (to.turnAngle/180)*Math.PI*S - SS;
+          TT = ST / Vc;
+        }
            
-  //       //turnT = Math.abs((Vtmax - Vc) / ap) + (Math.sqrt(Vtmax*Vtmax + 2*ap*SL) - Vtmax) / ap;// 转向分量等效时间
-  //       turnT = TS + TT;  
-  //     }
-  //     else{
-  //       turnT = SL / Vc;  
-  //     }
-  //   }
-  //   //const totalT = slopeT + turnT; console.log('Angle', to.turnAngle, 'R', R, '\nturnT', turnT, 'slopeT', slopeT, 'totalT', totalT);
-    
-  //   return { slopeT, turnT, Vc };
-  // }
+        //turnT = Math.abs((Vtmax - Vc) / ap) + (Math.sqrt(Vtmax*Vtmax + 2*ap*SL) - Vtmax) / ap;// 转向分量等效时间
+        turnT = TS + TT;  
+      }
+      else{
+        turnT = SL / Vc;  
+      }
+    }
+    //const totalT = slopeT + turnT; console.log('Angle', to.turnAngle, 'R', R, '\nturnT', turnT, 'slopeT', slopeT, 'totalT', totalT);
 
+    return { slopeT, turnT, Vc };
+  }*/
+
+  // AHP方法
+  AHP_Heuristic(a, b, startx, starty, endx, endy) {
+    const dx = Math.abs(a.x - b.x);
+    const dy = Math.abs(a.y - b.y);
+
+    // 垂距
+    //const cross = (b.x - startx)*(endy - starty)-(b.y - starty)*(endx - startx);
+
+    return Math.sqrt(dx * dx + dy * dy)// + Math.abs(cross);
+    //return dx + dy;
+  }
+  AHP_GetCost(from, to) {
+    // 计算的坡度代价（值越大越难通行）
+    const slopeCost = to.slopeCost;
+
+    // 总预估代价            
+    return slopeCost;
+  }
+
+  // 原始方法，查表法
   Heuristic(a, b) {
-      const dx = Math.abs(a.x - b.x);
-      const dy = Math.abs(a.y - b.y);
+    const dx = Math.abs(a.x - b.x);
+    const dy = Math.abs(a.y - b.y);
 
-      return Math.sqrt(dx * dx + dy * dy) * 10;
+    return Math.sqrt(dx * dx + dy * dy);
   }
   GetCost(from, to) {
-      const dx = to.x - from.x;
-      const dy = to.y - from.y;
-      // const distance = Math.sqrt(dx * dx + dy * dy);
-      // const elevationDiff = Math.abs(to.z - from.z);
-      // return distance * 10 + elevationDiff * 2;
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
 
-      let distanceCost;
-      if (dx === 1 && dy === 1) {
-          distanceCost = 12; // 对角移动
-      } else {
-          distanceCost = 10; // 水平/垂直移动
-      }
+    let distanceCost = Math.hypot(dx, dy) * this.distance;
+    // if (dx === 1 && dy === 1) {
+    //     distanceCost = 12; // 对角移动
+    // } else {
+    //     distanceCost = 10; // 水平/垂直移动
+    // }
 
-      // 高程代价（上坡更困难）
-      const elevationDiff = to.z - from.z;
-      let elevationCost;
-      if (elevationDiff > 0) {
-          // 上坡，使用非线性增加
-          elevationCost = Math.pow(elevationDiff, 1.3) * 3;
-      } else {
-          // 下坡或平地
-          elevationCost = Math.abs(elevationDiff) * 0.5;
-      }
+    // 高程代价（上坡更困难）
+    const elevationDiff = to.z - from.z;
+    let elevationCost;
+    if (elevationDiff > 0) {
+        // 上坡，使用非线性增加
+        elevationCost = Math.pow(elevationDiff, 1.3) * 3;
+    } else {
+        // 下坡或平地
+        elevationCost = Math.abs(elevationDiff) * 0.5;
+    }
 
-      // 计算的坡度代价（值越大越能通行，故要减去）
-      const slopeCost = to.slopeCost * 10;
+    // 计算的坡度代价（值越大越能通行，故要除掉）
+    const slopeCost = to.slopeCost;
 
-      // 总预估代价            
-      return (distanceCost + elevationCost) / slopeCost;
+    // 总预估代价            
+    return (distanceCost + elevationCost) / slopeCost;
   }
 
-  // 小函数：计算转向惩罚（角度越大惩罚越高），放在类内部
-  turningPenalty(prevNode, currentNode, nextNode) {
-    if (!prevNode || !currentNode || !nextNode) return 0;
-    // 向量： prev->current 和 current->next
-    const v1x = currentNode.x - prevNode.x;
-    const v1y = currentNode.y - prevNode.y;
-    const v2x = nextNode.x - currentNode.x;
-    const v2y = nextNode.y - currentNode.y;
-    const mag1 = Math.sqrt(v1x*v1x + v1y*v1y) || 1;
-    const mag2 = Math.sqrt(v2x*v2x + v2y*v2y) || 1;
-    const dot = (v1x*v2x + v1y*v2y) / (mag1 * mag2);
-    const cos = Math.max(-1, Math.min(1, dot));
-    const angle = Math.acos(cos); // 0..PI
-    const PEN_BASE = 2.0; // 可调，单位代价
-    return PEN_BASE * (angle / Math.PI); // 0..PEN_BASE
-  }
-
-   // 计算三个格点（prev->current->next）之间的转角，返回度数（带符号或绝对值）
+  // 计算三个格点（prev->current->next）之间的转角，返回度数（带符号或绝对值）
   computeTurnAngle(prevNode, currentNode, nextNode, { signed = false } = {}) {
     if (!prevNode || !currentNode || !nextNode) return 0;
     const v1x = currentNode.x - prevNode.x;
     const v1y = currentNode.y - prevNode.y;
     const v2x = nextNode.x - currentNode.x;
     const v2y = nextNode.y - currentNode.y;
-    const mag1 = Math.hypot(v1x, v1y) || 1;
+    const mag1 = Math.hypot(v1x, v1y) || 1;// 两点间欧式距离计算
     const mag2 = Math.hypot(v2x, v2y) || 1;
-    const dot = (v1x * v2x + v1y * v2y) / (mag1 * mag2);
+    const dot = (v1x*v2x + v1y*v2y) / (mag1*mag2);
     // 限定数值范围以避免 NaN
     const cos = Math.max(-1, Math.min(1, dot));
     // 无符号角度（0..180）
@@ -1543,10 +1117,10 @@ class SlopeAspect {
         if (nx >= 0 && nx < xSize && ny >= 0 && ny < ySize && this.slopeCostGrid[nx][ny].length != 0) {
           neighbors.push(new findPathNode(
             nx, ny,// x, y
-            this.slopeCostGrid[nx][ny][2][2],// z
-            this.slopeCostGrid[nx][ny][0],// Cartesian3Grid
-            this.slopeCostGrid[nx][ny][3], // slopeCost
-            this.slopeCostGrid[nx][ny][1], // slope
+            this.slopeCostGrid[nx][ny].degreeCoordinate[2],// z
+            this.slopeCostGrid[nx][ny].Cartesian,// Cartesian3Grid
+            this.slopeCostGrid[nx][ny].slopeCost, // slopeCost
+            this.slopeCostGrid[nx][ny].slope, // slope
           ));
         }
       }     
@@ -1557,7 +1131,6 @@ class SlopeAspect {
       throw error;
     }
   }
-  //5邻域
   //5邻域（基于父节点方向扩展）
   GetNeighbors_5(node){
     const neighbors = [];
@@ -1604,10 +1177,10 @@ class SlopeAspect {
             this.slopeCostGrid[nx][ny].length != 0) {
           neighbors.push(new findPathNode(
             nx, ny,
-            this.slopeCostGrid[nx][ny][2][2], // z
-            this.slopeCostGrid[nx][ny][0],    // Cartesian3Grid
-            this.slopeCostGrid[nx][ny][3],    // slopeCost
-            this.slopeCostGrid[nx][ny][1]     // slope
+            this.slopeCostGrid[nx][ny].degreeCoordinate[2], // z
+            this.slopeCostGrid[nx][ny].Cartesian,    // Cartesian3Grid
+            this.slopeCostGrid[nx][ny].slopeCost,    // slopeCost
+            this.slopeCostGrid[nx][ny].slope     // slope
           ));
         }
       }
@@ -1626,10 +1199,10 @@ class SlopeAspect {
             this.slopeCostGrid[nx][ny].length != 0) {
           neighbors.push(new findPathNode(
             nx, ny,
-            this.slopeCostGrid[nx][ny][2][2], // z
-            this.slopeCostGrid[nx][ny][0],    // Cartesian3Grid
-            this.slopeCostGrid[nx][ny][3],    // slopeCost
-            this.slopeCostGrid[nx][ny][1]     // slope
+            this.slopeCostGrid[nx][ny].degreeCoordinate[2], // z
+            this.slopeCostGrid[nx][ny].Cartesian,    // Cartesian3Grid
+            this.slopeCostGrid[nx][ny].slopeCost,    // slopeCost
+            this.slopeCostGrid[nx][ny].slope     // slope
           ));
         }
       }
@@ -1655,7 +1228,6 @@ class SlopeAspect {
     var endPoint = endPoint || [];
     var d1 = []; //起点距最近网格点两点距离
     var d2 = []; //终点距各个网格点两点距离（遍历）
-    let slope = 999;//量化坡度代价
     let startx = -1;
     let starty = -1;
     let endx = -1;
@@ -1674,45 +1246,26 @@ class SlopeAspect {
       for (let j = 0; j < this.slopeCostGrid[i].length; j++) {
         if(this.slopeCostGrid[i][j].length != 0){
 
-          slope = this.slopeCostGrid[i][j][1];// 坡度值
-          d2 = Cesium.Cartesian3.distance(this.slopeCostGrid[i][j][0], endPoint);
-          d1 = Cesium.Cartesian3.distance(this.slopeCostGrid[i][j][0], startPoint);
-          
+          // 找到距离选取的起点和终点最近的网格点，作为寻路起点和终点
+          d2 = Cesium.Cartesian3.distance(this.slopeCostGrid[i][j].Cartesian, endPoint);
+          d1 = Cesium.Cartesian3.distance(this.slopeCostGrid[i][j].Cartesian, startPoint);
           if (d1 < this.distance * Math.sqrt(2) / 2 && startx == -1 && starty == -1) {
-            startPoint = {x: i, y: j, z: this.slopeCostGrid[i][j][2][2], Cartesian3Grid: this.slopeCostGrid[i][j][0]};
+            startPoint = {x: i, y: j, z: this.slopeCostGrid[i][j].degreeCoordinate[2], Cartesian3Grid: this.slopeCostGrid[i][j].Cartesian};
             startx = i;
             starty = j;
           }
           if (d2 < this.distance * Math.sqrt(2) / 2 && endx == -1 && endy == -1) {
-            endPoint = {x: i, y: j, z: this.slopeCostGrid[i][j][2][2], Cartesian3Grid: this.slopeCostGrid[i][j][0]};
+            endPoint = {x: i, y: j, z: this.slopeCostGrid[i][j].degreeCoordinate[2], Cartesian3Grid: this.slopeCostGrid[i][j].Cartesian};
             endx = i;
             endy = j;
           }
-          
-          // console.log('i', i, 'j', j, 'slope', slope);
-          // 转换坡度距离为代价
-          if(slope<=5){ 
-            this.slopeCostGrid[i][j][3] = 10*1;// console.log(1111);
-          }
-          else if(slope>5 && slope<=9){
-            this.slopeCostGrid[i][j][3] = (10 * (Math.pow(0.02 * (slope - 5), 3) - 3.183 * slope + 41.1103) / 25.18);// console.log(2222);
-          }
-          else if(slope>9 && slope<=22){
-            this.slopeCostGrid[i][j][3] = (10 * ((0.45 * Math.pow(22 - slope, 3) + 0.11 * Math.pow(9 - slope, 3)) / 78 + 0.653 * slope - 4.905) / 25.18);// console.log(3333);
-          }
-          else if(slope>22 && slope<=35){
-            this.slopeCostGrid[i][j][3] = (10 * ((0.11 * Math.pow(slope - 35, 3)) / 78 - 0.728 * slope + 25.490) / 25.18);// console.log(4444);
-          }
-          else{//slope > 35 
-            this.slopeCostGrid[i][j][3] = 1e-6;// console.log(5555);
-          }  
 
         }   
       }     
     }
+    console.log('startPoint', startPoint, 'endPoint', endPoint);
 
-
-    // 若启用潜力场寻路，优先使用全局 cost-to-go 场并按 potential 贪心跟随
+    // 若启用潜力场寻路，优先使用全局 cost-to-go 场并按 potential 贪心搜索
     if (this.usePotentialFieldFlag && startx !== -1 && endx !== -1) {
       try {
         this.potentialField = this.computePotentialField({x: endx, y: endy});console.log('potentialField', this.potentialField);
@@ -1732,16 +1285,16 @@ class SlopeAspect {
         // 找到f值最小的节点，作为当前节点current
         let currentIndex = 0;
         for (let i = 1; i < openList.length; i++) {
-            if (openList[i].f > 0
-                && openList[i].f < openList[currentIndex].f 
-                && openList[i].f < 100000 
-                && openList[currentIndex].f < 100000
-                && Number.isFinite(openList[i].f)
-                ||(openList[i].f === openList[currentIndex].f 
-                && openList[i].h < openList[currentIndex].h)) {       
-              //console.log('openList[i].f', openList[i].f, 'openList[currentIndex].f', openList[currentIndex].f);
-              currentIndex = i;
-            }
+          //console.log('openList[i].f', openList[i].f, 'openList[currentIndex].f', openList[currentIndex].f);
+          //console.log('openList[i].f < 10000', openList[i].f < 10000, 'openList[currentIndex].f < 10000', openList[currentIndex].f < 10000);
+          if (openList[i].f > 0
+              && openList[i].f < openList[currentIndex].f 
+              && openList[i].f < 10000
+              && openList[currentIndex].f < 10000
+              && Number.isFinite(openList[i].f) 
+              && openList[i].h < openList[currentIndex].h){       
+            currentIndex = i;
+          }
         }
         const current = openList[currentIndex];
         const currentKey = `${current.x},${current.y}`;
@@ -1763,7 +1316,7 @@ class SlopeAspect {
                                   g: temp.g,
                                   h: temp.h,
                                   f: temp.f,
-                                  Cartesian3Grid: temp.Cartesian3Grid,//删除前要看这个参数其他地方有没有用上！！！！
+                                  Cartesian3Grid: temp.Cartesian3Grid,
               });
               temp = temp.parent;// 通过父节点parent回溯路径
             }
@@ -1785,12 +1338,12 @@ class SlopeAspect {
             
             const pathPoint1 = this.pathPoints[this.pathLineNum][0];//路径点1
             const pathPoint2 = this.pathPoints[this.pathLineNum][1];//路径点2
-            const pathPoint3 = this.pathPoints[this.pathLineNum][this.pathPoints[this.pathLineNum].length-1];//路径点3
-            const pathPoint4 = this.pathPoints[this.pathLineNum][this.pathPoints[this.pathLineNum].length-2];//路径点4
+            const pathPoint3 = this.pathPoints[this.pathLineNum][this.pathPoints[this.pathLineNum].length-1];//路径点倒数1
+            const pathPoint4 = this.pathPoints[this.pathLineNum][this.pathPoints[this.pathLineNum].length-2];//路径点倒数2
             const pathPoint1Carto = Cesium.Cartographic.fromCartesian(pathPoint1.Cartesian3Grid);//路径点1的经纬度
             const pathPoint2Carto = Cesium.Cartographic.fromCartesian(pathPoint2.Cartesian3Grid);//路径点2的经纬度
-            const pathPoint3Carto = Cesium.Cartographic.fromCartesian(pathPoint3.Cartesian3Grid);//路径点3的经纬度
-            const pathPoint4Carto = Cesium.Cartographic.fromCartesian(pathPoint4.Cartesian3Grid);//路径点4的经纬度
+            const pathPoint3Carto = Cesium.Cartographic.fromCartesian(pathPoint3.Cartesian3Grid);//路径点倒数1的经纬度
+            const pathPoint4Carto = Cesium.Cartographic.fromCartesian(pathPoint4.Cartesian3Grid);//路径点倒数2的经纬度
             var S1direction;//起点路径点1方向
             var S2direction;//起点路径点2方向
             var E1direction;//终点路径点1方向
@@ -1884,38 +1437,50 @@ class SlopeAspect {
             let h;
             let f;
 
-            if(this.equTimeCostV){ //等效时间计算代价
+            if(this.equTimeCostV){ // 固定速度_等效时间计算代价
               // 计算转角（度），并保存到节点
               const turnAngleDeg = this.computeTurnAngle(current.parent, current, neighbor);
               neighbor.turnAngle = turnAngleDeg; // 根据邻域即时计算的转角，不是最终路径的转角, 仅用于计算g值
-              const{ slopeT: slopeT, turnT: turnT, Vc: Vn } = this.CarWeightCost_BaseV_GetCost(current, neighbor);
+              const{ slopeT: slopeT, turnT: turnT, Vc: Vn } = this.GetCost_CarWeightCost_BaseV(current, neighbor);
               neighbor.v = Vn; // 保存下一节点速度，供后续计算使用
 
               g = current.g + slopeT + turnT;
               if(this.potentialField && this.potentialField[neighbor.x] && Number.isFinite(this.potentialField[neighbor.x][neighbor.y])){
                 h = this.potentialField[neighbor.x][neighbor.y];
               }
-              h = this.CarWeightCost_BaseV_Heuristic(neighbor, endPoint);
+              h = this.Heuristic_CarWeightCost_BaseV(neighbor, endPoint);
               f = this.gWeight * g + this.hWeight * h;
             }
-            else if(this.equTimeCostDragF){
+            else if(this.equTimeCostDragF){// 固定牵引力_等效时间计算代价
               // 计算转角（度），并保存到节点
               const turnAngleDeg = this.computeTurnAngle(current.parent, current, neighbor);
               neighbor.turnAngle = turnAngleDeg; // 根据邻域即时计算的转角，不是最终路径的转角, 仅用于计算g值
-              const{ slopeT: slopeT, turnT: turnT, Vc: Vn } = this.CarWeightCost_BaseDragF_GetCost(current, neighbor);
+              const{ slopeT: slopeT, turnT: turnT, Vc: Vn } = this.GetCost_CarWeightCost_BaseDragF(current, neighbor);
               neighbor.v = Vn; // 保存下一节点速度，供后续计算使用
 
               g = current.g + slopeT + turnT;
               // if(this.potentialField && this.potentialField[neighbor.x] && Number.isFinite(this.potentialField[neighbor.x][neighbor.y])){
               //   h = this.potentialField[neighbor.x][neighbor.y];
               // } // 暂不使用反向搜索
-              h = this.CarWeightCost_BaseDragF_Heuristic(neighbor, endPoint);
+              h = this.Heuristic_CarWeightCost_BaseDragF(neighbor, endPoint);
               f = this.gWeight * g + this.hWeight * h;
             }
-            else{ //原始计算代价
+            else if(this.useAHPMethod){ // AHP方法计算代价(最短时间，时间代价)
+              const turnAngleDeg = this.computeTurnAngle(current.parent, current, neighbor);
+              const delta_g = this.AHP_GetCost(current, neighbor);
+              g = current.g + delta_g;
+              if(turnAngleDeg == 45 || turnAngleDeg == 135) {
+                g = g + delta_g * 0.414;// 对角线距离增大1.414倍
+              }else if(turnAngleDeg == 90) {
+                g = g + delta_g * 0.828;// 水平距离增大1.828倍
+              }
+              h = this.AHP_Heuristic(neighbor, endPoint, startx, starty, endx, endy) / 25;// 曼哈顿距离 / 最大速度 = 最小时间
+              f = this.gWeight * g + this.hWeight * h;
+            }
+            else{ // 原始计算代价
               // 原始： const g = current.g + this.GetCost(current, neighbor); 新增转向惩罚：使用 current.parent 来计算转向惩罚（首次无惩罚）
               const baseMoveCost = this.GetCost(current, neighbor);
-              const turnPen = this.turningPenalty(current.parent, current, neighbor);
+              const turnPen = this.computeTurnAngle(current.parent, current, neighbor) / 180 * 20;// 2是转向惩罚权重，可调
               g = current.g + baseMoveCost + turnPen;
               //const h = this.Heuristic(neighbor, {x: endPoint.x, y: endPoint.y}); 
               // 优先使用预计算的潜力场作为启发式（更贴近代价）
@@ -1926,18 +1491,14 @@ class SlopeAspect {
               } 
               f = this.gWeight * g + this.hWeight * h;// 立即计算 f 并过滤异常/过大代价的节点，避免它们进入 openList
               // 参数：可调阈值，用于对f做约束，视你的数据量级调整（示例使用 1e6）
-              const MAX_ACCEPTABLE_F = 1e6;
-              // 如果 f 非有限或超过阈值，跳过该邻居（等同于不可通行）
-              if (!Number.isFinite(f) || f > MAX_ACCEPTABLE_F) {
-                // 可选：记录日志便于调试
-                // console.debug('skip neighbor due to large f', key, 'f=', f, 'slopeCost=', neighbor.slopeCost);
-                continue;
-              }
            }
-            
+
+            const MAX_ACCEPTABLE_F = 1e5;
+            // 如果 f 非有限或超过阈值，跳过该邻居(等同于不可通行),不将其加入搜索列表openlist
+            if (!Number.isFinite(f) || f > MAX_ACCEPTABLE_F) continue;
+
             // 存储节点信息
             nodeInfoMap.set(key, {g: g, h: h, f: f});
-            
             // 检查是否在OPEN列表中
             let inOpen = false;
             for (let node of openList) {
@@ -1994,19 +1555,11 @@ class SlopeAspect {
       $this.keepStartPoint = null;
       $this.keepEndPoint = null;
 
-      // var startPoint = [];
-      // var endPoint = [];
       $this.handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-
       $this.handler.setInputAction(function (movement) {
         var ray = viewer.camera.getPickRay(movement.position);
         var cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-        const pickObject = viewer.scene.pick(movement.position);
-        if ($this.drawFlag && Cesium.defined(pickObject) && pickObject.primitive) {
-          console.log('点击primitive的color是', pickObject.primitive.appearance.material.uniforms.color);
-          //pickObject.primitive.color = Cesium.Color.BLUE;
-          console.log('Primitivecolor',pickObject.primitive)
-        }
+        
         if (cartesian) {
           switch (flag) {
             case 0:
@@ -2072,6 +1625,153 @@ class SlopeAspect {
     } 
   }
 
+  // 计算通行代价 并 绘制通行代价图
+  DrawCostMap(){
+    if (!this.slopeCostGrid || this.slopeCostGrid.length === 0) {
+      alert('请先计算区域坡度！');
+      return;
+    }
+    let costValArry = [];// 坡度分段代价值数组
+    const rows = this.slopeCostGrid.length;       // 行数（Y方向）
+    const cols = this.slopeCostGrid[0].length;    // 列数（X方向）
+    let slope = 999999;
+    let speed = 0; // km/h
+    // DEM[i][j] 存储格子 [i,j] 的高程值（单位：米）
+    const DEM = new Array(rows);// DEM[i][j] = this.slopeCostGrid[i][j].slopeCost为格子通行代价
+    for (let i = 0; i < rows; i++) {
+      DEM[i] = new Array(cols).fill(0); 
+    }// 初始化DEM[i][j]为 0
+
+    /*// 原始方法
+    costValArry = [
+      10 * 1,
+      (10 * (Math.pow(0.02 * (5 - 5), 3) - 3.183 * 5 + 41.1103) / 25.18),
+      (10 * (Math.pow(0.02 * (9 - 5), 3) - 3.183 * 9 + 41.1103) / 25.18),
+      (10 * ((0.45 * Math.pow(22 - 9, 3) + 0.11 * Math.pow(9 - 9, 3)) / 78 + 0.653 * 9 - 4.905) / 25.18),
+      (10 * ((0.45 * Math.pow(22 - 22, 3) + 0.11 * Math.pow(9 - 22, 3)) / 78 + 0.653 * 22 - 4.905) / 25.18),
+      (10 * ((0.11 * Math.pow(22 - 35, 3)) / 78 - 0.728 * 22 + 25.490) / 25.18),
+      (10 * ((0.11 * Math.pow(35 - 35, 3)) / 78 - 0.728 * 35 + 25.490) / 25.18),
+      1e-6,
+    ];*/
+
+    /* // 真实数据驱动的层次分析法
+    let Vmax = 20/3.6;
+    const S = this.distance;
+    this.weights = [0.0573, 0.0748, 0.1024, 0.1613];// 坡度各级别权重
+    const T = S / Vmax;// 基础时间代价
+
+    let result = this.AHPanalysistest().weights_eigen;
+    console.log('result',result);// AHP权重输出
+    const AHPcost = result.map(function(x) { return x * T; });console.log('AHPcost',AHPcost);
+    costValArry = [
+      AHPcost[0],
+      AHPcost[1],
+      AHPcost[2],
+      AHPcost[3],
+      999999,
+    ];*/
+
+    // 坡度分段边界时间代价（用于颜色分级）
+    let costValArray = [];
+    // 第1段: slope <= 6° -> 速度15-25km/h -> 时间7.2-12.0s (绿色)
+    costValArray[0] = this.distance / (15 / 3.6);  // 12.0s
+    // 第2段: 6° < slope <= 10° -> 速度12-15km/h -> 时间12.0-15.0s (浅绿)
+    costValArray[1] = this.distance / (12 / 3.6);  // 15.0s
+    // 第3段: 10° < slope <= 15° -> 速度8-12km/h -> 时间15.0-22.5s (黄色)
+    costValArray[2] = this.distance / (8 / 3.6);   // 22.5s
+    // 第4段: 15° < slope <= 20° -> 速度5-8km/h -> 时间22.5-36.0s (橙色)
+    costValArray[3] = this.distance / (5 / 3.6);   // 36.0s
+    // 第5段: 20° < slope <= 30° -> 速度0-5km/h -> 时间36.0s-∞ (深橙/浅红)
+    costValArray[4] = 999999;  // 30°以上不可通行
+
+    for (let i = 0; i < this.slopeCostGrid.length; i++) {
+      for (let j = 0; j < this.slopeCostGrid[i].length; j++) {
+        if (this.slopeCostGrid[i][j].length !== 0) {
+          // 转换坡度距离为代价
+          slope = this.slopeCostGrid[i][j].slope;
+
+          //论文：地形通行性能的研究_张文诗
+          /*if (slope <= 5) {
+            this.slopeCostGrid[i][j].slopeCost = 10 * 1;// console.log(1111);
+          }
+          else if (slope > 5 && slope <= 9) {
+            this.slopeCostGrid[i][j].slopeCost = (10 * (Math.pow(0.02 * (slope - 5), 3) - 3.183 * slope + 41.1103) / 25.18);// console.log(2222);
+          }
+          else if (slope > 9 && slope <= 22) {
+            this.slopeCostGrid[i][j].slopeCost = (10 * ((0.45 * Math.pow(22 - slope, 3) + 0.11 * Math.pow(9 - slope, 3)) / 78 + 0.653 * slope - 4.905) / 25.18);// console.log(3333);
+          }
+          else if (slope > 22 && slope <= 35) {
+            this.slopeCostGrid[i][j].slopeCost = (10 * ((0.11 * Math.pow(slope - 35, 3)) / 78 - 0.728 * slope + 25.490) / 25.18);// console.log(4444);
+          }
+          else {//slope > 35 
+            this.slopeCostGrid[i][j].slopeCost = 1e-6;// console.log(5555);
+          }*/
+
+          //AHP权重叠加计算通行代价（越野汽车）
+          /*if (slope <= 6) {
+            this.slopeCostGrid[i][j].slopeCost = AHPcost[0]*slope;
+          }
+          else if (slope > 6 && slope <= 10) {
+            this.slopeCostGrid[i][j].slopeCost = AHPcost[1]*slope;
+          }
+          else if (slope > 10 && slope <= 15) {
+            this.slopeCostGrid[i][j].slopeCost = AHPcost[2]*slope;
+          }
+          else if (slope > 15 && slope <= 20) {
+            this.slopeCostGrid[i][j].slopeCost = AHPcost[3]*slope;
+          }
+          else {//slope > 20 
+            this.slopeCostGrid[i][j].slopeCost = 999999;
+          }*/
+           
+          // 根据表3线性插值计算速度
+          if (slope <= 0) {
+            speed = 25;
+          } else if (slope <= 3) {
+            // 0-3°: 25 -> 20 km/h
+            speed = 25 - (25 - 20) * (slope - 0) / (3 - 0);
+          } else if (slope <= 6) {
+            // 3-6°: 20 -> 15 km/h
+            speed = 20 - (20 - 15) * (slope - 3) / (6 - 3);
+          } else if (slope <= 10) {
+            // 6-10°: 15 -> 12 km/h
+            speed = 15 - (15 - 12) * (slope - 6) / (10 - 6);
+          } else if (slope <= 15) {
+            // 10-15°: 12 -> 8 km/h
+            speed = 12 - (12 - 8) * (slope - 10) / (15 - 10);
+          } else if (slope <= 20) {
+            // 15-20°: 8 -> 5 km/h
+            speed = 8 - (8 - 5) * (slope - 15) / (20 - 15);
+          } else if (slope <= 30) {
+            // 20-30°: 5 -> 0 km/h（仍可通行，但速度很慢）
+            speed = 5 - (5 - 0) * (slope - 20) / (30 - 20);
+          } else {
+            // slope > 30°: 完全不可通行
+            speed = 0;
+          }
+
+          // 计算时间代价：时间 = 距离 / 速度
+          if (speed > 0.1) { // 速度大于0.1km/h才认为可通行
+            this.slopeCostGrid[i][j].slopeCost = this.distance / (speed / 3.6);
+          } else {
+            this.slopeCostGrid[i][j].slopeCost = 999999; // 不可通行
+          }
+
+        }
+      }
+    }
+
+    let slopeCostColorGrid = this.calculateCostColor(costValArry);// 代价映射颜色绘制代价图
+    this.createCostInstance(slopeCostColorGrid);// 绘制代价栅格，默认不显示
+    if (this.costPolygons && this.costPolygons.length >= 2) {
+      this.costPolygons.forEach((element) => {
+        element.primitive.show = false;
+      });
+    }
+    console.log('slopePolygons', this.slopePolygons);
+    return;
+  }
+
   DrawPath() {
     // 绘制路径
     const CrossPoints = [];
@@ -2125,19 +1825,98 @@ class SlopeAspect {
     return;
   }
 
+  // 绘制通行代价图
+  createCostInstance(slopeCostColorGrid){
+    let Instances = [];
+    let positions = [];
+    console.log('slopeCostColorGrid',slopeCostColorGrid);
+    for (let i = 0; i < slopeCostColorGrid.length; i++) {
+      Instances = [];//重置
+      positions = [];//重置
+      let color = 0;//重置
+      if(slopeCostColorGrid[i].length > 0){
+        color = Cesium.Color.fromCssColorString(slopeCostColorGrid[i][0].color);console.log('colorCesium',color);
+      }
+      for (let j = 0; j < slopeCostColorGrid[i].length && slopeCostColorGrid[i].length > 0; j++) {
+        const Cost = slopeCostColorGrid[i][j].cost;// 代价值
+        const polygonInstance = new Cesium.GeometryInstance({
+          id: {
+            type: "Cost",           // 类型标识，用于 openTip 判断
+            name: '代价：',               // 名称：代价
+            value: Cost,         // 实际的代价值
+            index: i                       // 可选：实例索引
+          }, 
+          geometry: new Cesium.PolygonGeometry({
+            polygonHierarchy: new Cesium.PolygonHierarchy(slopeCostColorGrid[i][j].gridSquare),
+            height: 0,
+            vertexFormat: Cesium.MaterialAppearance.VERTEX_FORMAT,
+          }),
+        });
+        Instances.push(polygonInstance);
+        positions.push(slopeCostColorGrid[i][j].gridSquare);
+      }
+
+      if (color !== 0) {
+        //2 创建材质material，作用于外观appearance上
+        const material = new Cesium.Material({
+          fabric: {
+            type: 'Color',
+            uniforms: {
+              color: color,
+            },
+          },
+        });
+        //3 创建MaterialAppearance以支持动态调节参数，作用于primitive上
+        const appearance = new Cesium.MaterialAppearance({
+          material: material,
+          translucent: color.alpha < 1.0,
+          flat: true,
+        });
+        //4 创建GroundPrimitive以实现贴地效果,使用GroundPrimitive创建贴地的面，作用于primitive上
+        const primitive = new Cesium.GroundPrimitive({
+          geometryInstances: Instances,
+          appearance: appearance,
+        });
+        // 添加到场景
+        viewer.scene.primitives.add(primitive);
+
+        // 保存面信息
+        const polygonInfo = {
+          primitive: primitive,
+          positions: positions,
+          baseColor: color,
+          alpha: color.alpha,
+        };
+        this.costPolygons.push(polygonInfo);
+      }
+    }
+    
+    return;
+  }
+
   //绘制坡度坡向图，相同颜色的格子放在同一数组下创建Instance
-  createPolygonInsrance(PosArray, colorHex, config) {
-    //PosArray = aspect/slopePosArray[i]
+  createPolygonInstance(PosArray, colorHex, config) {
+    //PosArray = aspect/slopePosArray[i]    i为0-9
+    //PosArray[i] = aspect/slopePosArray[i'][i]     i'为0-9，i为该颜色下的第几个多边形
+    //PosArray[i][0] = aspect/slopePosArray[i'][i][0]     多边形九点绘制坐标positions
+    //PosArray[i][1] = aspect/slopePosArray[i'][i][1]     多边形坡度/坡向值
     //const color = Cesium.Color.fromCssColorString(colorHex);
+
     const color = colorHex;
     let Instances = [];
-    //console.log('PosArray',PosArray);//输入slopePosArray和aspectPosArray
-    
+    let polygonID = '';
+    if (config == 0)  {polygonID = '坡度：';}
+    else              {polygonID = '坡向：';}
 
     //1 创建几何实例Instance，给予形状、位置等信息
     for (let i = 0; i < PosArray.length && PosArray[i][0].length > 0; i++) {
       const polygonInstance = new Cesium.GeometryInstance({
-        id: '坡度：' + PosArray[i][1] + '第' + i + '个实例',
+        id: {
+          type: "SlopeAspect",           // 类型标识，用于 openTip 判断
+          name: polygonID,               // 名称：'坡度' 或 '坡向'
+          value: PosArray[i][1],         // 实际的坡度/坡向数值
+          index: i                       // 可选：实例索引，第i个实例
+        },
         geometry: new Cesium.PolygonGeometry({
           polygonHierarchy: new Cesium.PolygonHierarchy(PosArray[i][0]),
           height: 0,
@@ -2215,7 +1994,7 @@ class SlopeAspect {
     let ColorType = []; //颜色代号0-9，用于颜色分组，相同颜色放在同数组
     let ColorByte = []; //颜色值，转为0-255表示的
 
-    let aspectColor = []; //保存像元的[位置，颜色值，颜色编号]
+    let aspectColor = []; //保存像元的 [颜色编号][颜色值]
     let slopeColor = [];
     let HeightRange = []; //用于计算真实高度范围，用于归一化高度
     let findLongitudeRange = [];//用于找经纬度最值
@@ -2237,54 +2016,26 @@ class SlopeAspect {
 
     //对分割好的网格ellipseResults进行操作，对每个格子进行计算
     for (let index = 0; index < this.ellipseResults.length; index++) {
-      //根据高度差计算
-      /*
-          const ellipse = ellipseResults[index];
-          const center = ellipse[0];
-          let heightDifference = 0;
-          let maxIndex = 0;
-          for (let i = 1; i < ellipse.length - 1; i++) {
-            const point = ellipse[i];
-            let curHD = point.height - center.height;
-            if (Math.abs(curHD) > heightDifference) {
-              heightDifference = curHD;
-              maxIndex = i;
-            }
-          }
-          let pos0 = new Cesium.Cartographic(center.longitude, center.latitude, 0);
-          let pos1 = new Cesium.Cartographic(
-            ellipse[maxIndex].longitude,
-            ellipse[maxIndex].latitude,
-            0
-          );
-          let distance = Cesium.Cartesian3.distance(
-            Cesium.Cartographic.toCartesian(pos0),
-            Cesium.Cartographic.toCartesian(pos1)
-          );
-          let curSlope = Math.abs(heightDifference / distance); //坡度的tan值
-          */
+
       //计算x方向变化率
       let positions = []; //将ellipse八方向内容转换为Cartesian格式
       let DEMheight = []; //存储分割网格的经纬高度用于绘制DEM (笛卡尔坐标系Cartesian)
 
       const ellipse = this.ellipseResults[index];
-      //console.log("ellipse", ellipse);
-      //console.log('coordinate', Cesium.Cartographic.toCartesian(ellipse[1]));
-
       for (let i = 1; i < ellipse.length - 1; i++) {
         positions.push(Cesium.Cartographic.toCartesian(ellipse[i]));
         DEMheight.push(Cesium.Cartographic.toCartesian(ellipse[i]));
       }
 
       let z1 = ellipse[1].height; //左下
-      let z2 = ellipse[8].height;
-      let z3 = ellipse[7].height;
+      let z2 = ellipse[8].height; //下
+      let z3 = ellipse[7].height; //右下
       let z4 = ellipse[2].height; //左
       let z5 = ellipse[0].height; //中心点
-      let z6 = ellipse[6].height;
-      let z7 = ellipse[3].height;
-      let z8 = ellipse[4].height;
-      let z9 = ellipse[5].height;
+      let z6 = ellipse[6].height; //右
+      let z7 = ellipse[3].height; //左上
+      let z8 = ellipse[4].height; //上
+      let z9 = ellipse[5].height; //右上
 
       let fx = (z7 - z1 + 2 * (z8 - z2) + z9 - z3) / (8 * g);
       let fy = (z3 - z1 + 2 * (z6 - z4) + z9 - z7) / (8 * g);
@@ -2296,20 +2047,13 @@ class SlopeAspect {
         return angle;
       }
       this.curSlope = Math.atan(Math.sqrt(fx * fx + fy * fy)) * (180 / Math.PI);
-      this.update_curSlope();
       this.curAspect = angleWithXAxis(-fx, -fy);
-      this.update_curAspect();
 
       if (this.drawFlag) {
-        //************坡度计算值curSlope与颜色***************
-        let ColorInfo = 0;
-        if(document.getElementById('cost-layer').checked){
-          ColorInfo = this.calculateSlopeCostColor(this.curSlope);
-        }
-        else{
-          ColorInfo = this.calculateSlopeColor(this.curSlope);
-        }
-        ColorByte = Cesium.Color.fromCssColorString(ColorInfo[0]);
+        let ColorInfo = [];
+        //************坡度计算值curSlope与颜色*************** 
+        ColorInfo = this.calculateSlopeColor(this.curSlope);
+        ColorByte = Cesium.Color.fromCssColorString(ColorInfo[0]);// [0颜色值，1颜色代号]
         ColorType = ColorInfo[1];
 
         this.slopePosArray[ColorType].push([positions, this.curSlope]); //Cartesian格式
@@ -2317,7 +2061,7 @@ class SlopeAspect {
 
         //************坡向计算值curAspect与颜色***************
         ColorInfo = this.calculateAspectColor(this.curAspect);
-        ColorByte = Cesium.Color.fromCssColorString(ColorInfo[0]);
+        ColorByte = Cesium.Color.fromCssColorString(ColorInfo[0]);// [0颜色值，1颜色代号]
         ColorType = ColorInfo[1];
 
         this.aspectPosArray[ColorType].push([positions, this.curAspect]); //Cartesian格式
@@ -2341,15 +2085,24 @@ class SlopeAspect {
       findLatitudeRange.push(fixedLat);
       let height = ellipse[0].height;
       let degreeCoordinate = [longitude, latitude, height];
-      // slopeCostArray存储格式：[Cartesian坐标，坡度值，经纬高坐标，坡度代价值，单网格绘制9点数组，]
-      //                        [0            ,1     ,2         ,3         ,4               ,         ]
+      // slopeCostArray存储格式：[中心点Cartesian坐标，坡度值，经纬高坐标，坡度代价值，单网格绘制9点数组，]
+      //                        [0                 ,1     ,2         ,3         ,4               ,         ]
+      /***********************************************************************
       this.slopeCostArray.push([
-        Cesium.Cartographic.toCartesian(ellipse[0]), //Cartesian坐标
+        Cesium.Cartographic.toCartesian(ellipse[0]), //中心点Cartesian坐标
         this.curSlope, //坡度值slope
         degreeCoordinate, //经纬高坐标
         [], //坡度代价值slopeCost
         positions, //单网格绘制9点数组
-      ]); //只存中心点
+      ]); //只存中心点（数组形式）
+      ************************************************************************/
+      this.slopeCostArray.push({
+        Cartesian: Cesium.Cartographic.toCartesian(ellipse[0]), // 中心点Cartesian坐标（原索引[0]）
+        slope: this.curSlope,                                    // 坡度值（原索引[1]）
+        degreeCoordinate: degreeCoordinate,                            // Cartographic经纬高坐标（原索引[2]）
+        slopeCost: 0,                                           // 坡度代价值（原索引[3]，初始化为0而非空数组）
+        gridSquare: positions                                     // 单网格绘制9点数组（原索引[4]）Cartesian格式
+      });//键值对形式存储
 
       //this.slopePolygons.push(slopePolygonPrimitive);
       //this.slopeColor2 = Cesium.Color.fromCssColorString(slopeColor);
@@ -2434,8 +2187,8 @@ class SlopeAspect {
     //计算坡度坡向分析区域的边界，找出最大最小经度纬度，用于将网格数据存入二维数组(测试，节点之间的间隔是否相等)
     for(let i = 0; i < this.slopeCostArray.length-1; i++)
     {
-      let num1 = this.slopeCostArray[i][2][0] - this.slopeCostArray[i+1][2][0];//js用15位浮点数存储，小数相减后位数会变多，需要限制
-      let num2 = this.slopeCostArray[i][2][1] - this.slopeCostArray[i+1][2][1];
+      let num1 = this.slopeCostArray[i].degreeCoordinate[0] - this.slopeCostArray[i+1].degreeCoordinate[0];//js用15位浮点数存储，小数相减后位数会变多，需要限制
+      let num2 = this.slopeCostArray[i].degreeCoordinate[1] - this.slopeCostArray[i+1].degreeCoordinate[1];
       if(num1 !== 0){
         lonIntervalArray.push(Math.abs(Math.floor(num1 * Math.pow(10,13)) / Math.pow(10,13).toFixed(13)));//经度间隔
       }
@@ -2472,8 +2225,8 @@ class SlopeAspect {
         //id为0的格子一定在第一列，但是不一定在第一行
         //slopeCostGrid[][]的遍历赋值顺序需与slopeCostArray的标号顺序一致（从下往上从左往右，柱形（不是s形）
     
-        let yInterval = Math.abs(this.slopeCostArray[arrayID][2][1] - (MinLatitude + latJump*latInterval));
-        let xInterval = Math.abs(this.slopeCostArray[arrayID][2][0] - (MinLongitude + lonJump*lonInterval));
+        let yInterval = Math.abs(this.slopeCostArray[arrayID].degreeCoordinate[1] - (MinLatitude + latJump*latInterval));
+        let xInterval = Math.abs(this.slopeCostArray[arrayID].degreeCoordinate[0] - (MinLongitude + lonJump*lonInterval));
         // console.log("xInterval: " + xInterval + " \nyInterval: " + yInterval + '\n0.05*latInterval: ' + 0.05*latInterval + '\n0.05*lonInterval: ' + 0.05*lonInterval);
         
         if(xInterval < 0.05*lonInterval && yInterval < 0.05*latInterval && this.slopeCostArray[arrayID+1] !== undefined){
@@ -2501,19 +2254,18 @@ class SlopeAspect {
     if(this.drawFlag){
       for (let i = 0; i < 10; i++) {
         if (this.aspectPosArray[i].length > 0) {
-          this.createPolygonInsrance(this.aspectPosArray[i], aspectColor[i][0], 1);
+          this.createPolygonInstance(this.aspectPosArray[i], aspectColor[i][0], 1);
         }
-        // console.log("aspectPosArray[", i, "]", this.aspectPosArray[i]);
-
         if (this.slopePosArray[i].length > 0) {
-          this.createPolygonInsrance(this.slopePosArray[i], slopeColor[i][0], 0);
+          this.createPolygonInstance(this.slopePosArray[i], slopeColor[i][0], 0);
         }
       }
     }
-    
+    console.log('slopeColor',slopeColor);
+    console.log('aspectColor',aspectColor);
     console.timeEnd("计算时间");
 
-    //根据config选择显示图层  1位坡度 0位坡向
+    //根据config选择显示图层  1位坡度 0位坡向 通行代价图默认不显示
     let config = this.config;
     this.slopePolygons.forEach((element) => {
       element.primitive.show = config ? true : false;
@@ -2521,8 +2273,8 @@ class SlopeAspect {
     this.aspectPolygons.forEach((element) => {
       element.primitive.show = config ? false : true;
     });
-
-//AAA 删去一段和箭头线相关的，放在末尾
+    this.DrawCostMap();
+//AAA 删去一段和箭头线相关的，已移至文件末尾注释
 
     console.timeEnd("从头到尾所花时间");
     this.config = Boolean(this.config);
@@ -2559,13 +2311,11 @@ class SlopeAspect {
     this.valleyThresholdRatio = $('#valleyThresholdRatio').val(); // 山谷线阈值比例
     this.ridgeThresholdRatio = $('#ridgeThresholdRatio').val(); // 山脊线阈值比例
 
-    console.log('栅格尺寸:', rows, 'x', cols);
-
     // ==================== 2. 提取高程矩阵 DEM（Digital Elevation Model）====================
     
     // 创建二维高程矩阵，用于流向分析
     // DEM[i][j] 存储格子 [i,j] 的高程值（单位：米）
-    const DEM = new Array(rows);// DEM[i][j] = cell[2][2] = this.slopeCostGrid[i][j][2][2]为高程值height
+    const DEM = new Array(rows);// DEM[i][j] = cell[2][2] = this.slopeCostGrid[i][j].degreeCoordinate[2]为高程值height
     for (let i = 0; i < rows; i++) {
       DEM[i] = new Array(cols).fill(0); // 初始化为 0
     }
@@ -2575,8 +2325,8 @@ class SlopeAspect {
       for (let j = 0; j < cols; j++) {
         const cell = this.slopeCostGrid[i][j];
         // 检查格子是否有效（非空数组）
-        if (cell && cell.length > 0 && cell[2] && cell[2][2] !== undefined) {
-          DEM[i][j] = Number(cell[2][2]); // 高程值（米） // DEM[i][j] = cell[2][2] = this.slopeCostGrid[i][j][2][2]为高程值height
+        if (cell.degreeCoordinate !== undefined) {
+          DEM[i][j] = Number(cell.degreeCoordinate[2]); // 高程值（米） // DEM[i][j] = cell[2][2] = this.slopeCostGrid[i][j].degreeCoordinate[2]为高程值height
         } else {
           DEM[i][j] = Number.NaN; // 无效格子标记为 NaN
         }
@@ -2750,6 +2500,7 @@ class SlopeAspect {
 
       if (dir === 0) continue;
 
+      // 找到流向的目标邻居（根据 D8 编码）
       let targetI = i, targetJ = j;
       for (let d = 0; d < 8; d++) {
         if (dirCodes[d] === dir) {
@@ -2799,8 +2550,8 @@ class SlopeAspect {
         HeightRatio = (DEM[i][j] - minHeight) / (maxHeight - minHeight);// 当前格子所在高程比例
         if (flowAcc[i][j] >= (valleyThreshold * HeightRatio) && isFinite(DEM[i][j])) {
           const cell = this.slopeCostGrid[i][j];
-          if (cell && cell[0]) { // cell[0] 为 Cartesian3 坐标
-            valleyPoints.push(cell[0]);
+          if (cell && cell.Cartesian) { // Cartesian3 坐标
+            valleyPoints.push(cell.Cartesian);
           }
         }
       }
@@ -2813,8 +2564,8 @@ class SlopeAspect {
         HeightRatio = (DEM[i][j] - minHeight) / (maxHeight - minHeight);
         if (revFlowAcc[i][j] >= (ridgeThreshold * HeightRatio) && isFinite(DEM[i][j])) {
           const cell = this.slopeCostGrid[i][j];
-          if (cell && cell[0]) {
-            ridgePoints.push(cell[0]);
+          if (cell && cell.Cartesian) { // Cartesian3 坐标
+            ridgePoints.push(cell.Cartesian);
           }
         }
       }
@@ -2883,27 +2634,27 @@ class SlopeAspect {
     alert(`提取完成！\n山谷线（蓝色）: ${valleyPoints.length} 点\n山脊线（红色）: ${ridgePoints.length} 点`);
   }
 
-  calculateSlopeCost() { 
-    //this.slopeCostGrid[i][j][3] 代价
-    let deltaH = 0;//高度差
 
-  }
-
-  //根据坡度值赋值颜色
+  //根据坡度值赋值颜色(代价版：)
   calculateSlopeCostColor(value) {
     let color;
     if (value <= 5) {
       return [(color = "#38A800"), 0];
     } else if (value < 10) {
-      return [(color = "#8BD100"), 1];
-    } else if (value < 15) {
-      return [(color = "#C1E800"), 2];
-    } else if (value < 20) {
-      return [(color = "#FFFF00"), 3];
+      //return [(color = "#8BD100"), 1];
+      return [(color = "#C1E800"), 1];
+    } else if (value < 22) {
+      //return [(color = "#C1E800"), 2];
+      return [(color = "#FFBF00"), 2];
+    } else if (value < 35) {
+      //return [(color = "#FFFF00"), 3];
+      return [(color = "#FF8000"), 3];
     } else if (value < 25) {
-      return [(color = "#FFBF00"), 4];
+      //return [(color = "#FFBF00"), 4];
+      return [(color = "#FF0000"), 4];
     } else if (value < 30) {
-      return [(color = "#FF8000"), 5];
+      //return [(color = "#FF8000"), 5];
+      return [(color = "#FF0000"), 5];
     } else if (value < 49) {
       return [(color = "#FF0000"), 6];
     } else if (value < 70.5) {
@@ -2977,54 +2728,223 @@ class SlopeAspect {
     }
   }
 
-  calculateCostColor(value) {
-    // 保证输入为数值
-    const v = Number(value);
-    if (!Number.isFinite(v)) return ['#808080', 0]; // 非数值返回灰色
+  /**
+   * calculateCostColor() - 将通行代价值重分类为5个等级并映射到颜色
+   * 
+   * 颜色分级依据：
+   * 根据坡度-代价计算公式（2067-2083行）的5个单调分段，计算每段的代价范围：
+   *   第1段: slope <= 5°        → slopeCost = 10 (常量)
+   *   第2段: 5° < slope <= 9°   → slopeCost 单调递减
+   *   第3段: 9° < slope <= 22°  → slopeCost 单调递增
+   *   第4段: 22° < slope <= 35° → slopeCost 单调递减
+   *   第5段: slope > 35°        → slopeCost = 1e-6 (极小值，表示不可通行)
+   * 
+   * 每段两端值作为阈值，将所有代价值重分类为5个等级，从易通行到难通行：
+   *   等级1（绿色）: 最易通行
+   *   等级2（浅绿）: 较易通行
+   *   等级3（黄色）: 中等通行
+   *   等级4（橙色）: 较难通行
+   *   等级5（红色）: 最难通行/不可通行
+   * 
+   * @returns {Array} slopeCostColorGrid - 二维数组，每个元素包含 {i, j, color, colorClass, gridSquare}
+   */
+  calculateCostColor(costValArray) {
+    // ==================== 1. 计算每段的代价边界值 ====================
+    
+    // 根据论文，计算每段的两端代价值
+    /*// 第1段: slope <= 5° (常量段)
+    const cost_seg1 = costValArray[0]; // = 10
+    
+    // 第2段: 5° < slope <= 9° (单调递减)
+    // 左端点 slope=5: 代入公式计算
+    const slope_2_left = 5;
+    const cost_seg2_left = costValArray[1];
+    // 右端点 slope=9
+    const slope_2_right = 9;
+    const cost_seg2_right = costValArray[2];
+    
+    // 第3段: 9° < slope <= 22° (单调递增)
+    // 左端点 slope=9
+    const slope_3_left = 9;
+    const cost_seg3_left = costValArray[3];
+    // 右端点 slope=22
+    const slope_3_right = 22;
+    const cost_seg3_right = costValArray[4];
+    
+    // 第4段: 22° < slope <= 35° (单调递减)
+    // 左端点 slope=22
+    const slope_4_left = 22;
+    const cost_seg4_left = costValArray[5];
+    // 右端点 slope=35
+    const slope_4_right = 35;
+    const cost_seg4_right = costValArray[6];
+    
+    // 第5段: slope > 35° (极小值段，不可通行)
+    const cost_seg5 = 1e-6;*/
+    
 
-    // 找到全局最小/最大代价值（从 this.slopeCostGrid 中取 cell[3]）
-    let minVal = Number.POSITIVE_INFINITY;
-    let maxVal = Number.NEGATIVE_INFINITY;
-    const grid = this.slopeCostGrid || [];
+    /*// 第1段: slope <= 6° (常量段)
+    const cost_seg1 = costValArray[0]; // = 10
+    
+    // 第2段: 6° < slope <= 10° (单调递减)
+    const cost_seg2_left = costValArray[0];
+    const cost_seg2_right = costValArray[1];
+    
+    // 第3段: 10° < slope <= 15° (单调递增)
+    const cost_seg3_left = costValArray[1];
+    const cost_seg3_right = costValArray[2];
+    
+    // 第4段: 15° < slope <= 20° (单调递减)
+    const cost_seg4_left = costValArray[2];
+    const cost_seg4_right = costValArray[3];
+    
+    // 第5段: slope > 20° (极大值段，不可通行)
+    const cost_seg5 = 999999;*/
 
-    for (let i = 0; i < grid.length; i++) {
-      const row = grid[i];
-      if (!Array.isArray(row)) continue;
-      for (let j = 0; j < row.length; j++) {
-        const cell = row[j];
-        if (!cell || cell.length === 0) continue;
-        const c = Number(cell[3]);
-        if (!Number.isFinite(c)) continue;
-        if (c < minVal) minVal = c;
-        if (c > maxVal) maxVal = c;
+    console.log('costValArray',costValArray);
+    // 收集所有边界值并排序（从小到大，对应难通行到易通行）
+    /*const boundaryValues = [
+      cost_seg5,          // 极小/大值（不可通行）
+      cost_seg4_right,    // 第4段右端
+      cost_seg4_left,     // 第4段左端
+      cost_seg3_right,    // 第3段右端
+      cost_seg3_left,     // 第3段左端
+      cost_seg2_right,    // 第2段右端
+      cost_seg2_left,     // 第2段左端
+      cost_seg1           // 第1段常量
+    ].sort((a, b) => a - b); // 升序排序
+    
+    console.log('代价边界值（升序）:', boundaryValues.map(v => v.toFixed(4)));
+    
+    // ==================== 2. 使用边界值构建5级分类阈值 ====================
+    
+    // 根据边界值的分布，选取关键点作为5级分类的阈值
+    // boundaryValues 已按升序排序，共8个值，需要选择6个阈值点（5个区间的边界）
+    // 策略：取最小值、20%、40%、60%、80%、最大值位置的边界值
+    const n = boundaryValues.length;
+    const thresholds = [
+      boundaryValues[0],                              // 最小值（极小值 1e-6）
+      boundaryValues[Math.floor(n * 0.2)],            // 20% 位置
+      boundaryValues[Math.floor(n * 0.4)],            // 40% 位置
+      boundaryValues[Math.floor(n * 0.6)],            // 60% 位置
+      boundaryValues[Math.floor(n * 0.8)],            // 80% 位置
+      boundaryValues[n - 1]                           // 最大值（常量 10）
+    ];
+    
+    // 去重并重新排序（防止重复阈值）
+    const uniqueThresholds = thresholds;//[...new Set(thresholds)].sort((a, b) => a - b);
+    
+    // 如果去重后不足6个阈值，补充中间值
+    while (uniqueThresholds.length < 6) {
+      // 找到最大间隔并插入中点
+      let maxGap = 0, maxGapIdx = 0;
+      for (let i = 0; i < uniqueThresholds.length - 1; i++) {
+        const gap = uniqueThresholds[i + 1] - uniqueThresholds[i];
+        if (gap > maxGap) {
+          maxGap = gap;
+          maxGapIdx = i;
+        }
+      }
+      const midVal = (uniqueThresholds[maxGapIdx] + uniqueThresholds[maxGapIdx + 1]) / 2;
+      uniqueThresholds.splice(maxGapIdx + 1, 0, midVal);
+      uniqueThresholds.sort((a, b) => a - b);
+    }
+    
+    // 使用前6个阈值（如果超过6个则截取）
+    const finalThresholds = uniqueThresholds.slice(0, 6);
+    
+    console.log('使用的分级阈值（基于边界值）:', finalThresholds.map(v => v.toFixed(4)));*/
+    
+    /*// ==================== 3. 定义5个颜色等级（从难到易：红→橙→黄→浅绿→绿）====================
+    // 颜色等级（RGB格式）
+    const colorLevels = [
+      { r: 255, g: 0,   b: 0,   name: '红色-最难通行/不可通行',  class: 4 }, // 最难
+      { r: 255, g: 140, b: 0,   name: '橙色-较难通行',          class: 3 },
+      { r: 255, g: 255, b: 0,   name: '黄色-中等通行',          class: 2 },
+      { r: 144, g: 238, b: 144, name: '浅绿-较易通行',          class: 1 },
+      { r: 0,   g: 255, b: 0,   name: '绿色-最易通行',          class: 0 }  // 最易
+    ];*/
+    
+    // ==================== 2. 定义6个颜色等级（按坡度分段）====================
+    const colorLevels = [
+      { r: 0,   g: 255, b: 0,   name: '绿色-最易通行(0-6°)',     slopeMax: 6  },
+      { r: 144, g: 238, b: 144, name: '浅绿-较易通行(6-10°)',    slopeMax: 10 },
+      { r: 255, g: 255, b: 0,   name: '黄色-中等通行(10-15°)',   slopeMax: 15 },
+      { r: 255, g: 140, b: 0,   name: '橙色-较难通行(15-20°)',   slopeMax: 20 },
+      { r: 255, g: 69,  b: 0,   name: '深橙-困难通行(20-30°)',   slopeMax: 30 },
+      { r: 255, g: 0,   b: 0,   name: '红色-不可通行(>30°)',     slopeMax: 999 }
+    ];
+
+    // ==================== 4. 遍历栅格，分类并赋颜色（使用边界值阈值）====================
+    
+    const slopeCostColorGrid = []; // 代价->颜色映射栅格
+    for (let i = 0; i < colorLevels.length; i++) {
+      slopeCostColorGrid[i] = [];// 初始化5个等级的数组
+    }
+    
+    for (let i = 0; i < this.slopeCostGrid.length; i++) {
+      for (let j = 0; j < this.slopeCostGrid[i].length; j++) {
+
+        const cell = this.slopeCostGrid[i][j];
+        // 检查格子是否有效（非空且有代价值）
+        if (!cell || cell.slopeCost === undefined || !isFinite(cell.slopeCost)) {
+          continue;// 无效格子
+        }
+        
+        const slope = cell.slope;
+        const cost = cell.slopeCost;
+        
+        // 根据代价值判断属于哪个等级（使用 finalThresholds 边界值）
+        /*let colorClass = 4; // 默认最难级（红色）
+        for (let k = 0; k < 5; k++) {
+          if (cost >= finalThresholds[k]*slope && cost <= finalThresholds[k + 1]*slope) {
+            colorClass = k; // 等级0最易（绿），等级4最难（红）
+            break;
+          }
+        }*/  
+        /*for (let k = 0; k < 5; k++) {
+          if (cost >= finalThresholds[k] && cost < finalThresholds[k + 1]) {
+            colorClass = 4 - k; // 等级0最易（绿），等级4最难（红）
+            break;
+          }
+        }*/  
+
+        // 根据坡度值判断属于哪个等级
+        let colorClass = 5; // 默认最难级（红色，>30°）
+        
+        if (slope <= 6) {
+          colorClass = 0; // 绿色
+        } else if (slope <= 10) {
+          colorClass = 1; // 浅绿
+        } else if (slope <= 15) {
+          colorClass = 2; // 黄色
+        } else if (slope <= 20) {
+          colorClass = 3; // 橙色
+        } else if (slope <= 30) {
+          colorClass = 4; // 深橙（20-30°仍可通行）
+        } else {
+          colorClass = 5; // 红色（>30°不可通行）
+        }
+
+        // 获取对应等级的颜色
+        const colorLevel = colorLevels[colorClass]; //colorClass=0对应索引0（绿），colorClass=5对应索引5（红） // colorClass=0对应索引4（绿），colorClass=4对应索引0（红）
+        //转换成16进制颜色字符串
+        const color = `#${((1 << 24) + (colorLevel.r << 16) + (colorLevel.g << 8) + colorLevel.b).toString(16).slice(1)}`;
+        
+        // 存储分类结果
+        slopeCostColorGrid[colorClass].push({
+          i: i,                           // 行索引
+          j: j,                           // 列索引
+          cost: cost,                     // 原始代价值
+          colorClass: colorClass,         // 颜色等级（0-4）
+          colorRGB: colorLevel,           // RGB对象颜色分级数据 {r, g, b}
+          color: color,                   // 十六进制颜色字符串
+          gridSquare: cell.gridSquare || [] // 网格绘制九点坐标
+        });
       }
     }
-
-    // 如果没有有效范围，则返回单色（绿）
-    if (!Number.isFinite(minVal) || !Number.isFinite(maxVal) || maxVal === minVal) {
-      return ['#38A800', 0];
-    }
-
-    // 归一化到 [0,1]
-    let t = (v - minVal) / (maxVal - minVal);
-    if (t < 0) t = 0;
-    if (t > 1) t = 1;
-
-    // 线性插值绿色 -> 红色
-    // 绿色 #38A800 => (56,168,0)
-    // 红色   #FF0000 => (255,0,0)
-    const r0 = 0x38, g0 = 0xA8, b0 = 0x00;
-    const r1 = 0xFF, g1 = 0x00, b1 = 0x00;
-
-    const ri = Math.round(r0 + (r1 - r0) * t);
-    const gi = Math.round(g0 + (g1 - g0) * t);
-    const bi = Math.round(b0 + (b1 - b0) * t);
-
-    // 转为 '#RRGGBB'
-    const toHex2 = (n) => ('0' + n.toString(16)).slice(-2).toUpperCase();
-    const css = `#${toHex2(ri)}${toHex2(gi)}${toHex2(bi)}`;
-
-    return [css, t];
+    
+    return slopeCostColorGrid;
   }
 
   /**
@@ -3048,7 +2968,7 @@ class SlopeAspect {
   }
 }
 
-//AAA
+/*AAA*/
 
     // this.mapPrimitive1.show = config ? true : false;
     // this.mapPrimitive2.show = !this.mapPrimitive1.show;
@@ -3066,7 +2986,7 @@ class SlopeAspect {
     //     }),
     //   })
     // );
-    /* 箭头添加 */
+    // 箭头添加 */
     // const arrowPrimitive = this.viewer.scene.primitives.add(
     //   new Cesium.GroundPolylinePrimitive({
     //     geometryInstances: instances,
@@ -3085,9 +3005,7 @@ class SlopeAspect {
     // this.aspectPolygons.push(arrowPrimitive, this.mapPrimitive);
     //this.result.push(this.mapPrimitive1, this.mapPrimitive2); //已用slopePolygon和aspectPolygon代替
 
-
-
-//BBB
+/*BBB*/
 
     //用于测试，找出每个网格中心点 位置(二维数组版)
     // for(let i = 0; i < latY; i++){ 
@@ -3143,3 +3061,78 @@ class SlopeAspect {
     //   this.DrawHeight(this.heightPosArray[i], HeightRange);
     // }
     // console.log("heightPosArray", this.heightPosArray);
+
+/*CCC*/
+
+    // let num = Cesium.Cartographic.fromCartesian(viewer.camera.position).height;
+    // let levelTer = calculateValue(num);
+    // if (levelTer >= 14) {
+    //   Cesium.sampleTerrainMostDetailed(this.viewer.scene.terrainProvider, boxResults).then((updatePositions) => {
+    //     let arrr = [];
+    //     let ellipseResults = updatePositions.reduce(function (
+    //       pre,
+    //       item,
+    //       index,
+    //       updatePositions
+    //     ) {
+    //       var begin = index * 10;
+    //       var end = begin + 10;
+    //       var res = updatePositions.slice(begin, end);
+    //       if (res.length != 0) {
+    //         arrr[index] = res;
+    //       }
+    //       return arrr;
+    //     }, []);
+    //     this.calculateSlope(ellipseResults);
+    //   });
+    // } else {
+    //   if (levelTer)
+    //     Cesium.sampleTerrain(this.viewer.scene.terrainProvider, levelTer, boxResults).then((updatePositions) => {
+    //       let arrr = [];
+    //       let ellipseResults = updatePositions.reduce(function (
+    //         pre,
+    //         item,
+    //         index,
+    //         updatePositions
+    //       ) {
+    //         var begin = index * 10;
+    //         var end = begin + 10;
+    //         var res = updatePositions.slice(begin, end);
+    //         if (res.length != 0) {
+    //           arrr[index] = res;
+    //         }
+    //         return arrr;
+    //       }, []);
+    //       console.timeEnd('获取高程点所需时间')
+
+    //       this.calculateSlope(ellipseResults);
+    //       console.timeEnd('从头到尾所花时间')
+
+    //     });
+    // }
+
+    // Cesium.sampleTerrainMostDetailed(
+    //   this.viewer.scene.terrainProvider,
+    //   boxResults
+    // ).then((updatePositions) => {
+    //   let arrr = [];
+    //   let ellipseResults = updatePositions.reduce(function (
+    //     pre,
+    //     item,
+    //     index,
+    //     updatePositions
+    //   ) {
+    //     var begin = index * 10;
+    //     var end = begin + 10;
+    //     var res = updatePositions.slice(begin, end);
+    //     if (res.length != 0) {
+    //       arrr[index] = res;
+    //     }
+    //     return arrr;
+    //   },
+    //   []);
+    //   console.timeEnd("获取高程点所需时间");
+    //   console.time("计算坡度所花时间");
+    //   this.calculateSlope(ellipseResults);
+    //   console.timeEnd("计算坡度所花时间");
+    // });

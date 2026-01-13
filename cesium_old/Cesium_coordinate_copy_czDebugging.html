@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="css/toobar.css" />
     <link rel="stylesheet" href="css/override.css" />
     <link rel="stylesheet" href="css/FileLoad.css" />
-    <script src="libs/router-tracker/DrawHelper.js"></script>
+    <script src="features/router-tracker/DrawHelper.js"></script>
 
     
  
@@ -43,18 +43,20 @@
     <nav class="navbar navbar-fixed-top">
         <div class="container-fluid">
             <!--LOGO 左上角-->
-            <div class="navbar-header" style="overflow: hidden">
-                <!--溢出内容隐藏-->
+            <div class="navbar-header">
                 <a class="navbar-brand" href="#">
-                    <!--a 超链接  #当前页面-->
-                    <img alt="LOGO" src="img/page/nav/logo.png" style="
-                        width: 50px;
-                        height: 32px;
-                        display: inline-block;
-                        padding-bottom: 12px;
-                   "/>
+                    <img alt="LOGO" src="img/page/nav/logo.png" style="width: 50px; height: 32px;" />
                     <span>三维地理信息分析</span>
                 </a>
+            
+                <!-- 汉堡菜单按钮（只保留一个） -->
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+                    data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
             </div>
             <!--右上角功能栏-->
             <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
@@ -85,17 +87,6 @@
                             <li id="load-3Dtiles"><a href="#">三维模型</a></li>
                         </ul>
                     </li>
-                    <!--<li class="dropdown">
-                        <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true"
-                           aria-expanded="false">
-                            <img src="img/page/nav/nav-thematicmap.png"/>
-                            三维模型<span class="caret"></span>
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li id="load-3Dtile"><a href="#">加载三维模型</a></li>
-                            <li id="measure-3D"><a href="#">量算分析</a></li>
-                        </ul>
-                    </li>-->
                     <li class="dropdown">
                         <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true"
                             aria-expanded="false">
@@ -338,19 +329,20 @@
                 <div class="input" style="width: 80px; background-color: none;">
                     <input type="text" required="required" id="hWeight" name="hWeight" value="1"/>
                 </div>
+                <input type="button" class="btn btn--primary" value="置于顶层" id="raiseToTop"/>
+            </div>
+            <!-- <div class="row"> 
                 <label for="carWeight">&nbsp;&nbsp;车重：
                 <div class="input" style="width: 80px; background-color: none;">
                     <input type="text" required="required" id="carWeight" name="carWeight" value="1500"/>
                 </div>
                 /kg</label>
-            </div>
-            <div class="row"> 
                 <label for="DragF">牵引力：
                 <div class="input" style="width: 80px; background-color: none;">
                     <input type="text" required="required" id="DragF" name="DragF" value="2250"/>
                 </div>
                 /N</label>
-            </div>
+            </div> -->
             <div class="row">
                 <label for="valleyThresholdRatio">山谷线阈值比例：</label>
                 <div class="input" style="width: 80px; background-color: none;">
@@ -382,6 +374,7 @@
                     </div>
                     <div class="input">
                         <select class="PathPlanningMethod_select">
+                            <option value="AHPMethod" style="color: black;">AHP综合分析</option>
                             <option value="OriginA*" style="color: black;">原始A*</option>
                             <option value="equTimeCost_BaseDragF" style="color: black;">固定牵引力等效时间</option>
                             <option value="OriginRRT" style="color: black;">原始RRT</option>
@@ -392,18 +385,21 @@
             </div> 
 
             <div class="row"> 
-                <label for="Weight1">权重1：</label>
-                <div class="input" style="width: 80px; background-color: none;">
-                    <input type="text" required="required" id="Weight1" name="Weight1" value="5"/>
+                <label for="WeightsInput" style="min-width: 80px;">权重值：</label>
+                <div class="input" style="flex: 1;">
+                    <input type="text" 
+                        required="required" 
+                        id="WeightsInput" 
+                        name="WeightsInput" 
+                        value="5,5,5"
+                        placeholder="输入权重值，用逗号分隔，如: 5,3,7,2"
+                        style="width: 100%;"
+                        title="输入任意数量的权重值，用逗号分隔"
+                    />
                 </div>
-                <label for="Weight2">权重2：</label>
-                <div class="input" style="width: 80px; background-color: none;">
-                    <input type="text" required="required" id="Weight2" name="Weight2" value="5"/>
-                </div>
-                <label for="Weight3">权重3：</label>
-                <div class="input" style="width: 80px; background-color: none;">
-                    <input type="text" required="required" id="Weight3" name="Weight3" value="5"/>
-                </div>
+                <span style="margin-left: 10px; color: #666; font-size: 12px;">
+                    (逗号分隔，数量≥3)
+                </span>
                 <input id="ShowAHP" type="button" class="btn btn--primary" value="AHP综合分析" />
                 <input id="Ridge_Valley_Analysis" type="button" class="btn btn--primary" value="山脊山谷线提取" />
             </div>
@@ -420,12 +416,15 @@
             </div>
             <div class="row">
                 <input id="clearAll" type="button" class="btn btn--primary" value="清除所有" />
-                <label> &nbsp;&nbsp;保留起/终点？：
+                <label> &nbsp;&nbsp;保留起/终点？
                     <input type="checkbox" id="keepStartEnd" />
-                </label>                
+                </label>   
+                <label> &nbsp;&nbsp;选定的起终点
+                    <input type="checkbox" id="specifiedStartEnd" checked />
+                </label>             
             </div>
             <div class="row" style="position: relative;"> 
-                <input id="GetSlopePath" type="button" class="btn btn--primary" value="获取坡度路径" />
+                <input id="GetSlopePath" type="button" class="btn btn--primary" value="获取路径" />
                 <input id="ClearPath" type="button" class="btn btn--primary" value="清除路径" />
                 <button id="pathListToggleBtn" class="btn btn--primary">路径列表</button><!-- 路径可视化控制：点击按钮打开浮动面板 -->
                 <!-- 浮动面板：默认隐藏 (顶部加换行提供间隙) -->
@@ -455,7 +454,10 @@
             <!-- 反向寻路开关按钮 -->
             <div class="row" style="margin-top:8px;">
                 <button id="usePotentialToggle" class="btn">反向搜索</button>
+                <button id="openTipBtn" class="btn">开启数值提示</button>
+                <button id="closeTipBtn" class="btn">关闭数值提示</button>
             </div>
+            
 
             <div class="row" id='SlopeAspect-color'>
                 <input id='SlopeRange' type="text" class="btn" style="color:white; width: 120px;" value="坡度0-90°" disabled/>
@@ -1177,14 +1179,14 @@
 <!-- 配置文件 -->
 <script src="js/config.js"></script>
 <!--跟图回放-->
-<script src="libs/router-tracker/flycesium.js"></script>
+<script src="features/router-tracker/flycesium.js"></script>
 <!--移动窗口事件-->
 <script src="js/utils/toorbar.js"></script>
 <!--信息提示  登陆界面-->
 <script src="js/utils/utils.js"></script>
 <!--地球操作有关函数-->
 <script src="js/map/MapStatic.js"></script>
-<script src="./js/earthOpera.js"></script>
+<script src="./features/earthOpera.js"></script>
 <!--功能函数-->
 <script src="js/fun/WebGLGlobeDataSource.js"></script>
 <script src="js/fun/newyork.js"></script>
@@ -1199,9 +1201,9 @@
 
 <script src="js/map/HeatMap.js"></script>
 <!--等高线绘制功能-->
-<script src="./libs/slope/contour.js" defer></script>
+<script src="./features/slope/contour.js" defer></script>
 <!--事件初始化-->
-<script src="js/eventBindInit.js"></script>
+<script src="features/eventBindInit.js"></script>
 <!--鼠标移动-->
 <!-- <script src="js/fun/mouseMove.js"></script> -->
 <script src="js/map/Tileset.js" defer></script>
@@ -1241,12 +1243,14 @@
 
 <!-- 坡度坡向分析文件 -->
 <script src="./libs/turf/turf.js" defer></script>
-<script src="./libs/slope/ReminderTip.js" defer></script>
-<script src="./libs/slope/CreatePolygonOnGround.js" defer></script>
-<script src="./libs/slope/SlopeAspect copy debug.js" defer></script>
-<script src="./libs/slope/PathPlanning_RRT.js" defer></script>
-<script src="./libs/slope/SelectPathPannel.js" defer></script>
-<script src="./libs/slope/RoughAnalysis.js"></script>
+<script src="./features/slope/ReminderTip.js" defer></script>
+<script src="./features/slope/CreatePolygonOnGround.js" defer></script>
+<script src="./features/slope/SlopeAspect copy debug.js" defer></script>
+<script src="./features/slope/PathPlanning_RRT.js" defer></script>
+<script src="./features/slope/SelectPathPannel.js" defer></script>
+<script src="./features/slope/RoughAnalysis.js"></script>
+<script src="./features/slope/Override_Draw_Load.js" defer></script>
+<script src="./features/slope/AHPanalysis.js" defer></script>
 
 <!-- vue和element plus插件 -->
 <!-- 

@@ -77,7 +77,7 @@
     // init
     function initPage() {
       // 切换自己的token
-      Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYTQ2ZjdjNS1jM2E0LTQ1M2EtOWM0My1mODMzNzY3YjYzY2YiLCJpZCI6MjkzMjcsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1OTE5NDIzNjB9.RzKlVTVDTQ9r7cqCo-PDydgUh8Frgw0Erul_BVxiS9c';
+      Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkZTlkNjBmMi05NjdjLTQwMTgtOTBiOC04NDU1NWJjYmFkZWEiLCJpZCI6MzA2MzMzLCJpYXQiOjE3NDgyNDg4MTl9.r7m_tXkLjZOAcHKP_oI0BuCvE6xuaujzU3CL7f4TG9A';
       // 初始化
       viewer = new Cesium.Viewer("viewer-container", {
         infoBox: false,
@@ -93,10 +93,10 @@
         fullscreenButton: false,
       });
       // 加载倾斜摄影 大雁塔
-      var tilesets = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
-        url: 'data/3dtiles/Scene1/Production_Cesium.json'
-      }));
-      viewer.flyTo(tilesets)
+      // var tilesets = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
+      //   url: 'data/3dtiles/Scene1/Production_Cesium.json'
+      // }));
+      // viewer.flyTo(tilesets)
     }
     //
     // 创建一个ImageryProvider对象，用于加载GeoTIFF数据
