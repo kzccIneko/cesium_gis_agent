@@ -147,6 +147,12 @@ class SlopeAspect {
     this.costPolygons = []; //存放通行代价primitive
     this.drawFlag = true; //是否渲染坡度坡向
 
+    // ==================== 通用图层管理系统 ====================
+    // 用于动态管理所有类型的 primitive 和 entity
+    this.layerRegistry = {}; // 图层注册表（动态添加）
+    this.layerOrder = []; // 图层显示顺序列表
+    // ==================== 图层管理系统结束 ====================
+
     // 覆盖区支持：用户绘制的 road/water 覆盖区信息与可视实体缓存
     this.overrideAreas = []; // 存 { type: 'road'|'water', polygonEntity, coords: [[lon,lat],...] }
     this.overrideAreaEntities = []; // 方便一次性移除显示实体
@@ -219,10 +225,207 @@ class SlopeAspect {
 
   }
 
-  // 提升指定图元到最顶层显示
-  raisePrimitiveToTop() {
-    // 获取当前场景中的所有图元
-    const primitives = this.viewer.scene.primitives;console.log('primitives', primitives);
+  /**
+   * 注册新图层到管理系统
+   * @param {string} layerId - 图层唯一标识（如 'road', 'water', 'pathLine'）
+   * @param {string} layerName - 图层显示名称（如 '道路覆盖', '水域覆盖'）
+   * @param {string} type - 图层类型 'primitive' 或 'entity'
+   * @param {Array|Object} items - 图层内容（primitive 数组或 entity 对象）
+   * @returns {boolean} 注册成功返回 true
+   */
+  registerLayer(layerId, layerName, type, items) {
+    // 检查参数有效性
+    if (!layerId || !layerName || !type) {
+      console.warn('注册图层失败：参数不完整');
+      return false;
+    }
+    
+    // 检查图层 ID 是否已存在
+    if (this.layerRegistry[layerId]) {
+      console.warn(`图层 ${layerId} 已存在，将更新其内容`);
+    } else {
+      // 新图层，添加到顺序列表
+      this.layerOrder.push(layerId);
+    }
+    
+    // 注册图层
+    this.layerRegistry[layerId] = {
+      name: layerName,
+      type: type, // 'primitive' 或 'entity'
+      items: items, // primitive 数组或 entity 对象
+      visible: true,
+      registered: new Date().toISOString()
+    };
+    
+    console.log(`✓ 图层已注册: ${layerName} (${layerId}), 类型: ${type}`);
+    return true;
+  }
+  
+  /**
+   * 注销图层
+   * @param {string} layerId - 图层 ID
+   */
+  unregisterLayer(layerId) {
+    if (!this.layerRegistry[layerId]) {
+      console.warn(`图层 ${layerId} 不存在`);
+      return false;
+    }
+    
+    // 从注册表删除
+    delete this.layerRegistry[layerId];
+    
+    // 从顺序列表删除
+    const index = this.layerOrder.indexOf(layerId);
+    if (index > -1) {
+      this.layerOrder.splice(index, 1);
+    }
+    
+    console.log(`✓ 图层已注销: ${layerId}`);
+    return true;
+  }
+  
+  /**
+   * 提升指定图层到最顶层（支持 primitive 和 entity）
+   * @param {string} layerId - 图层 ID
+   * 
+   * 原理：
+   * - Primitive: 使用 scene.primitives.raiseToTop() 方法
+   * - Entity: Cesium 中 Entity 无直接置顶方法，通过删除再添加实现
+   */
+  raisePrimitiveToTop(layerId) {
+    const layer = this.layerRegistry[layerId];
+    
+    if (!layer) {
+      console.warn(`图层 ${layerId} 不存在，请先注册图层`);
+      console.log('已注册图层:', Object.keys(this.layerRegistry));
+      return;
+    }
+    
+    if (layer.type === 'primitive') {
+      // ==================== 处理 Primitive 类型 ====================
+      const primitives = this.viewer.scene.primitives;
+      const items = layer.items;
+      
+      if (!items || items.length === 0) {
+        console.warn(`${layer.name} 为空，无法置顶`);
+        return;
+      }
+      
+      // 方法：依次将每个 primitive 提升到顶层
+      items.forEach(item => {
+        if (item && item.primitive) {
+          try {
+            primitives.raiseToTop(item.primitive);
+          } catch (e) {
+            console.warn('置顶失败:', e.message);
+          }
+        }
+      });
+      
+      console.log(`✓ ${layer.name} 已置顶，共 ${items.length} 个 primitive`);
+      
+    } else if (layer.type === 'entity') {
+      // ==================== 处理 Entity 类型 ====================
+      // Entity 没有 raiseToTop，通过删除再添加实现置顶效果
+      const entities = this.viewer.entities;
+      const items = Array.isArray(layer.items) ? layer.items : [layer.items];
+      
+      if (!items || items.length === 0) {
+        console.warn(`${layer.name} 为空，无法置顶`);
+        return;
+      }
+      
+      // 先移除，再重新添加（实现置顶）
+      const tempEntities = [];
+      items.forEach(entity => {
+        if (entity && entities.contains(entity)) {
+          entities.remove(entity);
+          tempEntities.push(entity);
+        }
+      });
+      
+      // 重新添加到最后（最顶层）
+      tempEntities.forEach(entity => {
+        entities.add(entity);
+      });
+      
+      console.log(`✓ ${layer.name} 已置顶，共 ${tempEntities.length} 个 entity`);
+    }
+  }
+  
+  /**
+   * 获取所有已注册图层列表（用于下拉框）
+   * @returns {Array} [{id, name, type, count, visible}, ...]
+   */
+  getAvailablePrimitives() {
+    const list = [];
+    
+    // 按注册顺序遍历图层
+    this.layerOrder.forEach(layerId => {
+      const layer = this.layerRegistry[layerId];
+      if (!layer) return;
+      
+      let count = 0;
+      let visible = false;
+      
+      // 根据类型获取数量和可见性
+      if (layer.type === 'primitive') {
+        count = Array.isArray(layer.items) ? layer.items.length : 0;
+        visible = count > 0 ? (layer.items[0]?.primitive?.show || false) : false;
+      } else if (layer.type === 'entity') {
+        count = Array.isArray(layer.items) ? layer.items.length : 1;
+        visible = layer.visible;
+      }
+      
+      // 只显示有内容的图层
+      if (count > 0) {
+        list.push({
+          id: layerId,
+          name: layer.name,
+          type: layer.type,
+          count: count,
+          visible: visible
+        });
+      }
+    });
+    
+    return list;
+  }
+  
+  /**
+   * 切换图层可见性
+   * @param {string} layerId - 图层 ID
+   */
+  toggleLayerVisibility(layerId) {
+    const layer = this.layerRegistry[layerId];
+    
+    if (!layer) {
+      console.warn(`图层 ${layerId} 不存在`);
+      return;
+    }
+    
+    if (layer.type === 'primitive') {
+      const items = layer.items;
+      if (items && items.length > 0) {
+        items.forEach(item => {
+          if (item && item.primitive) {
+            item.primitive.show = !item.primitive.show;
+          }
+        });
+        layer.visible = items[0]?.primitive?.show || false;
+        console.log(`${layer.name} ${layer.visible ? '显示' : '隐藏'}`);
+      }
+    } else if (layer.type === 'entity') {
+      // Entity 切换显示
+      const items = Array.isArray(layer.items) ? layer.items : [layer.items];
+      items.forEach(entity => {
+        if (entity && entity.show !== undefined) {
+          entity.show = !entity.show;
+        }
+      });
+      layer.visible = !layer.visible;
+      console.log(`${layer.name} ${layer.visible ? '显示' : '隐藏'}`);
+    }
   }
 
   clearAll() {
@@ -1820,6 +2023,11 @@ class SlopeAspect {
     this.pathLineNum = (this.pathLineNum || 0) + 1;
     console.log('新增路径，当前 pathLines 长度=', this.pathLines.length, 'next pathLineNum=', this.pathLineNum);
     this.pathLines.push(pathLineInfo);
+    
+    // ==================== 自动注册路径线到图层管理系统 ====================
+    this.registerLayer('pathLines', '路径线', 'entity', this.pathLines.map(p => p.pathLineEntity));
+    // ==================== 注册结束 ====================
+    
     try { this.pickPath(); } catch (e) { /* ignore */ }
     
     return;
@@ -1888,6 +2096,9 @@ class SlopeAspect {
           alpha: color.alpha,
         };
         this.costPolygons.push(polygonInfo);
+        
+        // 自动注册/更新代价图层
+        this.registerLayer('cost', '代价图层', 'primitive', this.costPolygons);
       }
     }
     
@@ -1959,8 +2170,12 @@ class SlopeAspect {
 
     if (config == 0) {
       this.slopePolygons.push(polygonInfo);
+      // 自动注册/更新坡度图层
+      this.registerLayer('slope', '坡度图层', 'primitive', this.slopePolygons);
     } else if (config == 1) {
       this.aspectPolygons.push(polygonInfo);
+      // 自动注册/更新坡向图层
+      this.registerLayer('aspect', '坡向图层', 'primitive', this.aspectPolygons);
     } else return;
 
     return polygonInfo;

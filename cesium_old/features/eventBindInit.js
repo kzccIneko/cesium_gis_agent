@@ -368,10 +368,6 @@ var EventModel = {
             })
         });
 
-        document.getElementById('raiseToTop').addEventListener('click', () => {
-            SlopeAnalysis.raisePrimitiveToTop();
-        });// 提升图元到最顶层显示
-
         document.getElementById('slope-layer').addEventListener('change', function () {
             SlopeAnalysis.slopeLayerVisibility();//坡度显示隐藏
             if (document.getElementById('aspect-layer').checked) {
@@ -486,6 +482,69 @@ var EventModel = {
             if (!window.SlopeAnalysis || window.SlopeAnalysis.slopeCostGrid.length === 0) return alert('请先初始化坡度分析');
             window.SlopeAnalysis.clearOverrideAreas();
         });// 清除覆盖区
+
+        // ==================== 图元置顶功能绑定 ====================
+        // 刷新图元列表下拉框
+        function refreshPrimitiveList() {
+            const select = document.getElementById('primitiveTopSelect');
+            if (!select) return;
+            
+            // 清空现有选项（保留第一个占位选项，设置白底黑字）
+            select.innerHTML = '<option value="" style="background-color: white; color: black;">-- 选择图层 --</option>';
+            
+            // 检查 SlopeAnalysis 是否已初始化
+            if (!window.SlopeAnalysis) return;
+            
+            // 获取可用图元列表
+            const primitives = window.SlopeAnalysis.getAvailablePrimitives();
+            
+            // 填充下拉框选项（白底黑字）
+            primitives.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = `${item.name} (${item.count}个${item.visible ? ', 显示中' : ', 已隐藏'})`;
+                option.style.backgroundColor = 'white';
+                option.style.color = 'black';
+                select.appendChild(option);
+            });
+        }
+        
+        // 刷新按钮点击事件
+        document.getElementById('refreshPrimitivesBtn')?.addEventListener('click', () => {
+            refreshPrimitiveList();
+            console.log('图元列表已刷新');
+        });
+        
+        // 置顶按钮点击事件
+        document.getElementById('raiseToTopBtn')?.addEventListener('click', () => {
+            const select = document.getElementById('primitiveTopSelect');
+            const selectedId = select?.value;
+            
+            // 检查是否选择了有效图元
+            if (!selectedId) {
+                return alert('请先选择要置顶的图层');
+            }
+            
+            // 检查 SlopeAnalysis 是否已初始化
+            if (!window.SlopeAnalysis) {
+                return alert('请先初始化坡度分析');
+            }
+            
+            // 执行置顶操作
+            window.SlopeAnalysis.raisePrimitiveToTop(selectedId);
+            
+            // 刷新列表（更新显示状态）
+            refreshPrimitiveList();
+        });
+        
+        // 下拉框选择变化时的提示（可选）
+        document.getElementById('primitiveTopSelect')?.addEventListener('change', (e) => {
+            const selectedText = e.target.options[e.target.selectedIndex]?.text;
+            if (selectedText && selectedText !== '-- 选择图层 --') {
+                console.log('已选择图层:', selectedText);
+            }
+        });
+        // ==================== 图元置顶功能绑定结束 ====================
 
         //下拉选择图表显示
         document.querySelector('.PathAnalysisChart_select')?.addEventListener('change', function() {

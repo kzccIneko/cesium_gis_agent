@@ -26,6 +26,13 @@ SlopeAspect.prototype.startDrawOverride = function (type = 'road') {
             this.overrideAreas = this.overrideAreas || [];
             this.overrideAreas.push({ type: type, polygonEntity: ent, coords: coords });
             this.overrideAreaEntities.push(ent);
+            
+            // ==================== 自动注册到图层管理系统 ====================
+            const layerId = type === 'road' ? 'roadOverride' : 'waterOverride';
+            const layerName = type === 'road' ? '道路覆盖' : '水域覆盖';
+            this.registerLayer(layerId, layerName, 'entity', this.overrideAreaEntities);
+            // ==================== 注册结束 ====================
+            
             // 应用覆盖到格网并刷新可视化
             this.applyOverridesToGrid();
         } catch (e) {
