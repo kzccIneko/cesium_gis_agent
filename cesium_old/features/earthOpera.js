@@ -71,6 +71,154 @@ function earthInit() {
 				//指南针外环组件true启用，false禁用，默认值为true。
     });console.log(6);
 
+	// ==================== 将 Cesium 工具栏控件移入侧边栏 ====================
+	(function moveCesiumToolbarToSidebar() {
+		var container = document.getElementById('topMiniToolbarControls');
+		if (!container) return;
+
+		// 工具条与全屏按钮在不同容器里，分别查询
+		var toolbar = document.querySelector('.cesium-viewer-toolbar');
+		var fullscreenContainer = document.querySelector('.cesium-viewer-fullscreenContainer');
+
+		if (!toolbar && !fullscreenContainer) return;
+
+		// 按顺序移动：2D/3D切换 → 全屏按钮 → 底图选择器
+		var sceneMode = toolbar ? toolbar.querySelector('.cesium-sceneModePicker-wrapper') : null;
+		var fullscreen = fullscreenContainer ? fullscreenContainer.querySelector('.cesium-fullscreenButton') : null;
+		var baseImg = toolbar ? toolbar.querySelector('.cesium-baseLayerPicker-selected') : null;
+		var baseButton = baseImg ? baseImg.closest('button') : null;
+		var baseDrop = toolbar ? toolbar.querySelector('.cesium-baseLayerPicker-dropDown') : null;
+
+		function appendToolItem(nodeOrBuilder) {
+			var item = document.createElement('div');
+			item.className = 'sidebar-tool-item';
+			if (typeof nodeOrBuilder === 'function') {
+				nodeOrBuilder(item);
+			} else if (nodeOrBuilder) {
+				item.appendChild(nodeOrBuilder);
+			}
+			container.appendChild(item);
+		}
+
+		if (sceneMode) {
+			appendToolItem(sceneMode);
+		}
+
+		if (fullscreen) {
+			appendToolItem(fullscreen);
+		}
+
+		if (baseButton || baseDrop) {
+			appendToolItem(function(item) {
+				if (baseButton) item.appendChild(baseButton);
+				if (baseDrop) item.appendChild(baseDrop);
+			});
+		}
+
+		// 原 toolbar 仍在 DOM 中但已被 CSS 隐藏（display:none）
+		console.log('[earthOpera] Cesium 工具栏已移入顶部小工具条');
+	})();
+
+	// ==================== 侧边栏工具栏拖拽（带边界约束） ====================
+	(function enableSidebarToolbarDrag() {
+		var sidebar = document.getElementById('sidebar');
+		var toolbar = document.getElementById('sidebarToolbar');
+		var layersSection = sidebar ? sidebar.querySelector('.sidebar-layers-section') : null;
+		if (!sidebar || !toolbar) return;
+
+		var BOTTOM_GAP = 6;
+		var EDGE_HANDLE_HEIGHT = 8; // 仅允许在工具栏上边界拖拽
+		var minToolbarHeight = 0;
+
+		// 初始放到底部；拖拽时通过 top+bottom 形成拉伸
+		function initToolbarPosition() {
+			if (!toolbar.style.top) {
+				var top = sidebar.clientHeight - toolbar.offsetHeight - BOTTOM_GAP;
+				toolbar.style.position = 'absolute';
+				toolbar.style.left = '8px';
+				toolbar.style.right = '8px';
+				toolbar.style.top = Math.max(0, top) + 'px';
+				toolbar.style.bottom = BOTTOM_GAP + 'px';
+			}
+			minToolbarHeight = toolbar.offsetHeight;
+		}
+
+		function isVisible(el) {
+			if (!el) return false;
+			return el.offsetParent !== null && getComputedStyle(el).display !== 'none';
+		}
+
+		// 上边界：不能超过“图层功能部分最底端元素”
+		function getMinTop() {
+			if (!layersSection) return 0;
+			var sidebarRect = sidebar.getBoundingClientRect();
+			var maxBottom = 0;
+
+			var children = layersSection.children;
+			for (var i = 0; i < children.length; i++) {
+				var ch = children[i];
+				if (!isVisible(ch)) continue;
+				var r = ch.getBoundingClientRect();
+				if (r.bottom > maxBottom) maxBottom = r.bottom;
+			}
+
+			var minTop = maxBottom > 0 ? (maxBottom - sidebarRect.top + 4) : 0;
+			return Math.max(0, minTop);
+		}
+
+		function clampToolbarTop(top) {
+			var maxTop = Math.max(0, sidebar.clientHeight - minToolbarHeight - BOTTOM_GAP);
+			var minTop = Math.min(getMinTop(), maxTop);
+			if (top < minTop) top = minTop;
+			if (top > maxTop) top = maxTop;
+			return top;
+		}
+
+
+		initToolbarPosition();
+
+		var dragging = false;
+		var startY = 0;
+		var startTop = 0;
+
+		toolbar.addEventListener('mousedown', function (e) {
+			// 点击控件本身时不进入拖拽，避免影响功能操作
+			if (e.target.closest('.cesium-button') || e.target.closest('.cesium-baseLayerPicker-dropDown')) {
+				return;
+			}
+			// 仅在工具栏顶部边界区域触发拖拽（上下拖动）
+			if (e.offsetY > EDGE_HANDLE_HEIGHT) {
+				return;
+			}
+			dragging = true;
+			startY = e.clientY;
+			startTop = toolbar.offsetTop;
+			e.preventDefault();
+		});
+
+		document.addEventListener('mousemove', function (e) {
+			if (!dragging) return;
+			var dy = e.clientY - startY;
+			var top = clampToolbarTop(startTop + dy);
+			toolbar.style.top = top + 'px';
+			toolbar.style.bottom = BOTTOM_GAP + 'px';
+		});
+
+		document.addEventListener('mouseup', function () {
+			dragging = false;
+		});
+
+		window.addEventListener('resize', function () {
+			minToolbarHeight = Math.min(minToolbarHeight || toolbar.offsetHeight, toolbar.offsetHeight);
+			var top = clampToolbarTop(toolbar.offsetTop);
+			toolbar.style.top = top + 'px';
+			toolbar.style.bottom = BOTTOM_GAP + 'px';
+		});
+	})();
+
+	// ==================== 初始化侧边栏管理器 ====================
+	window.sidebarManager = new SidebarManager(viewer);
+
 /*三维坐标显示函数  显示高斯坐标*/
 function showGaosiCoordinates() {
     console.log('显示高斯坐标');

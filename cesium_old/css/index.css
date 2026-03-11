@@ -19,20 +19,20 @@ body {
 .cesium-performanceDisplay { 
   display: none !important;
 }
-/* 全屏按钮 */
+/* 全屏按钮 - 已移入侧边栏 */
 .cesium-button.cesium-fullscreenButton {
-  position: fixed;
-  top: 68px;
-  right: 50px;
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
   width: 30px;
   height: 30px;
 }
-/*二三维切换按钮*/
+/*二三维切换按钮 - 已移入侧边栏*/
 span.cesium-sceneModePicker-wrapper {
   display: inline-block;
-  position: fixed;
-  top: 2px;
-  right: 80px;
+  position: relative !important;
+  top: auto;
+  right: auto;
 }
 /*E*/
 /*cesium窗体S*/
@@ -172,13 +172,51 @@ span.cesium-sceneModePicker-wrapper {
 }
 /*E*/
 
-/*导航栏S*/
-.cesium-viewer-toolbar {
-  /* position: fixed !important; */
-  /* top: 10% !important; */
-  transform: translateY(60px);
+/*导航栏S - 工具栏移入侧边栏后隐藏默认位置*/
+.cesium-viewer-toolbar,
+.cesium-viewer-fullscreenContainer {
+  display: none !important;
 }
 /*E*/
+
+/* 顶部小工具条（Google Earth 风格） */
+.top-mini-toolbar {
+  position: fixed;
+  top: 58px;
+  right: 12px;
+  z-index: 1600;
+  background: rgba(8, 22, 40, 0.78);
+  border: 1px solid rgba(100, 140, 180, 0.45);
+  border-radius: 6px;
+  padding: 4px 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.top-mini-toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.top-mini-toolbar-controls .sidebar-tool-item {
+  height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+.top-mini-toolbar-controls .cesium-button {
+  width: 28px;
+  height: 28px;
+}
+
+.top-mini-toolbar-controls .cesium-baseLayerPicker-dropDown {
+  position: absolute !important;
+  top: 100% !important;
+  right: 0 !important;
+  left: auto !important;
+  transform: none !important;
+  z-index: 1700;
+}
 
 /* 字体设置 */
 .font-center {
@@ -219,25 +257,50 @@ hr {
 
 /*比例尺定位及样式*/
     .distance-legend{
-    position: absolute;
-    right: 1px;
-    bottom: 1px;
+  position: fixed !important;
+  right: 12px !important;
+  bottom: 8px !important;
+  left: auto !important;
+  top: auto !important;
     margin: 1px;
+  z-index: 1000;
 
     }
-                
+    
+    /*罗盘与缩放容器块（兼容插件的两种类名）*/
+    .compass-and-zoom,
+    .cesium-widget-cesiumNavigationContainer {
+    position: fixed !important;
+    right: 8px !important;
+    top: 60px !important;
+    left: auto !important;
+    bottom: auto !important;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 1000;
+    }
+
     /*罗盘*/
-    .compass{
-    position: absolute;
-    right: 0%;
-    margin: 0%;
-    top: 11%;
+    .compass-and-zoom .compass,
+    .cesium-widget-cesiumNavigationContainer .compass {
+    position: relative !important;
+    right: auto !important;
+    bottom: auto !important;
+    top: auto !important;
+    left: auto !important;
     }
     /*缩放*/
-    .navigation-controls{
-    position: absolute;
-    right: 30px!important;
-    bottom: 670px!important;
+    .compass-and-zoom .navigation-controls,
+    .cesium-widget-cesiumNavigationContainer .navigation-controls {
+    position: relative !important;
+    right: auto !important;
+    bottom: auto !important;
+    top: auto !important;
+    left: 50% !important;
+    transform: translateX(-50%);
+    margin-top: 8px;
     background-color:#303336;
     }
     /*颜色选择器*/

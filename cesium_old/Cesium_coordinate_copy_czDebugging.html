@@ -28,6 +28,8 @@
     <link rel="stylesheet" href="css/toobar.css" />
     <link rel="stylesheet" href="css/override.css" />
     <link rel="stylesheet" href="css/FileLoad.css" />
+    <!--侧边栏样式-->
+    <link rel="stylesheet" href="css/sidebar.css" />
     <script src="features/router-tracker/DrawHelper.js"></script>
 
     
@@ -143,7 +145,152 @@
 
 <!--*********************************************Cesium主界面**********************************************-->
 <div id="cesiumContainer"></div>
-<!--**********************************************弹出窗口*****************************************************-->
+
+<!-- 顶部小工具条（Google Earth 风格）：承载 2D/3D、全屏、底图选择 -->
+<div id="topMiniToolbar" class="top-mini-toolbar">
+    <div id="topMiniToolbarControls" class="top-mini-toolbar-controls"></div>
+</div>
+
+<!--**********************************************仿谷歌地球侧边栏*********************************************-->
+<!-- 侧边栏折叠/展开按钮（始终可见） -->
+<div id="sidebarToggleBtn" class="sidebar-toggle-btn" title="展开/收起侧边栏">
+    <span class="sidebar-toggle-icon">◀</span>
+</div>
+
+<!-- 侧边栏主体 -->
+<div id="sidebar" class="sidebar">
+    <!-- ==================== 上端：搜索地点 ==================== -->
+    <div class="sidebar-section sidebar-search-section">
+        <div class="sidebar-section-header">
+            <span class="sidebar-section-icon">🔍</span>
+            <span class="sidebar-section-title">搜索</span>
+        </div>
+        <div class="sidebar-search-box">
+            <input type="text" id="sidebarSearchInput" class="sidebar-search-input" 
+                   placeholder="搜索地名或输入经纬度..." />
+            <button id="sidebarSearchBtn" class="sidebar-search-btn" title="搜索">
+                <span>🔍</span>
+            </button>
+        </div>
+        <!-- 搜索历史/结果列表 -->
+        <ul id="sidebarSearchResults" class="sidebar-search-results"></ul>
+    </div>
+
+    <!-- 分隔线 -->
+    <div class="sidebar-divider"></div>
+
+    <!-- ==================== 下端：图层管理（Places） ==================== -->
+    <div class="sidebar-section sidebar-layers-section">
+        <div class="sidebar-section-header" id="layersSectionHeader">
+            <span class="sidebar-section-icon">📂</span>
+            <span class="sidebar-section-title">图层</span>
+            <button id="sidebarAddLayerBtn" class="sidebar-add-layer-btn" title="加载数据">＋</button>
+            <span class="sidebar-section-toggle" title="折叠/展开">▼</span>
+        </div>
+
+        <!-- 图层树容器 -->
+        <div id="layerTree" class="sidebar-layer-tree">
+            <!-- ===== My Places（用户加载的数据） ===== -->
+            <div class="layer-group" id="layerGroup-myPlaces">
+                <div class="layer-group-header" data-group="myPlaces">
+                    <span class="layer-group-toggle">▶</span>
+                    <input type="checkbox" class="layer-group-checkbox" id="chk-myPlaces" checked />
+                    <span class="layer-group-icon">📁</span>
+                    <span class="layer-group-name">My Places</span>
+                </div>
+                <ul class="layer-group-children" id="layerList-myPlaces" style="display:none;">
+                    <!-- 动态添加的图层项 -->
+                </ul>
+            </div>
+
+            <!-- ===== Terrain（地形图层） ===== -->
+            <div class="layer-group" id="layerGroup-terrain">
+                <div class="layer-group-header" data-group="terrain">
+                    <span class="layer-group-toggle">▶</span>
+                    <input type="checkbox" class="layer-group-checkbox" id="chk-terrain" checked />
+                    <span class="layer-group-icon">🏔️</span>
+                    <span class="layer-group-name">Terrain</span>
+                </div>
+                <ul class="layer-group-children" id="layerList-terrain" style="display:none;">
+                </ul>
+            </div>
+
+            <!-- ===== Imagery（影像图层） ===== -->
+            <div class="layer-group" id="layerGroup-imagery">
+                <div class="layer-group-header" data-group="imagery">
+                    <span class="layer-group-toggle">▶</span>
+                    <input type="checkbox" class="layer-group-checkbox" id="chk-imagery" checked />
+                    <span class="layer-group-icon">🗺️</span>
+                    <span class="layer-group-name">Imagery</span>
+                </div>
+                <ul class="layer-group-children" id="layerList-imagery" style="display:none;">
+                </ul>
+            </div>
+
+            <!-- ===== 3D Models（三维模型） ===== -->
+            <div class="layer-group" id="layerGroup-models">
+                <div class="layer-group-header" data-group="models">
+                    <span class="layer-group-toggle">▶</span>
+                    <input type="checkbox" class="layer-group-checkbox" id="chk-models" checked />
+                    <span class="layer-group-icon">🏗️</span>
+                    <span class="layer-group-name">3D Models</span>
+                </div>
+                <ul class="layer-group-children" id="layerList-models" style="display:none;">
+                </ul>
+            </div>
+
+            <!-- ===== Analysis（分析图层） ===== -->
+            <div class="layer-group" id="layerGroup-analysis">
+                <div class="layer-group-header" data-group="analysis">
+                    <span class="layer-group-toggle">▶</span>
+                    <input type="checkbox" class="layer-group-checkbox" id="chk-analysis" checked />
+                    <span class="layer-group-icon">📊</span>
+                    <span class="layer-group-name">Analysis</span>
+                </div>
+                <ul class="layer-group-children" id="layerList-analysis" style="display:none;">
+                </ul>
+            </div>
+        </div>
+
+        <!-- ==================== 图层透明度调节 ==================== -->
+        <div id="layerOpacityControl" class="sidebar-opacity-control" style="display:none;">
+            <div class="sidebar-opacity-header">
+                <span class="sidebar-opacity-icon">🔅</span>
+                <span class="sidebar-opacity-title" id="opacityLayerName">透明度</span>
+                <span class="sidebar-opacity-value" id="opacityValueLabel">100%</span>
+            </div>
+            <input type="range" id="layerOpacitySlider" class="sidebar-opacity-slider"
+                   min="0" max="1" step="0.01" value="1" />
+        </div>
+    </div>
+
+    <!-- ==================== 底部工具栏（窗口组件） ==================== -->
+    <div class="sidebar-toolbar" id="sidebarToolbar">
+        <div class="sidebar-toolbar-label">窗口组件</div>
+        <div class="window-component-panel" id="sidebarWindowComponents">
+            <label class="window-component-item">
+                <input type="checkbox" value="mapShadows" class="window-component-toggle" />
+                <span>地图阴影</span>
+            </label>
+            <label class="window-component-item">
+                <input type="checkbox" value="fullscreen-controls" class="window-component-toggle" checked />
+                <span>全屏显示</span>
+            </label>
+            <label class="window-component-item">
+                <input type="checkbox" value="compass" class="window-component-toggle" checked />
+                <span>罗盘</span>
+            </label>
+            <label class="window-component-item">
+                <input type="checkbox" value="navigation-controls" class="window-component-toggle" checked />
+                <span>导航控件</span>
+            </label>
+            <label class="window-component-item">
+                <input type="checkbox" value="distance-legend" class="window-component-toggle" checked />
+                <span>比例尺</span>
+            </label>
+        </div>
+    </div>
+</div>
 <!--坐标定位-->
 <div id="jumpToWin" class="functionWin">
     <div class="head move">
@@ -447,6 +594,11 @@
                 <input id="drawRoadArea" type="button" class="btn btn--primary" value="绘制道路覆盖" />
                 <input id="drawWaterArea" type="button" class="btn btn--danger" value="绘制水域覆盖" />
                 <input id="clearOverrides" type="button" class="btn" value="清除覆盖" />
+            </div>
+            <div class="row">
+                <!-- 土地覆盖代价叠加 -->
+                <input id="applyLandUseCost" type="button" class="btn btn--primary" value="叠加KMZ土地代价" title="从已加载的KMZ图层中读取gridcode字段，自动叠加土地类型通行代价" />
+                <input id="clearLandUseCost" type="button" class="btn" value="清除土地代价" title="恢复为纯坡度通行代价" />
             </div>
             
             <!-- 图元置顶控制 -->
@@ -907,28 +1059,10 @@
             <img src="img/modal/close.png" />
         </span>
     </div>
-    <!--内容栏</div>-->
+    <!--内容栏-->
     <div class="content">
         <div class="container-fluid">
-            <!--数据类型选择-->
-            <div class="form-row">
-                <div class="label">数据类型：</div>
-                <div class="ctl">
-                    <div class="input">
-                        <select class="loadDataType_select">
-                            <option value="Terrain" style="color: black;">Terrain</option>
-                            <option value="Gltf" style="color: black;">Gltf</option>
-                            <option value="GLB" style="color: black;">GLB</option>
-                            <option value="Tileset" style="color: black;">3dTiles</option>
-                            <option value="CZML" style="color: black;">CZML</option>
-                            <option value="KML" style="color: black;">KML</option>
-                            <option value="GeoJson" style="color: black;">GeoJson</option>
-                            <option value="Tiff" style="color: black;">Tiff</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <!--数据url输入-->
+            <!--选择文件（自动识别类型）-->
             <div class="form-row">
                 <div class="label">添加文件：</div>
                     <div class="upload-area" id="uploadArea">
@@ -936,37 +1070,28 @@
                             <p>或拖拽文件到此处上传</p>
                         <input type="file" id="fileInput" class="file-input" multiple>
                     </div>
-                                  
-            </div>     
-
+            </div>
+            <!--Terrain 文件夹选择-->
+            <div class="form-row">
+                <div class="label">地形文件夹：</div>
+                <div class="ctl">
+                    <input type="button" id="terrainFolderBtn" class="btn btn--primary" value="选择 Terrain 文件夹" style="font-size:12px;" />
+                    <input type="file" id="terrainFolderInput" class="file-input" webkitdirectory directory multiple style="display:none;" />
+                </div>
+            </div>
+            <!--已识别信息-->
             <div class="form-row">
                 <div class="label">文件地址：</div>
                 <div class="ctl">
                     <div class="input">
                         <input type="text" id="loadDataUrl_text" class="loadDataUrl_text" placeholder="数据地址url" value="./data/DEM/yajiangxian_Tile_ctb/" />
                     </div>
-                    <label>
-                    手动输入坐标：
-                    <input type="checkbox" id="ManuallyInput" checked/>
-                </label>
                 </div>
             </div>
-
-            <!-- 图像/模型位置输入 -->
-            <div class="form-row">左上角点[经][纬]：
-                <div class="input">
-                    <input type="text" required="required" id="Ldestination_lng" name="Ldestination_lng" value="99.9899197"/>
-                </div>
-                <div class="input">
-                    <input type="text" required="required" id="Udestination_lat" name="Udestination_lat" value="30.0114727"/>
-                </div>
-            </div>
-            <div class="form-row">右下角点[经][纬]：
-                <div class="input">
-                    <input type="text" required="required" id="Rdestination_lng" name="Rdestination_lng" value="101.0198879"/>
-                </div>
-                <div class="input">
-                    <input type="text" required="required" id="Ddestination_lat" name="Ddestination_lat"value="28.9883709"/>
+            <div class="form-row">
+                <div class="label">识别类型：</div>
+                <div class="ctl">
+                    <span id="detectedTypeLabel" style="color:#70bdf9; font-size:13px;">--</span>
                 </div>
             </div>
             <div class="form-row">
@@ -978,7 +1103,6 @@
                 <input type="button" class="btn cansole_btn" value="取消" />
                 <input type="button" class="btn btn--primary sure_btn" value="加载" />
             </div>
-            <!-- 输入数据input的父div（class名称）需与点击按钮的div的一致，不然数据加载不进点击事件的 .click(function(){})中 -->
         </div>
     </div>
 </div>
@@ -1213,6 +1337,7 @@
 <!--等高线绘制功能-->
 <script src="./features/slope/contour.js" defer></script>
 <!--事件初始化-->
+<script src="features/SidebarManager.js"></script>
 <script src="features/eventBindInit.js"></script>
 <!--鼠标移动-->
 <!-- <script src="js/fun/mouseMove.js"></script> -->

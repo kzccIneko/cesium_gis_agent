@@ -145,6 +145,8 @@ class SlopeAspect {
     this.aspectPolygons = []; //存放坡向primitive
     this.heightPolygons = []; //存放高度primitive
     this.costPolygons = []; //存放通行代价primitive
+    this.landUseCostLayers = []; // 土地因素叠加后的代价图层快照（用于对比）
+    this.landUseCostLayerCounter = 0; // 叠加层计数器，保证 layerId 唯一
     this.drawFlag = true; //是否渲染坡度坡向
 
     // ==================== 通用图层管理系统 ====================
@@ -258,7 +260,75 @@ class SlopeAspect {
     };
     
     console.log(`✓ 图层已注册: ${layerName} (${layerId}), 类型: ${type}`);
+
+    // ===== 同步到侧边栏 =====
+    if (window.sidebarManager && type === 'primitive' &&
+        (layerId === 'slope' || layerId === 'aspect' || layerId === 'cost' || layerId.indexOf('cost_land_') === 0)) {
+      this._syncLayerToSidebar(layerId, layerName, items);
+    }
+
     return true;
+  }
+
+  /**
+   * 将分析图层同步到侧边栏管理
+   * @param {string} layerId - 图层标识 (slope/aspect/cost)
+   * @param {string} layerName - 显示名称
+   * @param {Array} items - primitive 数组
+   */
+  _syncLayerToSidebar(layerId, layerName, items) {
+    if (!window.sidebarManager) return;
+
+    // 计算分析区域范围（用于 flyTo）
+    var bounds = this._getAnalysisBounds();
+
+    // 用固定 sidebarKey 做重复检查
+    var sidebarKey = '_analysis_' + layerId;
+    var existing = window.sidebarManager.layers.find(function(l) {
+      return l.extras && l.extras._sidebarKey === sidebarKey;
+    });
+
+    if (existing) {
+      // 更新已有图层的 cesiumObject 引用
+      existing.cesiumObject = items;
+      existing.extras._colorCache = null; // 清除旧颜色缓存
+      console.log('[SlopeAspect] 更新侧边栏图层:', layerName);
+    } else {
+      // 新增
+      window.sidebarManager.addLayer({
+        name: layerName,
+        type: 'Analysis',
+        cesiumObject: items,
+        extras: {
+          _sidebarKey: sidebarKey,
+          analysisLayerId: layerId,
+          bounds: bounds
+        }
+      });
+    }
+  }
+
+  /**
+   * 从 slopeCostGrid 计算分析区域地理范围
+   * @returns {Object|null} { west, south, east, north }
+   */
+  _getAnalysisBounds() {
+    if (!this.slopeCostGrid || this.slopeCostGrid.length === 0) return null;
+    var minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    for (var i = 0; i < this.slopeCostGrid.length; i++) {
+      for (var j = 0; j < this.slopeCostGrid[i].length; j++) {
+        var cell = this.slopeCostGrid[i][j];
+        if (!cell || !cell.degreeCoordinate) continue;
+        var lon = cell.degreeCoordinate[0];
+        var lat = cell.degreeCoordinate[1];
+        if (lon < minLon) minLon = lon;
+        if (lon > maxLon) maxLon = lon;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      }
+    }
+    if (!isFinite(minLon)) return null;
+    return { west: minLon, south: minLat, east: maxLon, north: maxLat };
   }
   
   /**
@@ -278,6 +348,29 @@ class SlopeAspect {
     const index = this.layerOrder.indexOf(layerId);
     if (index > -1) {
       this.layerOrder.splice(index, 1);
+    }
+
+    // 叠加代价图层引用清理
+    if (layerId.indexOf('cost_land_') === 0 && Array.isArray(this.landUseCostLayers)) {
+      this.landUseCostLayers = this.landUseCostLayers.filter(function (x) {
+        return x && x.layerId !== layerId;
+      });
+    }
+
+    // ===== 同步从侧边栏移除 =====
+    if (window.sidebarManager) {
+      var sidebarKey = '_analysis_' + layerId;
+      var sidebarLayer = window.sidebarManager.layers.find(function(l) {
+        return l.extras && l.extras._sidebarKey === sidebarKey;
+      });
+      if (sidebarLayer) {
+        // 只移除 DOM 和记录，不移除 primitive（已由调用方处理）
+        var li = document.querySelector('[data-layer-id="' + sidebarLayer.id + '"]');
+        if (li) li.remove();
+        var idx = window.sidebarManager.layers.indexOf(sidebarLayer);
+        if (idx > -1) window.sidebarManager.layers.splice(idx, 1);
+        console.log('[SlopeAspect] 已从侧边栏移除:', layerId);
+      }
     }
     
     console.log(`✓ 图层已注销: ${layerId}`);
@@ -450,6 +543,16 @@ class SlopeAspect {
       this.viewer.scene.primitives.remove(element.primitive);
     });
     this.costPolygons = [];
+
+    if (this.landUseCostLayers && this.landUseCostLayers.length > 0) {
+      this.landUseCostLayers.forEach((layer) => {
+        if (!layer || !Array.isArray(layer.polygons)) return;
+        layer.polygons.forEach((element) => {
+          this.viewer.scene.primitives.remove(element.primitive);
+        });
+      });
+      this.landUseCostLayers = [];
+    }
     
     //删除所有点
     this.viewer.entities.removeAll();
@@ -544,11 +647,10 @@ class SlopeAspect {
    /* 切换图层可见性 */
   slopeLayerVisibility() {
     if (this.slopePolygons && this.slopePolygons.length >= 2) {
-      //this.mapPrimitive1.show = !this.mapPrimitive1.show;
       this.slopePolygons.forEach((element) => {
         element.primitive.show = !element.primitive.show;
       });
-      //this.mapPrimitive2.show = !this.mapPrimitive2.show;
+      this._syncSidebarCheckbox('slope', this.slopePolygons[0].primitive.show);
       console.log("slopeChange");
     }
   }
@@ -557,6 +659,7 @@ class SlopeAspect {
       this.aspectPolygons.forEach((element) => {
         element.primitive.show = !element.primitive.show;
       });
+      this._syncSidebarCheckbox('aspect', this.aspectPolygons[0].primitive.show);
       console.log("aspectChange");
     }
   }
@@ -565,7 +668,29 @@ class SlopeAspect {
       this.costPolygons.forEach((element) => {
         element.primitive.show = !element.primitive.show;
       });
+      this._syncSidebarCheckbox('cost', this.costPolygons[0].primitive.show);
       console.log("costChange");
+    }
+  }
+
+  /**
+   * 同步侧边栏中分析图层的复选框状态
+   * @param {string} analysisId - slope/aspect/cost
+   * @param {boolean} visible - 可见状态
+   */
+  _syncSidebarCheckbox(analysisId, visible) {
+    if (!window.sidebarManager) return;
+    var sidebarKey = '_analysis_' + analysisId;
+    var layer = window.sidebarManager.layers.find(function(l) {
+      return l.extras && l.extras._sidebarKey === sidebarKey;
+    });
+    if (layer) {
+      layer.visible = visible;
+      var li = document.querySelector('[data-layer-id="' + layer.id + '"]');
+      if (li) {
+        var cb = li.querySelector('.layer-item-checkbox');
+        if (cb) cb.checked = visible;
+      }
     }
   }
 
@@ -1247,7 +1372,7 @@ class SlopeAspect {
     const dx = Math.abs(a.x - b.x);
     const dy = Math.abs(a.y - b.y);
 
-    return Math.sqrt(dx * dx + dy * dy);
+    return Math.sqrt(dx * dx + dy * dy);// 欧几里得距离
   }
   GetCost(from, to) {
     const dx = to.x - from.x;
@@ -1845,7 +1970,7 @@ class SlopeAspect {
       DEM[i] = new Array(cols).fill(0); 
     }// 初始化DEM[i][j]为 0
 
-    /*// 原始方法
+    /*// 原始方法(基于文献公式)计算坡度代价
     costValArry = [
       10 * 1,
       (10 * (Math.pow(0.02 * (5 - 5), 3) - 3.183 * 5 + 41.1103) / 25.18),
@@ -1953,7 +2078,7 @@ class SlopeAspect {
             speed = 0;
           }
 
-          // 计算时间代价：时间 = 距离 / 速度
+          // 计算时间代价：时间 = 距离m / 速度m/s
           if (speed > 0.1) { // 速度大于0.1km/h才认为可通行
             this.slopeCostGrid[i][j].slopeCost = this.distance / (speed / 3.6);
           } else {
@@ -2034,7 +2159,13 @@ class SlopeAspect {
   }
 
   // 绘制通行代价图
-  createCostInstance(slopeCostColorGrid){
+  // options: { targetPolygons, layerId, layerName }
+  createCostInstance(slopeCostColorGrid, options){
+    options = options || {};
+    const targetPolygons = Array.isArray(options.targetPolygons) ? options.targetPolygons : this.costPolygons;
+    const layerId = options.layerId || 'cost';
+    const layerName = options.layerName || '代价图层';
+
     let Instances = [];
     let positions = [];
     console.log('slopeCostColorGrid',slopeCostColorGrid);
@@ -2095,11 +2226,13 @@ class SlopeAspect {
           baseColor: color,
           alpha: color.alpha,
         };
-        this.costPolygons.push(polygonInfo);
-        
-        // 自动注册/更新代价图层
-        this.registerLayer('cost', '代价图层', 'primitive', this.costPolygons);
+        targetPolygons.push(polygonInfo);
       }
+    }
+
+    if (targetPolygons.length > 0) {
+      // 自动注册/更新代价图层
+      this.registerLayer(layerId, layerName, 'primitive', targetPolygons);
     }
     
     return;
@@ -3080,21 +3213,33 @@ class SlopeAspect {
       { r: 0,   g: 255, b: 0,   name: '绿色-最易通行',          class: 0 }  // 最易
     ];*/
     
-    // ==================== 2. 定义6个颜色等级（按坡度分段）====================
-    const colorLevels = [
-      { r: 0,   g: 255, b: 0,   name: '绿色-最易通行(0-6°)',     slopeMax: 6  },
-      { r: 144, g: 238, b: 144, name: '浅绿-较易通行(6-10°)',    slopeMax: 10 },
-      { r: 255, g: 255, b: 0,   name: '黄色-中等通行(10-15°)',   slopeMax: 15 },
-      { r: 255, g: 140, b: 0,   name: '橙色-较难通行(15-20°)',   slopeMax: 20 },
-      { r: 255, g: 69,  b: 0,   name: '深橙-困难通行(20-30°)',   slopeMax: 30 },
-      { r: 255, g: 0,   b: 0,   name: '红色-不可通行(>30°)',     slopeMax: 999 }
+    // ==================== 2. 定义6个颜色等级（按代价/速度分段）====================
+    // 代价阈值边界（即速度边界对应的时间代价 = distance / (speed_km/h / 3.6)）
+    // 速度分段: 25,20,15,12,8,5,0.1 km/h
+    const dist = this.distance || 50; // 网格分辨率(m)
+    const costThresholds = [
+      dist / (25 / 3.6),   // 最快(25km/h) → 最低代价
+      dist / (15 / 3.6),   // 15km/h
+      dist / (12 / 3.6),   // 12km/h
+      dist / (8 / 3.6),    // 8km/h
+      dist / (5 / 3.6),    // 5km/h
+      dist / (0.1 / 3.6)   // 极慢(0.1km/h)
     ];
+    const colorLevels = [
+      { r: 0,   g: 255, b: 0,   name: '绿色-最易通行'   },  // cost <= costThresholds[1]
+      { r: 144, g: 238, b: 144, name: '浅绿-较易通行'   },  // cost <= costThresholds[2]
+      { r: 255, g: 255, b: 0,   name: '黄色-中等通行'   },  // cost <= costThresholds[3]
+      { r: 255, g: 140, b: 0,   name: '橙色-较难通行'   },  // cost <= costThresholds[4]
+      { r: 255, g: 69,  b: 0,   name: '深橙-困难通行'   },  // cost <= costThresholds[5]
+      { r: 255, g: 0,   b: 0,   name: '红色-不可通行'   }   // cost > costThresholds[5] 或 999999
+    ];
+    console.log('代价分色阈值:', costThresholds.map(v => v.toFixed(2)));
 
-    // ==================== 4. 遍历栅格，分类并赋颜色（使用边界值阈值）====================
+    // ==================== 4. 遍历栅格，按 slopeCost 分类并赋颜色 ====================
     
     const slopeCostColorGrid = []; // 代价->颜色映射栅格
     for (let i = 0; i < colorLevels.length; i++) {
-      slopeCostColorGrid[i] = [];// 初始化5个等级的数组
+      slopeCostColorGrid[i] = [];// 初始化6个等级的数组
     }
     
     for (let i = 0; i < this.slopeCostGrid.length; i++) {
@@ -3106,43 +3251,30 @@ class SlopeAspect {
           continue;// 无效格子
         }
         
-        const slope = cell.slope;
         const cost = cell.slopeCost;
-        
-        // 根据代价值判断属于哪个等级（使用 finalThresholds 边界值）
-        /*let colorClass = 4; // 默认最难级（红色）
-        for (let k = 0; k < 5; k++) {
-          if (cost >= finalThresholds[k]*slope && cost <= finalThresholds[k + 1]*slope) {
-            colorClass = k; // 等级0最易（绿），等级4最难（红）
-            break;
-          }
-        }*/  
-        /*for (let k = 0; k < 5; k++) {
-          if (cost >= finalThresholds[k] && cost < finalThresholds[k + 1]) {
-            colorClass = 4 - k; // 等级0最易（绿），等级4最难（红）
-            break;
-          }
-        }*/  
 
-        // 根据坡度值判断属于哪个等级
-        let colorClass = 5; // 默认最难级（红色，>30°）
+        // 根据代价值(slopeCost)判断属于哪个颜色等级
+        // cost 越大通行越困难，costThresholds 已按升序排列
+        let colorClass = 5; // 默认最难级（红色 / 不可通行）
         
-        if (slope <= 6) {
-          colorClass = 0; // 绿色
-        } else if (slope <= 10) {
+        if (cost >= 999999) {
+          colorClass = 5; // 不可通行
+        } else if (cost <= costThresholds[1]) {
+          colorClass = 0; // 绿色（代价最低）
+        } else if (cost <= costThresholds[2]) {
           colorClass = 1; // 浅绿
-        } else if (slope <= 15) {
+        } else if (cost <= costThresholds[3]) {
           colorClass = 2; // 黄色
-        } else if (slope <= 20) {
+        } else if (cost <= costThresholds[4]) {
           colorClass = 3; // 橙色
-        } else if (slope <= 30) {
-          colorClass = 4; // 深橙（20-30°仍可通行）
+        } else if (cost <= costThresholds[5]) {
+          colorClass = 4; // 深橙
         } else {
-          colorClass = 5; // 红色（>30°不可通行）
+          colorClass = 5; // 红色（代价极大）
         }
 
         // 获取对应等级的颜色
-        const colorLevel = colorLevels[colorClass]; //colorClass=0对应索引0（绿），colorClass=5对应索引5（红） // colorClass=0对应索引4（绿），colorClass=4对应索引0（红）
+        const colorLevel = colorLevels[colorClass];
         //转换成16进制颜色字符串
         const color = `#${((1 << 24) + (colorLevel.r << 16) + (colorLevel.g << 8) + colorLevel.b).toString(16).slice(1)}`;
         
@@ -3151,7 +3283,7 @@ class SlopeAspect {
           i: i,                           // 行索引
           j: j,                           // 列索引
           cost: cost,                     // 原始代价值
-          colorClass: colorClass,         // 颜色等级（0-4）
+          colorClass: colorClass,         // 颜色等级（0-5）
           colorRGB: colorLevel,           // RGB对象颜色分级数据 {r, g, b}
           color: color,                   // 十六进制颜色字符串
           gridSquare: cell.gridSquare || [] // 网格绘制九点坐标

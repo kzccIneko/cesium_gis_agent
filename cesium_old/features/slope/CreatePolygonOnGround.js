@@ -52,8 +52,8 @@ const CreatePolygonOnGround = function (viewer, resultList, options, callback) {
   SlopeAnalysis.handler = handler;
   let toolTip = "左键点击开始绘制, 右键取消";
   let anchorpoints = [];
-  let polygon = undefined;
-  let boxLinePolygon = undefined;
+  let polygon = undefined;// 多边形实体
+  let boxLinePolygon = undefined;// 边框线实体
   let drawStatus = true;
 
   handler.setInputAction(function (event) {

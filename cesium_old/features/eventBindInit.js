@@ -249,6 +249,8 @@ $(document).ready(
         $('#displaySettingA').click(function () {
             EventModel.displaySetting();
         });
+        // 初始化窗口组件复选框事件（侧边栏）
+        EventModel.displaySetting();
 
         //窗口事件
         $('.move').mousedown(function () {
@@ -482,6 +484,20 @@ var EventModel = {
             if (!window.SlopeAnalysis || window.SlopeAnalysis.slopeCostGrid.length === 0) return alert('请先初始化坡度分析');
             window.SlopeAnalysis.clearOverrideAreas();
         });// 清除覆盖区
+
+        // ==================== 土地覆盖代价叠加按钮绑定 ====================
+        document.getElementById('applyLandUseCost').addEventListener('click', () => {
+            if (!window.SlopeAnalysis || window.SlopeAnalysis.slopeCostGrid.length === 0) {
+                return alert('请先计算区域坡度并生成代价网格！');
+            }
+            window.SlopeAnalysis.applyLandUseCostToGrid();
+        });
+        document.getElementById('clearLandUseCost').addEventListener('click', () => {
+            if (!window.SlopeAnalysis || window.SlopeAnalysis.slopeCostGrid.length === 0) {
+                return alert('请先计算区域坡度！');
+            }
+            window.SlopeAnalysis.clearLandUseCost();
+        });
 
         // ==================== 图元置顶功能绑定 ====================
         // 刷新图元列表下拉框
@@ -1039,22 +1055,112 @@ var EventModel = {
     dataLoad: function () {
         $('#loadDataWin').css('display', 'block');
 
-
+        // ===== 防止重复绑定：仅在首次调用时绑定事件 =====
+        if (EventModel._dataLoadInitialized) return;
+        EventModel._dataLoadInitialized = true;
 
         // 存储已创建的Blob URLs
         let blobUrls = [];
+        // 当前自动识别的数据类型
+        let detectedType = null;
+
+        // ==================== 文件类型自动识别 ====================
+        /**
+         * 根据文件名扩展名自动识别数据类型
+         * @param {string} fileName - 文件名
+         * @returns {string|null} 对应的数据类型
+         */
+        function detectDataType(fileName) {
+            if (!fileName) return null;
+            const name = fileName.toLowerCase();
+            const ext = name.split('.').pop();
+            // 按扩展名映射
+            const typeMap = {
+                'czml':    'CZML',
+                'kml':     'KML',
+                'kmz':     'KML',
+                'json':    'GeoJson',   // .json 默认当 GeoJson；tileset.json 特殊处理
+                'geojson': 'GeoJson',
+                'glb':     'GLB',
+                'gltf':    'Gltf',
+                'tif':     'Tiff',
+                'tiff':    'Tiff',
+                'png':     'Tiff',      // 单张图片当 Tiff(SingleTileImageryProvider) 处理
+                'jpg':     'Tiff',
+                'jpeg':    'Tiff',
+            };
+            // 3DTiles: tileset.json
+            if (name === 'tileset.json' || name.endsWith('/tileset.json')) {
+                return 'Tileset';
+            }
+            return typeMap[ext] || null;
+        }
+
+        /**
+         * 根据 URL 路径自动识别类型（对手动输入的 URL 路径）
+         * @param {string} url - URL 或路径
+         * @returns {string|null}
+         */
+        function detectDataTypeFromUrl(url) {
+            if (!url) return null;
+            const trimmed = url.trim().replace(/\/+$/, ''); // 去尾部斜杠
+            // 如果路径以 / 结尾或包含典型 terrain 文件夹特征
+            if (url.trim().endsWith('/') || trimmed.match(/(_ctb|_terrain|terrain)$/i)) {
+                return 'Terrain';
+            }
+            // 按文件名识别
+            const lastSegment = trimmed.split('/').pop().split('\\').pop();
+            return detectDataType(lastSegment);
+        }
+
+        /**
+         * 更新界面上显示的识别类型
+         */
+        function updateDetectedTypeDisplay(type) {
+            detectedType = type;
+            const label = document.getElementById('detectedTypeLabel');
+            if (label) {
+                label.textContent = type || '未识别';
+                label.style.color = type ? '#70bdf9' : '#ff6b6b';
+            }
+        }
+
         // 获取DOM元素
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
+        const terrainFolderBtn = document.getElementById('terrainFolderBtn');
+        const terrainFolderInput = document.getElementById('terrainFolderInput');
         
         // 点击上传区域时触发文件选择
-        uploadArea.addEventListener('click', (e) => {
+        uploadArea.addEventListener('click', () => {
             fileInput.click();
         });
         
         // 文件选择后处理
         fileInput.addEventListener('change', (e) => {
             handleFiles(e.target.files);
+            fileInput.value = '';
+        });
+
+        // ==================== Terrain 文件夹选择 ====================
+        terrainFolderBtn.addEventListener('click', () => {
+            terrainFolderInput.click();
+        });
+
+        terrainFolderInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length > 0) {
+                // 获取文件夹路径：取第一个文件的 webkitRelativePath 的第一段
+                const firstPath = files[0].webkitRelativePath;
+                const folderName = firstPath.split('/')[0];
+                // 设置 URL 为相对路径（用户需确保服务器可访问）
+                const folderUrl = './data/DEM/' + folderName + '/';
+                document.getElementById("loadDataUrl_text").value = folderUrl;
+                document.getElementById("loadDataUrl_text").dataset.fileName = folderName;
+                updateDetectedTypeDisplay('Terrain');
+                console.log('[dataLoad] 选择 Terrain 文件夹:', folderName, '→', folderUrl);
+            }
+            terrainFolderInput.value = '';
         });
         
         // 阻止拖拽时的默认行为
@@ -1075,496 +1181,330 @@ var EventModel = {
         // 处理文件拖拽放置事件
         uploadArea.addEventListener('drop', handleDrop, false);
         
-        // 阻止默认行为的函数
         function preventDefaults(e) {
             e.preventDefault();
             e.stopPropagation();
         }
         
-        // 添加高亮样式
         function highlight() {
             uploadArea.classList.add('dragover');
         }
         
-        // 移除高亮样式
         function unhighlight() {
             uploadArea.classList.remove('dragover');
         }
         
-        // 处理拖拽放置事件
         function handleDrop(e) {
             const dt = e.dataTransfer;
             const files = dt.files;
             handleFiles(files);
         }
         
-        // 处理文件
+        // 处理选择的文件（自动识别类型）
         function handleFiles(files) {
             if (files.length > 0) {
-                
-                // 遍历所有文件并显示信息
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
-                    
-                    const fileItem = document.createElement('div');
-                    fileItem.className = 'file-item';
-                    
-                    // 创建Blob URL
                     const blobUrl = URL.createObjectURL(file);
-                    blobUrls.push(blobUrl); // 保存引用以便后续清理
-                    console.log('blobUrl', blobUrl);
-                    console.log('file', file);
-                    console.log('blobUrls',blobUrls);
+                    blobUrls.push(blobUrl);
+                    console.log('[dataLoad] 文件:', file.name, '→ blobUrl:', blobUrl);
                 
-                    document.getElementById("loadDataUrl_text").value = blobUrl;// 将Blob URL设置到输入框
+                    document.getElementById("loadDataUrl_text").value = blobUrl;
+                    document.getElementById("loadDataUrl_text").dataset.fileName = file.name;
+
+                    // 自动识别文件类型
+                    const type = detectDataType(file.name);
+                    updateDetectedTypeDisplay(type);
                 }
             }
-        } 
+        }
+
+        // 监听 URL 输入框变化，自动识别路径对应的类型
+        document.getElementById("loadDataUrl_text").addEventListener('input', function() {
+            const type = detectDataTypeFromUrl(this.value);
+            updateDetectedTypeDisplay(type);
+        });
+
         // 页面卸载时清理Blob URLs
         window.addEventListener('beforeunload', () => {
             blobUrls.forEach(url => {
                 URL.revokeObjectURL(url);
             });
         });
-        
 
-
-        var ManuallyInputFlag = true;
-        var ManuallyInput = document.getElementById('ManuallyInput');
-        ManuallyInput.addEventListener('change', function () {                              
-           ManuallyInputFlag = document.getElementById('maskalpha_val').checked;
-        });
-
-        $('#loadDataWin .cansole_btn').click(function () {
+        // ==================== 取消/加载按钮 ====================
+        $('#loadDataWin .cansole_btn').off('click').on('click', function () {
             $('#loadDataWin').css('display', 'none');
             $("#maskalpha").attr("disabled", true);
         });
-        $('#loadDataWin .sure_btn').click(function () {
-            var dataType = $('.loadDataType_select').val();
-            var dataUrl = $('.loadDataUrl_text').val();
-            $("#maskalpha").attr("disabled", false);
-            // var terrainProvider = new Cesium.CesiumTerrainProvider({
-            //     url: dataUrl
-            // });
-            // viewer.terrainProvider = terrainProvider;
 
-            let L, R, U, D;
-            if(ManuallyInputFlag == true){
-                L = $('#Ldestination_lng').val();
-                R = $('#Rdestination_lng').val();
-                U = $('#Udestination_lat').val();
-                D = $('#Ddestination_lat').val();
-                console.log(L, R, U, D);//左上右下点经纬度输入(测试用)
-                viewer.camera.flyTo({
-                    destination: Cesium.Rectangle.fromDegrees(L, U, R, D)
-                });//视角去输入的位置
-            }
-                       
-            if (dataUrl == '' || dataType == '') {
+        $('#loadDataWin .sure_btn').off('click').on('click', function () {
+            var dataUrl = $('.loadDataUrl_text').val();
+            var originalFileName = document.getElementById("loadDataUrl_text").dataset.fileName || null;
+            // 自动识别的类型（也可从 URL 重新识别）
+            var dataType = detectedType || detectDataTypeFromUrl(dataUrl);
+            $("#maskalpha").attr("disabled", false);
+
+            if (!dataUrl) {
                 showMessageInfo('地址不能为空');
                 return;
-            } else {
-                switch (dataType) {
-                    case 'Terrain':
-                        var terrainProvider = new Cesium.CesiumTerrainProvider({
-                            url: dataUrl //指向terrain文件夹1
+            }
+            if (!dataType) {
+                showMessageInfo('无法识别文件类型，请检查文件格式');
+                return;
+            }
+
+            console.log('[dataLoad] 加载:', dataType, dataUrl, '原始文件名:', originalFileName);
+
+            switch (dataType) {
+                case 'Terrain':
+                    var terrainProvider = new Cesium.CesiumTerrainProvider({
+                        url: dataUrl
+                    });
+                    viewer.terrainProvider = terrainProvider;
+
+                    // 注册到侧边栏图层管理
+                    if (window.sidebarManager) {
+                        window.sidebarManager.addLayer({
+                            name: originalFileName,
+                            type: 'Terrain',
+                            url: dataUrl,
+                            cesiumObject: terrainProvider,
+                            extras: {}
                         });
-                        viewer.terrainProvider = terrainProvider;
-                        //viewer.scene.globe._surface.tileProvider._debug.wireframe = true;//网格渲染模式
+                    }
 
-                        let pointcolor = 0;
-                        let area1, area2, line;// 声明蓝色遮罩部分和边界线
-                        console.log(dataUrl);
-                        
-                        if(ManuallyInputFlag == true){
-                            var maskalpha = document.getElementById('maskalpha');
-                            maskalpha.addEventListener('input', function () {                              
-                                document.getElementById('maskalpha_val').innerText = maskalpha.value;
-                                console.log(maskalpha.value);
-                                maskalphaUpdate();
-                            });                                                    
+                    viewer.scene.globe.depthTestAgainstTerrain = true;
 
-                            const maskpointsArray = [
-                                L, D,
-                                R, D,
-                                R, U,
-                                L, U,
-                                L, D,
-                            ]//DEM角点数据(在数组里可以用索引$获取值，但是在console.log或者if等函数里不能用此方法获取值，只能传递给实例化变量获取，为什么？？)
-                            console.log('数组：',maskpointsArray);
-                            
-                            var maskpoints = Cesium.Cartesian3.fromDegreesArray(
-                                maskpointsArray
-                            );//DEM范围
-                            var positive;
-                            var negative;                        
-                            if(L>=0 && R>=0){
-                                positive = maskpoints;
-                            }
-                            else {negative = maskpoints;}
-                            
-                            //框出DEM图像(图像外地球其他区域全部做遮罩)
-                            area1 = new Cesium.Entity({
-                                id: 1,
-                                polygon: {
-                                    hierarchy: {
-                                        positions: Cesium.Cartesian3.fromDegreesArray([
-                                        179.999, 89,
-                                        179.999, 0,
-                                        179.999,-89,
-                                        0,-89,
-                                        0, 0,
-                                        0, 89,
-                                        ]),//外部区域
-                                        holes: [{
-                                            positions: positive//挖空区域
-                                        }]
-                                    },
-                                    material: Cesium.Color.BLUE.withAlpha(maskalpha.value)//外部颜色
+                    // 鼠标左键查询高程
+                    var CesiumEventHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+                    var Clickpoints = [];
+                    var pointcolor = 0;
+
+                    CesiumEventHandler.setInputAction(function (movement) {
+                        var color1 = new Cesium.Color(1.0, pointcolor, 0.0, 1);
+                        pointcolor = pointcolor + 0.1;
+                        var ray = viewer.camera.getPickRay(movement.position);
+                        var cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+                        if (cartesian) {
+                            var cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+                            var longitudeDegree = Cesium.Math.toDegrees(cartographic.longitude);
+                            var latitudeDegree = Cesium.Math.toDegrees(cartographic.latitude);
+                            var cartographic2 = Cesium.Cartographic.fromDegrees(longitudeDegree, latitudeDegree);
+                            console.log('height:', viewer.scene.globe.getHeight(cartographic));
+                            var promise = Cesium.sampleTerrainMostDetailed(terrainProvider, [cartographic2]);
+                            point = new Cesium.Entity({
+                                position: cartesian,
+                                point: {
+                                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                                    disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                                    color: color1,
+                                    pixelSize: 10
                                 }
-                            });console.log(positive);console.log(negative);console.log(maskpoints);
-                            area2 = new Cesium.Entity({
-                                id: 2,
-                                polygon: {
-                                    hierarchy: {
-                                        positions: Cesium.Cartesian3.fromDegreesArray([
-                                        0, 89,
-                                        0, 0,
-                                        0,-89,
-                                        -179.999,-89,
-                                        -179.999, 0,
-                                        -179.999, 89,
-                                        ]),//外部区域
-                                        holes: [{
-                                            positions: negative//挖空区域
-                                        }]//holes不在polygon范围内时会出问题, 分正负判断半球
-                                    },
-                                    material: Cesium.Color.BLUE.withAlpha(maskalpha.value)//外部颜色
+                            });
+                            Clickpoints.push(viewer.entities.add(point));
+                            promise.then(function (updatedPositions) {
+                                if (updatedPositions.length > 0) {
+                                    console.log(
+                                        'lng:' + Cesium.Math.toDegrees(updatedPositions[0].longitude) +
+                                        ',lat:' + Cesium.Math.toDegrees(updatedPositions[0].latitude) +
+                                        ',height:' + (updatedPositions[0].height ? updatedPositions[0].height : 0));
+                                } else {
+                                    console.log('无法获取高程');
                                 }
-                            })                
-                            line = new Cesium.Entity({
-                                id: 5,
-                                polyline: {
-                                    positions: maskpoints,
-                                    width: 2,//边界线宽
-                                    material: Cesium.Color.fromCssColorString('#6dcdeb')//边界线颜色
-                                }
-                            })
-                            viewer.entities.add(area1)
-                            viewer.entities.add(area2)
-                            viewer.entities.add(line)
-                            //更新图层透明度
-                            function maskalphaUpdate(){
-                                viewer.entities.remove(area1)
-                                viewer.entities.remove(area2)
-                                viewer.entities.remove(line)
-                                area1.polygon.material.color._value.alpha = maskalpha.value;
-                                console.log('ALPHA:',area1.polygon.material.color._value.alpha);
-                                viewer.entities.add(area1)
-                                viewer.entities.add(area2)
-                                viewer.entities.add(line)
-                            }
+                            });
                         }
-                                          
+                    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-                        viewer.scene.globe.depthTestAgainstTerrain = true; //开启地形检测，默认为false
-                        //获取鼠标单击处的经度、纬度、高程
-                        var CesiumEventHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-                        //var ellipsoid = viewer.scene.globe.ellipsoid;   //得到当前三维场景的椭球体(pickEllipsoid使用)
-                        var Clickpoints = [];
-                        
-                        //鼠标左击事件，绘制点
-                        CesiumEventHandler.setInputAction(function (movement) {
-                            var color1 = new Cesium.Color(1.0, pointcolor, 0.0, 1);
-                            pointcolor = pointcolor + 0.1;//颜色渐变
-                            //var cartesian = viewer.camera.pickEllipsoid(movement.position, ellipsoid);只能用于无地形的椭球体
-                            var ray=viewer.camera.getPickRay(movement.position);//屏幕中心向目标点发射射线  
-                            var cartesian = viewer.scene.globe.pick(ray, viewer.scene);//射线与地球表面的交点的Cartesian3坐标
-                            if (cartesian) {
-                                var cartographic = Cesium.Cartographic.fromCartesian(cartesian);  //将笛卡尔坐标转换为地理坐标
-                                var longitudeDegree = Cesium.Math.toDegrees(cartographic.longitude);
-                                var latitudeDegree = Cesium.Math.toDegrees(cartographic.latitude);
-                                var cartographic2 = Cesium.Cartographic.fromDegrees(longitudeDegree, latitudeDegree);
-                                //var terrainLevel = 14;//用MostDetailed不需要设置这个
-                                console.log('height:',viewer.scene.globe.getHeight(cartographic));
-                                console.log('slope:',viewer.scene.globe);
-                                var promise = Cesium.sampleTerrainMostDetailed(terrainProvider, [cartographic2]);
-                                // 添加点实体(先创建后添加)
-                                point = new Cesium.Entity({
-                                    position: cartesian,
-                                    point: {
-                                        //heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
-                                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,//设置贴地
-                                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                                        color: color1,
-                                        pixelSize: 10
-                                    }
-                                });
-                                Clickpoints.push(viewer.entities.add(point));
+                    CesiumEventHandler.setInputAction(() => {
+                        while (Clickpoints.length > 0) {
+                            viewer.entities.remove(Clickpoints[Clickpoints.length - 1]);
+                            Clickpoints.pop();
+                        }
+                    }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
-                                promise.then(function (updatedPositions) {
-                                        if (updatedPositions.length > 0) {
-                                                console.log(
-                                                    'lng:' + Cesium.Math.toDegrees(updatedPositions[0].longitude)+
-                                                    ',lat:' + Cesium.Math.toDegrees(updatedPositions[0].latitude) +
-                                                    ',height:' +  (updatedPositions[0].height ? updatedPositions[0].height : 0));
-                                        } else {
-                                            console.log('无法获取高程');
-                                        }
-                                });
-                            }  
-                        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+                    $('.close').click(function () {
+                        while (Clickpoints.length > 0) {
+                            viewer.entities.remove(Clickpoints[Clickpoints.length - 1]);
+                            Clickpoints.pop();
+                        }
+                        CesiumEventHandler.destroy();
+                        $(this.parentNode.parentNode).css('display', 'none');
+                    });
 
-                        // 注册鼠标右键点击事件，用于删除当前所有点
-                        CesiumEventHandler.setInputAction(() => {
-                            //删除所有点
-                            while(Clickpoints.length > 0){
-                                viewer.entities.remove(Clickpoints[Clickpoints.length - 1]);
-                                Clickpoints.pop();                                
-                            }
-                        }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+                    break;
+                case 'CZML':
+                    var czml = new Czml(dataUrl);
+                    if (window.sidebarManager) {
+                        setTimeout(() => {
+                            var ds = viewer.dataSources.get(viewer.dataSources.length - 1);
+                            window.sidebarManager.addLayer({ name: originalFileName, type: 'CZML', url: dataUrl, cesiumObject: ds });
+                        }, 2000);
+                    }
+                    break;
+                case 'Tileset':
+                    var tileset = new Tileset(dataUrl);
+                    if (window.sidebarManager) {
+                        setTimeout(() => {
+                            var lastPrim = viewer.scene.primitives.get(viewer.scene.primitives.length - 1);
+                            window.sidebarManager.addLayer({ name: originalFileName, type: 'Tileset', url: dataUrl, cesiumObject: lastPrim });
+                        }, 2000);
+                    }
+                    break;
+                case 'KML':
+                    var kmlUrl = dataUrl;
+                    new Cesium.KmlDataSource.load(kmlUrl, {
+                        camera: viewer.scene.camera,
+                        canvas: viewer.scene.canvas,
+                        clampToGround: true
+                    }).then(function(dataSource) {
+                        viewer.dataSources.add(dataSource);
+                        viewer.flyTo(dataSource);
+                        if (window.sidebarManager) {
+                            window.sidebarManager.addLayer({ name: originalFileName, type: 'KML', url: kmlUrl, cesiumObject: dataSource });
+                        }
+                    });
+                    break;
+                case 'GeoJson':
+                    var geojsonUrl = dataUrl;
+                    new Cesium.GeoJsonDataSource.load(geojsonUrl, {
+                        clampToGround: true,
+                        stroke: Cesium.Color.BLACK,
+                        fill: Cesium.Color.ORANGE.withAlpha(0.6),
+                        strokeWidth: 5,
+                        markerSize: 10,
+                        markerSymbol: '●'
+                    }).then(function (dataSource) {
+                        viewer.dataSources.add(dataSource);
+                        viewer.flyTo(dataSource);
+                        if (window.sidebarManager) {
+                            window.sidebarManager.addLayer({ name: originalFileName, type: 'GeoJson', url: geojsonUrl, cesiumObject: dataSource });
+                        }
+                    });
+                    break;
+                case 'GLB':
+                    var position = Cesium.Cartesian3.fromDegrees(103.5, 29.8, 2000.0);
+                    var heading = Cesium.Math.toRadians(0);
+                    var pitch = Cesium.Math.toRadians(0);
+                    var roll = Cesium.Math.toRadians(0);
+                    var hpr = new Cesium.HeadingPitchRoll(heading, pitch, roll);
+                    var orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
+                    var entity = viewer.entities.add({
+                        position: position,
+                        orientation: orientation,
+                        model: {
+                            uri: dataUrl,
+                            scale: 10,
+                            color: Cesium.Color.fromCssColorString("rgba(254, 129, 6, 0.65)"),
+                            silhouetteColor: Cesium.Color.fromCssColorString("#001aff"),
+                            silhouetteSize: 5,
+                            colorBlendMode: Cesium.ColorBlendMode.MIX,
+                            runAnimations: true,
+                            shadows: Cesium.ShadowMode.CAST_ONLY,
+                            colorBlendAmount: 0
+                        }
+                    });
+                    viewer.flyTo(entity);
+                    if (window.sidebarManager) {
+                        window.sidebarManager.addLayer({ name: originalFileName, type: 'GLB', url: dataUrl, cesiumObject: entity });
+                    }
+                    break;
+                case 'Gltf':
+                    var Gltif = new Gltf(dataUrl);
+                    modelEntity = Gltif.modelEntity;
+                    console.log(Gltif.modelEntity.orientation.getValue());
+                    console.log(Gltif.modelEntity.model.maximumScale.getValue());
+                    if (window.sidebarManager) {
+                        window.sidebarManager.addLayer({ name: originalFileName, type: 'Gltf', url: dataUrl, cesiumObject: Gltif.modelEntity });
+                    }
 
-                        $('.close').click(function () {
-                            //删除所有点
-                            while(Clickpoints.length > 0){
-                                viewer.entities.remove(Clickpoints[Clickpoints.length - 1]);
-                                Clickpoints.pop();                                
-                            }
-                            // 销毁事件处理器(在点击关闭窗口后，关联到关闭窗口事件.close)
-                            CesiumEventHandler.destroy();
-                            viewer.entities.remove(area1);
-                            viewer.entities.remove(area2);
-                            viewer.entities.remove(line);
-                            $(this.parentNode.parentNode).css('display', 'none');
-                        });
-                                                                  
-                        break;
-                    case 'CZML':
-                        //data/czml/24Satellite.czml
-                        var czml = new Czml(dataUrl);
-                        break;
-                    case 'Tileset':
-                        //data/TilesData/NewYork/tileset.json
-                        var tileset = new Tileset(dataUrl);
-                        break;
-                    case 'KML':
-                        var kmlUrl = dataUrl;
-                        new Cesium.KmlDataSource.load(kmlUrl, {
-                            camera: viewer.scene.camera,
-                            canvas: viewer.scene.canvas,
-                            clampToGround: true
-                        }).then(function(dataSource) {
-                            viewer.dataSources.add(dataSource);
-                            viewer.flyTo(dataSource);
-                        });
+                    let temp = Cesium.Ellipsoid.WGS84.cartesianToCartographic(Gltif.modelEntity.position.getValue());
+                    $('#modelWindow').css('display', 'block');
+                    $('#modelLat').val(temp.latitude * (180 / Math.PI));
+                    $('#modelLon').val(temp.longitude * (180 / Math.PI));
+                    $('#modelHeight').val(temp.height);
+                    temp.height += 3000;
+                    viewer.camera.setView({ destination: Cesium.Ellipsoid.WGS84.cartographicToCartesian(temp) });
+                    viewer.trackedEntity = Gltif.modelEntity;
 
-                        break;
-                    case 'GeoJson':
-                        var geojsonUrl = dataUrl;// 路径需要具体到文件xxxx.json
-                        new Cesium.GeoJsonDataSource.load(geojsonUrl, {
-                                clampToGround: true, // 是否贴地（仅对Polygon/Line有效）
-                                stroke: Cesium.Color.BLACK,// 边缘线颜色(在terrain上无法使用outlines(strokes))
-                                fill: Cesium.Color.ORANGE.withAlpha(0.6),
-                                strokeWidth: 5,
-                                markerSize: 10,
-                                markerSymbol: '●'
-                            }).then(function (dataSource) { 
-                                viewer.dataSources.add(dataSource);
-                                viewer.flyTo(dataSource);
-                                //styleEntities(dataSource); // 可选：进一步按属性着色
-                        });
-                        break;
-                    case 'GLB':
-                        var position = Cesium.Cartesian3.fromDegrees(103.5, 29.8, 2000.0);
-                        var heading = Cesium.Math.toRadians(0);
-                        var pitch = Cesium.Math.toRadians(0);
-                        var roll = Cesium.Math.toRadians(0);
+                    var scene = viewer.scene;
+                    var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+                    var isDragging = false;
+                    var pickedEntity;
+                    var initialPosition;
+                    var dragStartPosition;
+                    viewer.scene.globe.depthTestAgainstTerrain = true;
 
-                        var hpr = new Cesium.HeadingPitchRoll(heading, pitch, roll);
-                        var orientation = Cesium.Transforms.headingPitchRollQuaternion(
-                            position,
-                            hpr
-                        );
-                        var entity = viewer.entities.add({
-                            position: position,
-                            orientation: orientation,
-                            model: {
-                                uri: dataUrl,//数据地址
-                                scale: 10,
-                                color: Cesium.Color.fromCssColorString("rgba(254, 129, 6, 0.65)"), //混合色
-                                silhouetteColor: Cesium.Color.fromCssColorString("#001aff"), //边框
-                                silhouetteSize: 5, //边框大小
-                                colorBlendMode: Cesium.ColorBlendMode.MIX,
-                                runAnimations: true,
-                                shadows: Cesium.ShadowMode.CAST_ONLY,
-                                colorBlendAmount: 0
-                            }
-                        });
+                    handler.setInputAction(function (click) {
+                        var pickedObject = scene.pick(click.position);
+                        if (Cesium.defined(pickedObject) && pickedObject.id === Gltif.modelEntity) {
+                            isDragging = true;
+                            modelEntity = pickedObject.id;
+                            pickedEntity = pickedObject.id;
+                            initialPosition = pickedEntity.position.getValue(viewer.clock.currentTime);
+                            dragStartPosition = scene.camera.pickEllipsoid(click.position);
+                            viewer.scene.screenSpaceCameraController.enableRotate = false;
+                        }
 
-                        // 控制模型运动
-                        // entity.model.runAnimations = 1
-                        // entity.model.runAnimations = 0
-
-                        viewer.flyTo(entity)
-                        // viewer.trackedEntity  =  entity
-                        break;
-                    case 'Gltf':
-                        //data/models/CesiumMilkTruck/CesiumMilkTruck.gltf
-                        // var tilesets = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
-                        //     url: 'data/gltf/天安门.gltf'
-                        // }));
-
-                        // tilesets.readyPromise.then(function (argument) {
-                        //     //贴地显示
-                        //     var cartographic = Cesium.Cartographic.fromCartesian(dayantaTileset.boundingSphere.center);
-                        //     var surface = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, cartographic.height);
-                        //     var offset = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, cartographic.height + height);
-                        //     var translation = Cesium.Cartesian3.subtract(offset, surface, new Cesium.Cartesian3());
-                        //     palaceTileset.modelMatrix = Cesium.Matrix4.fromTranslation(translation);
-                        // })
-                        var Gltif = new Gltf(dataUrl);
-                        modelEntity = Gltif.modelEntity
-                        console.log(Gltif.modelEntity.orientation.getValue());
-                        console.log(Gltif.modelEntity.model.maximumScale.getValue());
-
-                        let temp = Cesium.Ellipsoid.WGS84.cartesianToCartographic(Gltif.modelEntity.position.getValue())
-                        $('#modelWindow').css('display', 'block');
-
-                        $('#modelLat').val(temp.latitude * (180 / Math.PI))
-                        $('#modelLon').val(temp.longitude * (180 / Math.PI))
-                        $('#modelHeight').val(temp.height)
-
-                        temp.height += 3000
-                        console.log(temp);
-                        viewer.camera.setView(
-                            { destination: Cesium.Ellipsoid.WGS84.cartographicToCartesian(temp) }
-                        )
-                        viewer.trackedEntity = Gltif.modelEntity;
-
-                        var scene = viewer.scene;
-                        var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
-
-                        // 变量用于记录拖动状态
-                        var isDragging = false;
-                        var pickedEntity;
-                        var initialPosition;
-                        var dragStartPosition;
-                        viewer.scene.globe.depthTestAgainstTerrain = true
-                        handler.setInputAction(function (click) {
-                            var pickedObject = scene.pick(click.position);
-                            console.log(pickedObject);
-
-                            if (Cesium.defined(pickedObject) && pickedObject.id === Gltif.modelEntity) {
-                                isDragging = true;
-                                modelEntity = pickedObject.id
-                                pickedEntity = pickedObject.id;
-                                initialPosition = pickedEntity.position.getValue(viewer.clock.currentTime);
-                                dragStartPosition = scene.camera.pickEllipsoid(click.position);
-                                console.log('选中');
-                                viewer.scene.screenSpaceCameraController.enableRotate = false;
-                            }
-
-
-                            handler.setInputAction(function (movement) {
-                                if (isDragging) {
-                                    var newPosition1 = scene.camera.pickEllipsoid(movement.endPosition);
-                                    // console.log(Cesium.Ellipsoid.WGS84.cartesianToCartographic(newPosition1));
-                                    let newHeight = Cesium.Ellipsoid.WGS84.cartesianToCartographic(newPosition1);
-                                    console.log(newHeight)
-                                    newHeight.height = 3000
-                                    let newPosition = Cesium.Ellipsoid.WGS84.cartographicToCartesian(newHeight);
-                                    console.log(newPosition, newHeight);
-                                    // const ray = viewer.camera.getPickRay(movement.endPosition);
-                                    // const cartesian = viewer.scene.globe.pick(ray, viewer.scene);
-                                    console.log(movement.endPosition);
-                                    // console.log(Cesium.Ellipsoid.WGS84.cartesianToCartographic(cartesian));
-                                    // var newPosition2 = customEllipsoid.camera.pickEllipsoid(movement.endPosition);
-                                    // console.log(newPosition2);
-                                    // var cartesian = customEllipsoid.cartographicToCartesian(cartographic);
-
-                                    // if (newPosition1) {
-                                    //     var delta = Cesium.Cartesian3.subtract(newPosition1, dragStartPosition, new Cesium.Cartesian3());
-                                    //     var finalPosition = Cesium.Cartesian3.add(initialPosition, delta, new Cesium.Cartesian3());
-                                    //     pickedEntity.position = finalPosition;
-                                    //     console.log('移动');
-                                    // }
-
-
-
-                                    var cartesian = viewer.scene.pickPosition(movement.endPosition);
-                                    if (Cesium.defined(cartesian)) {
-                                        // 获取该点的地形高度
-
-                                        var cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-                                        console.log(cartographic);
-                                        console.log(scene.globe.getHeight(cartographic));
-                                        let height = scene.globe.getHeight(cartographic)
-                                        var newPosition2 = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, height);
-                                        pickedEntity.position = newPosition2;
-                                        // Cesium.sampleTerrainMostDetailed(this.viewer.scene.terrainProvider, [cartographic]).then(function (updatedPositions) {
-                                        //     var updatedCartographic = updatedPositions[0];
-                                        //     // 更新模型位置，使其在地形表面上移动
-                                        //     pickedEntity.position = Cesium.Cartesian3.fromRadians(
-                                        //         updatedCartographic.longitude,
-                                        //         updatedCartographic.latitude,
-                                        //         updatedCartographic.height
-                                        //     );
-                                        // });
-                                    }
+                        handler.setInputAction(function (movement) {
+                            if (isDragging) {
+                                var cartesian = viewer.scene.pickPosition(movement.endPosition);
+                                if (Cesium.defined(cartesian)) {
+                                    var cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+                                    let height = scene.globe.getHeight(cartographic);
+                                    var newPosition2 = Cesium.Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, height);
+                                    pickedEntity.position = newPosition2;
                                 }
+                            }
+                        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-                            }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+                        handler.setInputAction(function () {
+                            isDragging = false;
+                            if (pickedEntity) {
+                                let temp = Cesium.Ellipsoid.WGS84.cartesianToCartographic(pickedEntity.position.getValue());
+                                $('#modelLat').val(temp.latitude * (180 / Math.PI));
+                                $('#modelLon').val(temp.longitude * (180 / Math.PI));
+                                $('#modelHeight').val(temp.height);
+                            }
+                            viewer.scene.screenSpaceCameraController.enableRotate = true;
+                            pickedEntity = undefined;
+                        }, Cesium.ScreenSpaceEventType.LEFT_UP);
+                    }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
 
-                            handler.setInputAction(function () {
-                                isDragging = false;
+                    break;
+                case 'Tiff':
+                    var tiffHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+                    var imageryProvider = new Cesium.SingleTileImageryProvider({
+                        "url": dataUrl,
+                        id: '1',
+                    });
+                    const tifLayer = viewer.scene.imageryLayers.addImageryProvider(imageryProvider);
 
-                                console.log('结束');
-                                console.log(Gltif.modelEntity.position.getValue());
-                                let temp = Cesium.Ellipsoid.WGS84.cartesianToCartographic(pickedEntity.position.getValue())
-                                $('#modelLat').val(temp.latitude * (180 / Math.PI))
-                                $('#modelLon').val(temp.longitude * (180 / Math.PI))
-                                $('#modelHeight').val(temp.height)
-                                viewer.scene.screenSpaceCameraController.enableRotate = true;
-                                pickedEntity = undefined;
-                            }, Cesium.ScreenSpaceEventType.LEFT_UP);
-                        }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
-/*BBB该部分被注释掉，放在代码末尾了*/
-                        break;
-                    case 'Tiff':
-                        var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-                        // 加载单张图片
-                        var imageryProvider = new Cesium.SingleTileImageryProvider({
-                            "url": dataUrl,
-                            id: '1',
-                            rectangle:Cesium.Rectangle.fromDegrees(L, D, R, U),
-                        })
-                        const tifLayer = viewer.scene.imageryLayers.addImageryProvider(imageryProvider)
+                    if (window.sidebarManager) {
+                        window.sidebarManager.addLayer({
+                            name: originalFileName,
+                            type: 'Tiff',
+                            url: dataUrl,
+                            cesiumObject: tifLayer,
+                            extras: { eventHandler: tiffHandler }
+                        });
+                    }
 
-                        var maskalpha = document.getElementById('maskalpha');
-                        maskalpha.addEventListener('input', function () {
-                            document.getElementById('maskalpha').innerText = maskalpha.value;
-                            tifLayer.alpha = maskalpha.value;
-                            console.log(tifLayer.alpha);
-                            
-                        })
-                        console.log('imageryProvider',imageryProvider);
-                        console.log('viewer.imageryLayers',tifLayer);
-                        
+                    var maskalpha = document.getElementById('maskalpha');
+                    maskalpha.addEventListener('input', function () {
+                        document.getElementById('maskalpha_val').innerText = maskalpha.value;
+                        tifLayer.alpha = maskalpha.value;
+                    });
 
-                        handler.setInputAction(function () { 
-                            viewer.scene.imageryLayers.remove(tifLayer);console.log('remove',tifLayer);
-                            handler.destroy();                   
-                            }, Cesium.ScreenSpaceEventType.RIGHT_CLICK)
+                    tiffHandler.setInputAction(function () {
+                        viewer.scene.imageryLayers.remove(tifLayer);
+                        tiffHandler.destroy();
+                    }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
-                            (async function() {
-                                const TIFFprovider = await TIFFImageryProvider.fromUrl('../data/Terrain/yajiangxian.tif');
-                                console.log(TIFFprovider);
-                            })();
-                        
-                        break;
-                    default:
-                        break;
-                }
+                    break;
+                default:
+                    showMessageInfo('不支持的文件类型: ' + dataType);
+                    break;
             }
         });
     },
@@ -1757,8 +1697,11 @@ var EventModel = {
 
     /****************************窗口组件显示设置*************************/
     displaySetting: function () {
-        $('#displaySettingWin').css('display', 'block');
-        $("input[type='checkbox']", $('#displaySettingWin')).click(function () {
+        // 旧弹窗保留但不再作为主入口，改为侧边栏“窗口组件”面板
+        $('#displaySettingWin').css('display', 'none');
+        $("#displaySettingWin input[type='checkbox'], #sidebarWindowComponents input[type='checkbox']")
+        .off('change.displaySetting')
+        .on('change.displaySetting', function () {
             switch ($(this).val()) {
                 case 'toolbar':
                     if ($(this).is(':checked')) {
@@ -1826,9 +1769,9 @@ var EventModel = {
                     break;
                 case 'fullscreen-controls':
                     if ($(this).is(':checked')) {
-                        $('.cesium-viewer-fullscreenContainer').css('display', 'block');
+                        $('.cesium-fullscreenButton').css('display', 'block');
                     } else {
-                        $('.cesium-viewer-fullscreenContainer').css('display', 'none');
+                        $('.cesium-fullscreenButton').css('display', 'none');
                     }
                     break;
                 default:

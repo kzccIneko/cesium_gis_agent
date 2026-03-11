@@ -1,0 +1,667 @@
+/* ====================================================================
+ * sidebar.css - 仿谷歌地球侧边栏样式
+ * 上端：搜索地点功能
+ * 下端：图层管理（My Places / Terrain / Imagery / 3D Models）
+ * ==================================================================== */
+
+/* ==================== 侧边栏主体 ==================== */
+.sidebar {
+    position: fixed;
+    top: 52px;              /* 导航栏高度下方 */
+    left: 0;
+    width: 280px;
+    bottom: 0;
+    background-color: rgba(5, 16, 33, 0.92);
+    border-right: 1px solid rgba(10, 46, 79, 0.8);
+    z-index: 1500;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.4);
+}
+
+/* 侧边栏收起状态 */
+.sidebar.collapsed {
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ==================== 侧边栏折叠/展开按钮 ==================== */
+.sidebar-toggle-btn {
+    position: fixed;
+    top: 60px;
+    left: 280px;            /* 侧边栏宽度 */
+    width: 24px;
+    height: 40px;
+    background-color: rgba(5, 16, 33, 0.85);
+    border: 1px solid rgba(10, 46, 79, 0.8);
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+    cursor: pointer;
+    z-index: 1501;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: left 0.3s ease, background-color 0.2s;
+    color: #8dbee0;
+    font-size: 12px;
+}
+
+.sidebar-toggle-btn:hover {
+    background-color: rgba(25, 81, 133, 0.9);
+    color: #fff;
+}
+
+/* 侧边栏收起时，按钮移到左边 */
+.sidebar-toggle-btn.collapsed {
+    left: 0;
+    border-left: 1px solid rgba(10, 46, 79, 0.8);
+    border-radius: 0 6px 6px 0;
+}
+
+.sidebar-toggle-icon {
+    display: inline-block;
+    transition: transform 0.3s ease;
+}
+
+.sidebar-toggle-btn.collapsed .sidebar-toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* ==================== 侧边栏底部工具栏 ==================== */
+.sidebar-toolbar {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 6px;
+    z-index: 1510;
+    border-top: 1px solid rgba(10, 46, 79, 0.8);
+    padding: 6px 8px;
+    flex-shrink: 0;
+    background-color: rgba(5, 16, 33, 0.75);
+    cursor: default;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sidebar-toolbar::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 8px;
+    cursor: ns-resize;
+}
+
+.sidebar-toolbar-label {
+    color: #8dbee0;
+    font-size: 11px;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+    cursor: ns-resize;
+    user-select: none;
+    flex: 0 0 auto;
+}
+
+.window-component-panel {
+    display: grid;
+    align-content: start;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.window-component-item {
+    display: flex;
+    align-items: center;
+    color: #c8d8e8;
+    font-size: 12px;
+    line-height: 1.2;
+    cursor: pointer;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.window-component-item input[type='checkbox'] {
+    margin: 0 6px 0 0;
+    width: 14px;
+    height: 14px;
+    accent-color: #70bdf9;
+    flex-shrink: 0;
+}
+
+.sidebar-toolbar-controls {
+    display: flex;
+    align-items: center;/**/
+    gap: 8px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 32px;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding-bottom: 2px;
+}
+
+.sidebar-tool-item {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    height: 28px;
+}
+
+/* Cesium 控件在侧边栏内的重置样式 */
+.sidebar-toolbar-controls .cesium-button {
+    background-color: rgba(30, 60, 90, 0.7) !important;
+    border: 1px solid rgba(10, 46, 79, 0.8) !important;
+    border-radius: 4px !important;
+    color: #8dbee0 !important;
+    width: 28px;
+    height: 28px;
+}
+
+.sidebar-toolbar #layerOpacityControl {
+    display: block;
+    margin-top: 6px;
+    padding: 0;
+    border-top: none;
+    background: transparent;
+    flex: 0 0 auto;
+}
+
+.sidebar-toolbar #layerOpacityControl .sidebar-opacity-header {
+    margin-bottom: 4px;
+}
+
+.sidebar-toolbar #layerOpacityControl .sidebar-opacity-title,
+.sidebar-toolbar #layerOpacityControl .sidebar-opacity-value {
+    font-size: 12px;
+}
+
+.sidebar-toolbar #layerOpacityControl .sidebar-opacity-slider {
+    height: 6px;
+}
+
+.sidebar-toolbar-controls .cesium-button:hover {
+    background-color: rgba(25, 81, 133, 0.9) !important;
+    color: #fff !important;
+}
+
+.sidebar-toolbar-controls .cesium-sceneModePicker-wrapper,
+.sidebar-toolbar-controls .cesium-baseLayerPicker-dropDown {
+    position: relative !important;
+}
+
+.sidebar-toolbar-controls .cesium-sceneModePicker-wrapper,
+.sidebar-toolbar-controls .cesium-baseLayerPicker-selected,
+.sidebar-toolbar-controls .cesium-fullscreenButton {
+    margin: 0 !important;
+}
+
+/* 底图选择器下拉弹层位置修正（在侧边栏内向右弹出） */
+.sidebar-toolbar-controls .cesium-baseLayerPicker-dropDown {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%);
+    right: auto !important;
+    bottom: auto !important;
+    top: 100% !important;
+    max-height: 320px;
+    width: 260px;
+    overflow-y: auto;
+    z-index: 1600;
+}
+
+/* ==================== 分区通用样式 ==================== */
+.sidebar-section {
+    padding: 8px 10px;
+}
+
+.sidebar-section-header {
+    display: flex;
+    align-items: center;
+    padding: 6px 4px;
+    cursor: pointer;
+    user-select: none;
+    color: #c8d8e8;
+    font-size: 13px;
+    font-weight: bold;
+    border-bottom: 1px solid rgba(100, 140, 180, 0.2);
+    margin-bottom: 6px;
+}
+
+.sidebar-section-header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.sidebar-section-icon {
+    margin-right: 6px;
+    font-size: 14px;
+}
+
+.sidebar-section-title {
+    flex: 1;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+}
+
+.sidebar-section-toggle {
+    font-size: 10px;
+    color: #8dbee0;
+    transition: transform 0.2s;
+}
+
+.sidebar-section-toggle.collapsed {
+    transform: rotate(-90deg);
+}
+
+/* ==================== 侧边栏"加载数据"按钮 ==================== */
+.sidebar-add-layer-btn {
+    background: rgba(100, 164, 231, 0.25);
+    border: 1px solid rgba(100, 164, 231, 0.4);
+    color: #70bdf9;
+    font-size: 16px;
+    font-weight: bold;
+    width: 24px;
+    height: 24px;
+    line-height: 20px;
+    text-align: center;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 6px;
+    padding: 0;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    flex-shrink: 0;
+}
+
+.sidebar-add-layer-btn:hover {
+    background: rgba(100, 164, 231, 0.45);
+    color: #fff;
+    border-color: #70bdf9;
+}
+
+/* ==================== 搜索区域 ==================== */
+.sidebar-search-section {
+    flex-shrink: 0;         /* 搜索区域不压缩 */
+}
+
+.sidebar-search-box {
+    display: flex;
+    align-items: center;
+    background-color: rgba(20, 40, 65, 0.8);
+    border: 1px solid rgba(100, 140, 180, 0.3);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+
+.sidebar-search-box:focus-within {
+    border-color: #70bdf9;
+}
+
+.sidebar-search-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: #fff;
+    padding: 8px 10px;
+    font-size: 13px;
+    height: 32px;
+}
+
+.sidebar-search-input::placeholder {
+    color: rgba(180, 200, 220, 0.5);
+    font-size: 12px;
+}
+
+.sidebar-search-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px 10px;
+    color: #8dbee0;
+    font-size: 14px;
+    transition: color 0.2s, background-color 0.2s;
+    height: 32px;
+}
+
+.sidebar-search-btn:hover {
+    color: #fff;
+    background-color: rgba(100, 164, 231, 0.3);
+}
+
+/* 搜索结果列表 */
+.sidebar-search-results {
+    list-style: none;
+    padding: 0;
+    margin: 4px 0 0 0;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.sidebar-search-results li {
+    padding: 6px 10px;
+    color: #b0c4d8;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.15s;
+}
+
+.sidebar-search-results li:hover {
+    background-color: rgba(100, 164, 231, 0.2);
+    color: #fff;
+}
+
+.sidebar-search-results li .search-result-icon {
+    margin-right: 6px;
+    font-size: 12px;
+}
+
+.sidebar-search-results li .search-result-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==================== 分隔线 ==================== */
+.sidebar-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(100, 140, 180, 0.4) 50%, transparent 100%);
+    margin: 0 10px;
+}
+
+/* ==================== 图层管理区域 ==================== */
+.sidebar-layers-section {
+    flex: 1;                /* 占据剩余空间 */
+    overflow-y: auto;       /* 超出时滚动 */
+    overflow-x: hidden;
+}
+
+/* 自定义滚动条（图层区域） */
+.sidebar-layers-section::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-layers-section::-webkit-scrollbar-track {
+    background: rgba(5, 16, 33, 0.3);
+}
+
+.sidebar-layers-section::-webkit-scrollbar-thumb {
+    background-color: rgba(100, 140, 180, 0.4);
+    border-radius: 3px;
+}
+
+.sidebar-layers-section::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(100, 164, 231, 0.6);
+}
+
+/* ==================== 图层树 ==================== */
+.sidebar-layer-tree {
+    padding: 0;
+}
+
+/* === 图层分组（如 My Places, Terrain 等） === */
+.layer-group {
+    margin-bottom: 2px;
+}
+
+.layer-group-header {
+    display: flex;
+    align-items: center;
+    padding: 5px 4px;
+    cursor: pointer;
+    user-select: none;
+    color: #c8d8e8;
+    font-size: 13px;
+    border-radius: 3px;
+    transition: background-color 0.15s;
+}
+
+.layer-group-header:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* 折叠箭头 */
+.layer-group-toggle {
+    display: inline-block;
+    width: 16px;
+    font-size: 10px;
+    color: #8dbee0;
+    text-align: center;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+
+.layer-group-toggle.expanded {
+    transform: rotate(90deg);
+}
+
+/* 图层组复选框 */
+.layer-group-checkbox {
+    width: 14px;
+    height: 14px;
+    margin: 0 4px 0 2px;
+    cursor: pointer;
+    accent-color: #70bdf9;
+    flex-shrink: 0;
+}
+
+/* 图层组图标 */
+.layer-group-icon {
+    margin-right: 5px;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+/* 图层组名称 */
+.layer-group-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* === 图层子项列表 === */
+.layer-group-children {
+    list-style: none;
+    padding: 0 0 0 20px;   /* 缩进体现层级 */
+    margin: 0;
+}
+
+/* === 单个图层项 === */
+.layer-item {
+    display: flex;
+    align-items: center;
+    padding: 4px 6px;
+    cursor: pointer;
+    user-select: none;
+    color: #b0c4d8;
+    font-size: 12px;
+    border-radius: 3px;
+    transition: background-color 0.15s;
+    position: relative;
+}
+
+.layer-item:hover {
+    background-color: rgba(100, 164, 231, 0.15);
+    color: #fff;
+}
+
+/* 选中高亮 */
+.layer-item.selected {
+    background-color: rgba(100, 164, 231, 0.25);
+    color: #fff;
+}
+
+/* 图层项复选框 */
+.layer-item-checkbox {
+    width: 13px;
+    height: 13px;
+    margin: 0 5px 0 0;
+    cursor: pointer;
+    accent-color: #70bdf9;
+    flex-shrink: 0;
+}
+
+/* 图层项图标（根据类型不同） */
+.layer-item-icon {
+    margin-right: 5px;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+/* 图层项名称 */
+.layer-item-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 图层项操作按钮（飞入/删除） */
+.layer-item-actions {
+    display: none;          /* 默认隐藏，hover时显示 */
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.layer-item:hover .layer-item-actions {
+    display: flex;
+}
+
+.layer-item-action {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #8dbee0;
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: color 0.15s, background-color 0.15s;
+}
+
+.layer-item-action:hover {
+    color: #fff;
+    background-color: rgba(100, 164, 231, 0.3);
+}
+
+.layer-item-action.delete:hover {
+    color: #ff6b6b;
+    background-color: rgba(255, 100, 100, 0.15);
+}
+
+/* ==================== 图层类型图标颜色区分 ==================== */
+.layer-icon-terrain   { color: #8B7355; }   /* 棕色 - 地形 */
+.layer-icon-kml       { color: #4CAF50; }   /* 绿色 - KML */
+.layer-icon-geojson   { color: #FF9800; }   /* 橙色 - GeoJSON */
+.layer-icon-czml      { color: #03A9F4; }   /* 蓝色 - CZML */
+.layer-icon-tileset   { color: #9C27B0; }   /* 紫色 - 3DTiles */
+.layer-icon-gltf      { color: #E91E63; }   /* 粉色 - GLTF/GLB */
+.layer-icon-tiff      { color: #607D8B; }   /* 灰蓝 - Tiff */
+.layer-icon-imagery   { color: #00BCD4; }   /* 青色 - 影像 */
+
+/* ==================== 图层透明度调节 ==================== */
+.sidebar-opacity-control {
+    padding: 8px 12px;
+    border-top: 1px solid rgba(100, 140, 180, 0.2);
+    background-color: rgba(10, 25, 50, 0.6);
+    flex-shrink: 0;
+}
+.sidebar-opacity-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+    color: #c8d8e8;
+    font-size: 12px;
+}
+.sidebar-opacity-icon { margin-right: 6px; font-size: 13px; }
+.sidebar-opacity-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+}
+.sidebar-opacity-value {
+    color: #70bdf9;
+    font-size: 12px;
+    font-weight: bold;
+    min-width: 36px;
+    text-align: right;
+}
+.sidebar-opacity-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: linear-gradient(to right, rgba(100, 164, 231, 0.3), rgba(100, 164, 231, 0.8));
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+.sidebar-opacity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #70bdf9;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    transition: transform 0.15s;
+}
+.sidebar-opacity-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+.sidebar-opacity-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #70bdf9;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* ==================== Cesium容器偏移（侧边栏展开时） ==================== */
+/* 注意：地图容器不做偏移，侧边栏浮在地图上方（半透明效果） */
+
+/* ==================== 响应式适配 ==================== */
+@media screen and (max-width: 767px) {
+    .sidebar {
+        width: 240px;
+    }
+    .sidebar-toggle-btn {
+        left: 240px;
+    }
+    .sidebar-toggle-btn.collapsed {
+        left: 0;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .sidebar {
+        width: 200px;
+    }
+    .sidebar-toggle-btn {
+        left: 200px;
+    }
+    .sidebar-toggle-btn.collapsed {
+        left: 0;
+    }
+}
