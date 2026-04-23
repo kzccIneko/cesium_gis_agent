@@ -2,27 +2,36 @@ function toolbarMove(ele,e) {
 	var osmall = ele.parentNode;
 	osmall.style.cursor="move";
 	var e = e || window.event;
+	if (!osmall.style.position) {
+		osmall.style.position = "absolute";
+	}
+	var rect = osmall.getBoundingClientRect();
 	/*用于保存小的div拖拽前的坐标*/
-	osmall.startX = e.clientX - osmall.offsetLeft;
-	osmall.startY = e.clientY - osmall.offsetTop;
+	osmall.startX = e.clientX - rect.left;
+	osmall.startY = e.clientY - rect.top;
+	osmall.style.left = rect.left + "px";
+	osmall.style.top = rect.top + "px";
 	/*鼠标的移动事件*/
 	document.onmousemove = function(e) {
 		var e = e || window.event;
-		osmall.style.left = e.clientX - osmall.startX + "px";
-		osmall.style.top = e.clientY - osmall.startY + "px";
-		/*对于大的DIV四个边界的判断*/
-		if (e.clientX - osmall.startX <= 0) {
-			osmall.style.left = 0 + "px";
-		}
-		if (e.clientY - osmall.startY <= 0) {
-			osmall.style.top = 0 + "px";
-		}
-		if (e.clientX - osmall.startX >= 1100) {
-			osmall.style.left = 1100 + "px";
-		}
-		if (e.clientY - osmall.startY >= 600) {
-			osmall.style.top = 600 + "px";
-		}
+		var viewW = window.innerWidth || document.documentElement.clientWidth || 1200;
+		var viewH = window.innerHeight || document.documentElement.clientHeight || 800;
+		var minVisible = 56;
+		var nextLeft = e.clientX - osmall.startX;
+		var nextTop = e.clientY - osmall.startY;
+
+		var minLeft = minVisible - osmall.offsetWidth;
+		var maxLeft = viewW - minVisible;
+		var minTop = minVisible - osmall.offsetHeight;
+		var maxTop = viewH - minVisible;
+
+		if (nextLeft < minLeft) nextLeft = minLeft;
+		if (nextLeft > maxLeft) nextLeft = maxLeft;
+		if (nextTop < minTop) nextTop = minTop;
+		if (nextTop > maxTop) nextTop = maxTop;
+
+		osmall.style.left = nextLeft + "px";
+		osmall.style.top = nextTop + "px";
 	};
 	/*鼠标的抬起事件,终止拖动*/
 	document.onmouseup = function() {

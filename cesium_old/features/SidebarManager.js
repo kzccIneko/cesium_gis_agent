@@ -305,7 +305,11 @@ class SidebarManager {
         // 图层区域折叠/展开
         const layersHeader = document.getElementById('layersSectionHeader');
         if (layersHeader) {
-            layersHeader.addEventListener('click', () => {
+            layersHeader.addEventListener('click', (e) => {
+                // 点头部按钮时不触发整个图层树折叠
+                if (e.target && (e.target.closest('#sidebarAddLayerBtn') || e.target.closest('#sidebarStartBackendBtn'))) {
+                    return;
+                }
                 const tree = document.getElementById('layerTree');
                 const toggleIcon = layersHeader.querySelector('.sidebar-section-toggle');
                 if (tree) {

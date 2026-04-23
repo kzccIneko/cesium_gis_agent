@@ -182,8 +182,15 @@ RoughAnalysis.prototype.showMultipleRoughness = function (indices, pathCollectio
                     const offsetX = e.clientX - rect.left;
                     const offsetY = e.clientY - rect.top;
                     function onMove(ev) {
-                        p.style.left = Math.max(0, ev.clientX - offsetX) + 'px';
-                        p.style.top = Math.max(0, ev.clientY - offsetY) + 'px';
+                      const minVisible = 56;
+                      const minLeft = minVisible - p.offsetWidth;
+                      const maxLeft = window.innerWidth - minVisible;
+                      const minTop = minVisible - p.offsetHeight;
+                      const maxTop = window.innerHeight - minVisible;
+                      const nextLeft = Math.max(minLeft, Math.min(maxLeft, ev.clientX - offsetX));
+                      const nextTop = Math.max(minTop, Math.min(maxTop, ev.clientY - offsetY));
+                      p.style.left = nextLeft + 'px';
+                      p.style.top = nextTop + 'px';
                     }
                     function endDrag() {
                         window.removeEventListener('mousemove', onMove);
@@ -401,8 +408,15 @@ RoughAnalysis.prototype.showMultipleRoughnessRate = function (indices, pathColle
                     const offsetX = e.clientX - rect.left;
                     const offsetY = e.clientY - rect.top;
                     function onMove(ev) {
-                        p.style.left = Math.max(0, ev.clientX - offsetX) + 'px';
-                        p.style.top = Math.max(0, ev.clientY - offsetY) + 'px';
+                      const minVisible = 56;
+                      const minLeft = minVisible - p.offsetWidth;
+                      const maxLeft = window.innerWidth - minVisible;
+                      const minTop = minVisible - p.offsetHeight;
+                      const maxTop = window.innerHeight - minVisible;
+                      const nextLeft = Math.max(minLeft, Math.min(maxLeft, ev.clientX - offsetX));
+                      const nextTop = Math.max(minTop, Math.min(maxTop, ev.clientY - offsetY));
+                      p.style.left = nextLeft + 'px';
+                      p.style.top = nextTop + 'px';
                     }
                     function endDrag() {
                         window.removeEventListener('mousemove', onMove);
@@ -662,8 +676,15 @@ RoughAnalysis.prototype.showMultipleHeightRate = function (indices, pathCollecti
                     const offsetX = e.clientX - rect.left;
                     const offsetY = e.clientY - rect.top;
                     function onMove(ev) {
-                        p.style.left = Math.max(0, ev.clientX - offsetX) + 'px';
-                        p.style.top = Math.max(0, ev.clientY - offsetY) + 'px';
+                      const minVisible = 56;
+                      const minLeft = minVisible - p.offsetWidth;
+                      const maxLeft = window.innerWidth - minVisible;
+                      const minTop = minVisible - p.offsetHeight;
+                      const maxTop = window.innerHeight - minVisible;
+                      const nextLeft = Math.max(minLeft, Math.min(maxLeft, ev.clientX - offsetX));
+                      const nextTop = Math.max(minTop, Math.min(maxTop, ev.clientY - offsetY));
+                      p.style.left = nextLeft + 'px';
+                      p.style.top = nextTop + 'px';
                     }
                     function endDrag() {
                         window.removeEventListener('mousemove', onMove);
