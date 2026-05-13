@@ -68,3 +68,24 @@
 【当前说明】
 1. 本次更新重点从“功能可用”推进到“高负载稳定可用”，主要围绕大图幅分析、结果一致性、缓存治理和交互防误操作展开。
 2. 若后续在极端超大图幅下仍遇到性能瓶颈，将继续通过分层可视化与按需加载策略优化，而不采用改变结果语义的采样方案。
+
+***
+2026/05/13
+【最新版项目对比总结（本轮累计改动）】
+1. 后端地形代价分析新增“方向性建模”参数：请求体支持起点/终点，经 DEM 多方向坡度、曲率与线系强度组合计算方向最小代价，并在代价图层属性中写入方向相关字段用于前端数值提示。
+2. 前端后端分析流程支持“起终点选取驱动代价分析区域”：选择代价分析后可先在地图选两点，按起终点方向约束分析；点位越界会提示重选；并支持在区域基础上做栅格外扩。
+3. 新增“终止分析”能力：页面增加“终止分析”按钮，前端通过 AbortController 中断请求链路，停止动态 LOD 后续加载，并联动清理本次结果缓存与绘制状态。
+4. 动态 LOD 与图层管理联动增强：L0 与后续 LOD 细化结果统一纳入分析图层组管理，透明度滑块可作用于 DataSource/Primitive 混合对象，避免仅底层可调透明度的问题。
+5. 图层顺序控制落地：左侧图层项新增“置顶/上移/下移”，底层调用 Cesium `raiseToTop/raise/lower`，并同步 DOM 顺序，实现可视叠加顺序可控。
+6. 后端缓存与输出工程化继续加强：地形瓦片缓存命中返回、统计落盘、输出与瓦片缓存清理接口、原子写文件流程完善，降低大图幅重复计算与半写入读取异常风险。
+7. 后端与前后端接口关键代码完成中文注释增强：补充重要变量、核心函数和关键计算步骤注释，并将主要英文注释替换/补充为中文，便于后续维护与汇报讲解。
+8. 新增通行能力研究与实验资产（`literature/test`）：包含方向性代价实验脚本、操作流程、统计与图表输出、GeoJSON 导出、Cesium 对比页面（`cesium_experiment_compare.html`）及两批实验结果产物。
+9. 实验脚本新增运行完成提示：`run_dem_cost_experiment.py` 结束时输出结果目录、关键文件路径与统计行数，便于直接定位产出。
+10. 新增 Playwright 自动化测试基础设施：`playwright.config.js`、`tests/e2e`、`package.json` 测试脚本（`test:e2e` 等）与 `http-server` 本地服务配置，可用于后续关键交互回归测试。
+11. 工程配置补充：`.gitignore` 增加 Playwright 报告与缓存忽略项，减少测试产物污染版本库。
+
+【本轮新增/更新重点文件（摘要）】
+1. 前端：`Cesium_coordinate_copy_czDebugging.html`、`features/slope/TerrainBackendIntegration.js`、`features/SidebarManager.js`、`features/eventBindInit.js`、`css/index.css`
+2. 后端：`backend/app/main.py`、`backend/app/schemas.py`、`backend/app/services/analysis_service.py`、`backend/app/services/export_service.py`
+3. 实验与展示：`literature/DEM方向性通行能力建模与实验方案.md`、`literature/test/run_dem_cost_experiment.py`、`literature/test/README_实验操作流程.md`、`literature/test/cesium_experiment_compare.html`
+4. 测试与配置：`playwright.config.js`、`tests/e2e/`、`package.json`、`.gitignore`
