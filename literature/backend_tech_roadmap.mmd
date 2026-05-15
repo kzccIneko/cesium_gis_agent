@@ -1,0 +1,45 @@
+flowchart TD
+  %% CesiumJS_Debug 后端技术路线图（用于成果展示）
+
+  T0["阶段0：运行基线<br/>run_backend.ps1 自动建 .venv<br/>FastAPI + Uvicorn + NumPy + Rasterio"] --> T1
+
+  T1["阶段1：接口契约层<br/>schemas.py 建模<br/>/formats /dem/meta /analyze/terrain /analyze/path"] --> T2
+
+  T2["阶段2：DEM 接入与质量门禁<br/>路径解析（绝对/相对）<br/>CRS 补齐（.prj）<br/>解码模式：none / single_band / terrain_rgb<br/>重采样到请求 BBox 网格"] --> T3
+
+  T3["阶段3：核心算法层<br/>地形指标：slope/aspect/curvature/cost<br/>前后端一致性：9点单元模型 + 配色对齐<br/>路径规划：Dijkstra + 失败直线兜底"] --> T4
+
+  T4["阶段4：结果工程化层<br/>多格式导出：GeoJSON/CZML/KML<br/>原子写文件（tmp replace）<br/>统计信息输出（min/max/mean）"] --> T5
+
+  T5["阶段5：缓存与性能层<br/>输出缓存 + 瓦片缓存<br/>tile_set_id / tile_key 复用<br/>分块计算与缓存命中返回"] --> T6
+
+  T6["阶段6：前后端协同优化层<br/>前端分块编排 + 动态四叉树LOD 请求<br/>后端按需返回 artifacts URL<br/>侧边栏统一控制 L0+LOD 图层"] --> T7
+
+  T7["阶段7：成果展示与可运维层<br/>状态提示/超时策略/重试策略<br/>缓存清理接口与页面生命周期联动<br/>面向扩展：队列化、Redis、3D Tiles/COG"] 
+
+  subgraph Now["当前已落地能力（as-is）"]
+    N1["FastAPI API 网关"]
+    N2["DEM 元数据检查 + 解码建议"]
+    N3["地形分析与路径规划"]
+    N4["多格式导出与静态文件托管"]
+    N5["瓦片缓存 + 前端动态LOD协同"]
+  end
+
+  subgraph Next["可演进路线（to-be）"]
+    X1["任务队列（Celery/RQ）异步化"]
+    X2["Redis 缓存 + 请求去重"]
+    X3["大规模瓦片导出（COG/3D Tiles）"]
+    X4["可观测性：指标/链路/慢请求分析"]
+  end
+
+  T3 --> N3
+  T4 --> N4
+  T5 --> N5
+  T2 --> N2
+  T1 --> N1
+
+  T7 --> X1
+  T7 --> X2
+  T7 --> X3
+  T7 --> X4
+

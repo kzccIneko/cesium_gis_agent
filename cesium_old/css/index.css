@@ -181,9 +181,7 @@ span.cesium-sceneModePicker-wrapper {
 
 /* 顶部小工具条（Google Earth 风格） */
 .top-mini-toolbar {
-  position: fixed;
-  top: 58px;
-  right: 12px;
+  position: relative;
   z-index: 1600;
   background: rgba(8, 22, 40, 0.78);
   border: 1px solid rgba(100, 140, 180, 0.45);
@@ -192,10 +190,25 @@ span.cesium-sceneModePicker-wrapper {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
+.navbar-top-mini-toolbar {
+  float: right;
+  margin-top: 10px;
+  margin-right: 0;
+  margin-left: 10px;
+}
+
 .top-mini-toolbar-controls {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+@media (max-width: 767px) {
+  .navbar-top-mini-toolbar {
+    float: none;
+    display: inline-flex;
+    margin: 8px 0 10px 0;
+  }
 }
 
 .top-mini-toolbar-controls .sidebar-tool-item {

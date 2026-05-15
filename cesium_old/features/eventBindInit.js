@@ -110,10 +110,6 @@ $(document).ready(
         $('#contour').click(function () {
             EventModel.contour();
         })
-        //坐标定位
-        $('#jumpTo').click(function () {
-            EventModel.jumpTo();
-        })
         //跟图回放
         $('#czml-track').click(function () {
             EventModel.czmlTrack();
@@ -132,15 +128,6 @@ $(document).ready(
             //addCZMLPath();
         });
 
-        //数据库管理
-        //根据坐标查询
-        $('#by_code').click(function () {
-            EventModel.datamanage();
-        });
-        //根据绘图查询
-        $('#by_img').click(function () {
-            EventModel.rec_search();
-        });
 
 
         //功能管理(其他功能)
@@ -165,17 +152,6 @@ $(document).ready(
             //按键可以到这
             EventModel.mark_draw();
         });
-        //视图切换
-        $('#viewerChange').click(function () {
-            EventModel.viewerChange();
-        });
-        //大地坐标量测
-         $('#mousePosition').click(function () {
-             //大地坐标展示
-             console.log('坐标显示');
-             removeShowCoordinates();
-             show3DCoordinates();
-         });
 
 
         /*2022.07.19  在一个表格下显示大地坐标和投影坐标
@@ -245,10 +221,6 @@ $(document).ready(
             )
         })
 
-        //显示设置
-        $('#displaySettingA').click(function () {
-            EventModel.displaySetting();
-        });
         // 初始化窗口组件复选框事件（侧边栏）
         EventModel.displaySetting();
 
@@ -359,7 +331,6 @@ var EventModel = {
                 SlopeAnalysis.updateAlpha(alpha.value);
             };
         };
-
         const runSelectedAnalysis = (byNum) => {
             const target = getSelectedAnalysisTarget();
             const config = target === 'aspect' ? 0 : 1;
@@ -738,27 +709,8 @@ var EventModel = {
             }
         });// 清除所有
 
-        $('.close').click(function () {
-            window.SlopeAnalysis.clearAll();
-            if (typeof window.clearTerrainBackendLayers === 'function') {
-                window.clearTerrainBackendLayers();
-            }
-        });// 关闭窗口时清除所有内容
+        // 关闭面板不做图层清理，保留当前分析结果。
 
-    },
-    //坐标定位
-    jumpTo: function () {
-        $('#jumpToWin').css('display', 'block');
-        $('#sureJump').click(function () {
-            if ($('#destination_lng').val() && $('#destination_lat').val()){
-                viewer.camera.flyTo({
-                //destination:Cesium.Cartesian3.fromDegrees(102.220 , 29.833,13000)
-                destination: Cesium.Cartesian3.fromDegrees($('#destination_lng').val(), $('#destination_lat').val(), 13000),
-                duration: 3//飞行时间(秒)
-                })
-            }  
-            else {alert('请填写经纬度');}         
-        })
     },
     //场景收藏
     dataURLtoBlob: function (dataurl) {
@@ -785,142 +737,6 @@ var EventModel = {
           options： 可选项，字典格式类型，可以指定如下两个属性：
     */
     },
-    //数据管理弹窗
-    //根据坐标查询
-    datamanage: function () {
-        $('#datamanage').css('display', 'block');
-        //查询
-        // let flagevent = 0;
-
-        $('#datasubmit').click(function () {
-            // console.log('可以');
-            const data_ul = document.querySelector('#data_ul')
-            data_ul.onclick = function () {
-                console.log("aa");
-            }
-            console.log(data_ul.innerHTML);
-            console.log(data_ul.childNodes);
-            var childnode = data_ul.childNodes
-            data_ul.innerHTML = `<li class="list-group-item" >等待响应中。。</li>`
-            for (let i = 0; i < childnode.length; i++) {
-                childnode[i].onclick = function () {
-                    console.log("aa");
-                }
-            }
-            $('#alert_download').css('display', 'block');
-            // 
-
-            const addForm = document.querySelector('#dataform')
-            const bookObj = serialize(addForm, { hash: true, empty: false })
-            console.log(bookObj);
-            // data_ul.a.removeEventListener("click",()=>{
-            //     console.log(11);
-            // })
-
-
-            data_ul.onclick = null
-            data_download(bookObj)
-        })
-    },
-    //根据绘制查询
-    rec_search: function () {
-        $('#rec_search').css('display', 'block');
-
-        $("#draw_Rec").click(function () {
-            let position_rec
-            const tracker = new GlobeTracker(viewer)
-            flag = 0;
-            const p_test = new Promise((resolve, reject) => {
-                return tracker.trackRectangle(function (positions) {
-                    var objId = (new Date()).getTime();
-                    shapeDic[objId] = positions;
-                    showRectangle(objId, positions);
-                    position_rec = positions
-                    console.log(position_rec);
-                    resolve()
-                });
-            }).then(() => {
-                var latLonArray = []
-                const new_arr = position_rec.map((item) => {
-                    var cartographic = Cesium.Cartographic.fromCartesian(item);
-                    // 获取经度和纬度
-
-                    var longitude = Cesium.Math.toDegrees(cartographic.longitude);
-                    var latitude = Cesium.Math.toDegrees(cartographic.latitude);
-                    var latLonObject = {
-                        longitude: longitude,
-                        latitude: latitude
-                    };
-                    latLonArray.push(longitude, latitude)
-                })
-                console.log(latLonArray);
-                const latLonObject = {
-                    xmin: latLonArray[0],
-                    ymin: latLonArray[1],
-                    xmax: latLonArray[2],
-                    ymax: latLonArray[3]
-                };
-
-                let flagevent = 0;
-                const data_ul = document.querySelector('#data_ul')
-                data_ul.onclick = function () {
-                    console.log("aa");
-                }
-                console.log(data_ul.innerHTML);
-                console.log(data_ul.childNodes);
-                var childnode = data_ul.childNodes
-                data_ul.innerHTML = `<li class="list-group-item" >等待响应中。。</li>`
-                for (let i = 0; i < childnode.length; i++) {
-                    childnode[i].onclick = function () {
-                        console.log("aa");
-                    }
-                }
-                $('#alert_download').css('display', 'block');
-                data_download(latLonObject)
-
-            })
-
-
-
-        });
-        $("#delete_Rec").click(function () {
-            layer.msg("点击要删除的箭头！");
-            flag = 2;
-            //清除标绘状态
-            tracker.clear();
-        });
-        var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-        handler.setInputAction(function (movement) {
-            //鼠标选中对象
-            var pick = viewer.scene.pick(movement.position);
-            //没有选中对象
-            if (!pick) {
-                return;
-            }
-            var obj = pick.id;
-            //如果没有点击选中图形或删除图形按钮，flag=0 直接返回
-            if (!obj || !obj.layerId || flag == 0) {
-                return;
-            }
-            var objId = obj.objId;
-            console.log('obj=' + objId)  //输出鼠标选中对象的id
-            console.log('flag=' + flag)
-            //flag为编辑或删除标识,1为编辑，2为删除
-            if (flag == 2) {
-                clearEntityById(objId);
-            }
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-    },
-
-
-
-
-    //管理下载弹窗
-
-
-
-
     //加载tif数据（用到的模块：影像数据、
     loadTif: function () {
         $('#loadLayerWin').css('display', 'block');
@@ -1608,19 +1424,6 @@ var EventModel = {
                     break;
             }
         });
-    },
-
-    /***********************************视图切换3d2d*******************************************************/
-    viewerChange: function () { 
-
-        $('#viewerChangeWin').css('display', 'block')
-        $('#viewer2d').click(function (){
-            viewer.scene.mode = Cesium.SceneMode.SCENE2D;
-        });
-        $('#viewer3d').click(function (){
-            viewer.scene.mode = Cesium.SceneMode.SCENE3D;
-        });
-
     },
 
     /***********************************标绘*******************************************************/

@@ -1,0 +1,85 @@
+{
+  "ablation_mean_metrics": [
+    {
+      "model": "B0",
+      "mean_total_cost": 696.0755935760313,
+      "mean_ascent_per_meter": 1.1613279158051677,
+      "mean_tortuosity": 1.201684402999595
+    },
+    {
+      "model": "B1",
+      "mean_total_cost": 1798.644119773996,
+      "mean_ascent_per_meter": 1.1547187084329766,
+      "mean_tortuosity": 1.2807503097936503
+    },
+    {
+      "model": "B2",
+      "mean_total_cost": 4169.213644883342,
+      "mean_ascent_per_meter": 1.1760073629838435,
+      "mean_tortuosity": 1.237599556328478
+    },
+    {
+      "model": "B3",
+      "mean_total_cost": 11390.423088173711,
+      "mean_ascent_per_meter": 1.1859658232467505,
+      "mean_tortuosity": 1.2789835348788696
+    },
+    {
+      "model": "OURS",
+      "mean_total_cost": 14966.253414196579,
+      "mean_ascent_per_meter": 1.561763916994009,
+      "mean_tortuosity": 1.2363143329247752
+    }
+  ],
+  "hypothesis_tests": {
+    "H1_ours_vs_b0_total_cost": {
+      "sign_test": {
+        "n": 12,
+        "p_value": 0.00048828125,
+        "n_pos": 12,
+        "n_neg": 0
+      },
+      "bootstrap_mean_diff_95ci": [
+        14270.177820620547,
+        828.8734912519855,
+        28195.254414478408
+      ]
+    },
+    "H1_ours_vs_b0_ascent_per_meter": {
+      "sign_test": {
+        "n": 11,
+        "p_value": 0.548828125,
+        "n_pos": 7,
+        "n_neg": 4
+      },
+      "bootstrap_mean_diff_95ci": [
+        0.40043600118884143,
+        0.005294554942038343,
+        0.8233079441060948
+      ]
+    },
+    "H1_ours_vs_b0_tortuosity": {
+      "sign_test": {
+        "n": 11,
+        "p_value": 0.2265625,
+        "n_pos": 8,
+        "n_neg": 3
+      },
+      "bootstrap_mean_diff_95ci": [
+        0.03462992992517975,
+        -0.03228846016805933,
+        0.09484567861869046
+      ]
+    },
+    "H2_directionality": {
+      "forward_mean_cost": 14966.253414196579,
+      "reverse_mean_cost": 14661.834443725684,
+      "path_overlap_forward_reverse_mean": 0.42885311330296183
+    },
+    "H3_multiscale_stability": {
+      "ours_hausdorff_mean": 50.07946636863872,
+      "ours_hausdorff_std": 42.25424853407055
+    }
+  },
+  "has_sample_geojson": true
+}

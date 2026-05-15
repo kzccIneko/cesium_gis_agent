@@ -1,5 +1,7 @@
 import numpy as np
 import rasterio
+
+# 临时脚本：统计 DEM 有效值比例与基础统计量
 p=r'F:/CZ/VS_Code_Programs/CesiumJS_Debug/cesium_old/data/Terrain/cite19.tif'
 with rasterio.open(p) as ds:
     arr=ds.read(1, masked=True)

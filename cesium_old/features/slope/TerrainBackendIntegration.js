@@ -1,13 +1,158 @@
 (function (global) {
   "use strict";
 
+  /*
+   * TerrainBackendIntegration.js
+   *
+   * 角色定位（前端文件）：
+   * 1) 读取页面参数并发起后端分析请求（HTTP -> FastAPI）
+   * 2) 把后端返回的 GeoJSON/CZML/KML 加载到 Cesium
+   * 3) 承担前端动态LOD调度（含四叉树缓存与视域按需请求）
+   *
+   * 注意：真正的“后端分析算法”仍在 Python 中，不在本文件。
+   * 本文件更像“前端编排器 + 渲染调度器 + UI交互层”。
+  *
+  * 快速导航：
+  * A. 参数与工具函数（文件前1/3）
+  * B. 请求编排（requestAnalysisJson/runTerrainAnalysisWithAutoTiling/runPathAnalysisByStages）
+  * C. 四叉树动态LOD（getDynamicTerrainLodLevel/refreshDynamicTerrainRequestLod/startDynamicTerrainRequestLod）
+  * D. 渲染装配（renderTerrainArtifacts/loadArtifactToCesium）
+  * E. UI入口（createRunner/initTerrainBackendTools）
+   */
+
+  // =========================
+  // 基础阈值与请求参数
+  // =========================
+  // 单次接口请求默认超时时间（毫秒）。用于 fetch 超时控制与错误提示文案。
   var REQUEST_TIMEOUT_MS = 25000;
+  // 地形分析允许的最大网格分辨率（每边点数上限）。过大将显著增加后端计算量与前端渲染压力。
   var TERRAIN_MAX_RESOLUTION = 1024;
+  // 路径分析允许的最大网格分辨率（每边点数上限）。路径算法复杂度随分辨率上升而快速增加。
   var PATH_MAX_RESOLUTION = 512;
+  // 地形自动分块时，期望单块边长（按“网格单元数”估算）。值越小分块越多、单块更轻。
   var TERRAIN_TILE_EDGE_TARGET = 420;
+  // 地形分块请求时的重叠单元数。用于减少分块边界处可视缝隙与数值突变。
   var TERRAIN_TILE_OVERLAP_CELLS = 1;
+  // 单个 Cesium GroundPrimitive 允许挂载的最大实例数。超过后会自动切批，避免浏览器内存峰值过高。
   var FRONTEND_MAX_INSTANCES_PER_PRIMITIVE = 6000;
 
+  // =========================
+  // 历史LOD参数（旧方案保留，兼容遗留逻辑）
+  // 当前主流程不依赖这组参数进行四叉树调度。
+  // =========================
+  // 旧版 LOD 总开关（历史兼容）。
+  var TERRAIN_LOD_ENABLE = false;
+  // 旧版 LOD 生效的最小分块数阈值。
+  var TERRAIN_LOD_MIN_TILE_COUNT = 4;
+  // 旧版 LOD：近景最多保留的活动瓦片数。
+  var TERRAIN_LOD_ACTIVE_TILES_NEAR = 3;
+  // 旧版 LOD：中景最多保留的活动瓦片数。
+  var TERRAIN_LOD_ACTIVE_TILES_MID = 2;
+  // 旧版 LOD：远景最多保留的活动瓦片数。
+  var TERRAIN_LOD_ACTIVE_TILES_FAR = 1;
+  // 旧版 LOD：近景/中景高度分界（米）。
+  var TERRAIN_LOD_HEIGHT_NEAR_M = 12000;
+  // 旧版 LOD：中景/远景高度分界（米）。
+  var TERRAIN_LOD_HEIGHT_MID_M = 40000;
+  // 旧版 LOD：在当前视域外额外扩展的边界比例，避免相机小幅移动导致频繁切换。
+  var TERRAIN_LOD_VIEW_PADDING_FACTOR = 0.15;
+  // 旧版 LOD：相机变化后的延迟刷新时间（毫秒），用于节流。
+  var TERRAIN_LOD_UPDATE_DELAY_MS = 180;
+
+  // =========================
+  // 请求级LOD（单次请求内仅改网格密度，不改分块布局）
+  // =========================
+  // 请求级 LOD：保持分块数量不变，仅调整“块内网格密度”。
+  // 作用：相机较远时用更粗网格，降低后端计算与前端渲染开销。
+  var TERRAIN_REQUEST_LOD_ENABLE = false;
+  // 请求级 LOD：近景阈值高度（米）。
+  var TERRAIN_REQUEST_LOD_HEIGHT_NEAR_M = 10000;
+  // 请求级 LOD：中景阈值高度（米）。
+  var TERRAIN_REQUEST_LOD_HEIGHT_MID_M = 30000;
+  // 请求级 LOD：近景网格倍率（1.0=保持用户设定米/格）。
+  var TERRAIN_REQUEST_LOD_CELL_SCALE_NEAR = 1.0;
+  // 请求级 LOD：中景网格倍率（2.0=米/格扩大 2 倍，分辨率更粗）。
+  var TERRAIN_REQUEST_LOD_CELL_SCALE_MID = 2.0;
+  // 请求级 LOD：远景网格倍率（4.0=米/格扩大 4 倍，优先性能）。
+  var TERRAIN_REQUEST_LOD_CELL_SCALE_FAR = 4.0;
+
+  // 四叉树动态请求 LOD：
+  // 先加载全域最粗层 L0，再按视域和相机高度请求更细层级（L1~L4）。
+  // 作用：首屏更快可见，同时在用户关注区域逐步精细化。
+  var TERRAIN_DYNAMIC_LOD_ENABLE = true;
+  // 四叉树层级切换防抖延时（毫秒），避免相机连续移动时频繁发请求。
+  var TERRAIN_DYNAMIC_LOD_SWITCH_DELAY_MS = 900;
+  // L0~L4 对应的米/格倍率。索引越大表示层级越细、倍率越小。
+  var TERRAIN_DYNAMIC_QTREE_CELL_SCALES = [16.0, 8.0, 4.0, 2.0, 1.0];//L0-L4对应栅格分辨率
+  // 计算“当前视域命中哪些四叉树瓦片”时的额外外扩比例。
+  var TERRAIN_DYNAMIC_QTREE_VIEW_PADDING_FACTOR = 0.05;
+  // 视域占比平滑系数（EMA）。值越大跟随越快，值越小越平滑稳定。
+  var TERRAIN_DYNAMIC_QTREE_RATIO_SMOOTHING = 0.35;
+  // 视域占比阈值：小于该阈值可提升到 L1。
+  var TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L1 = 0.78;
+  // 视域占比阈值：小于该阈值可提升到 L2。
+  var TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L2 = 0.42;
+  // 视域占比阈值：小于该阈值可提升到 L3。
+  var TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L3 = 0.18;
+  // 视域占比阈值：小于该阈值可提升到 L4（最细层）。
+  var TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L4 = 0.08;
+  // 相机高度阈值：低于该值倾向至少 L1。
+  var TERRAIN_DYNAMIC_QTREE_HEIGHT_L1_M = 45000;
+  // 相机高度阈值：低于该值倾向至少 L2。
+  var TERRAIN_DYNAMIC_QTREE_HEIGHT_L2_M = 22000;
+  // 相机高度阈值：低于该值倾向至少 L3。
+  var TERRAIN_DYNAMIC_QTREE_HEIGHT_L3_M = 9000;
+  // 相机高度阈值：低于该值倾向至少 L4。
+  var TERRAIN_DYNAMIC_QTREE_HEIGHT_L4_M = 4000;
+  // 高度建议层级允许的“额外奖励级数”，防止仅凭视域占比直接跳得过细。
+  var TERRAIN_DYNAMIC_QTREE_HEIGHT_BONUS_LEVELS = 3;
+  // 单次刷新最多允许的“视域目标瓦片数”，用于限制瞬时请求压力。
+  var TERRAIN_DYNAMIC_QTREE_VISIBLE_TILE_LIMIT = 64;
+  // 四叉树缓存上限（仅统计已加载的细节节点），超限时执行淘汰。
+  var TERRAIN_DYNAMIC_QTREE_CACHE_LIMIT = 56;
+  // 四叉树瓦片并发加载数，平衡后端吞吐与浏览器稳定性。
+  var TERRAIN_DYNAMIC_QTREE_LOAD_CONCURRENCY = 3;
+  // GeoJSON 渲染失败的最大重试次数（用于后端文件尚未完全写出等短暂异常）。
+  var TERRAIN_GEOJSON_RENDER_RETRY_MAX = 3;
+  // 动态 LOD 默认目标块边长（网格单元）。层级越高可采用更小目标值。
+  var TERRAIN_DYNAMIC_TILE_EDGE_TARGET = 220;
+  // L3 层单块目标边长。
+  var TERRAIN_DYNAMIC_TILE_EDGE_TARGET_L3 = 200;
+  // L4 层单块目标边长（最细层，进一步减小单块规模以降低前端压力）。
+  var TERRAIN_DYNAMIC_TILE_EDGE_TARGET_L4 = 160;
+
+  // 拆分模块需要访问这些常量（运行时由主文件统一注入到全局）。
+  global.REQUEST_TIMEOUT_MS = REQUEST_TIMEOUT_MS;
+  global.TERRAIN_MAX_RESOLUTION = TERRAIN_MAX_RESOLUTION;
+  global.PATH_MAX_RESOLUTION = PATH_MAX_RESOLUTION;
+  global.TERRAIN_TILE_EDGE_TARGET = TERRAIN_TILE_EDGE_TARGET;
+  global.TERRAIN_TILE_OVERLAP_CELLS = TERRAIN_TILE_OVERLAP_CELLS;
+  global.TERRAIN_LOD_VIEW_PADDING_FACTOR = TERRAIN_LOD_VIEW_PADDING_FACTOR;
+
+  global.TERRAIN_REQUEST_LOD_ENABLE = TERRAIN_REQUEST_LOD_ENABLE;
+  global.TERRAIN_REQUEST_LOD_HEIGHT_NEAR_M = TERRAIN_REQUEST_LOD_HEIGHT_NEAR_M;
+  global.TERRAIN_REQUEST_LOD_HEIGHT_MID_M = TERRAIN_REQUEST_LOD_HEIGHT_MID_M;
+  global.TERRAIN_REQUEST_LOD_CELL_SCALE_NEAR = TERRAIN_REQUEST_LOD_CELL_SCALE_NEAR;
+  global.TERRAIN_REQUEST_LOD_CELL_SCALE_MID = TERRAIN_REQUEST_LOD_CELL_SCALE_MID;
+  global.TERRAIN_REQUEST_LOD_CELL_SCALE_FAR = TERRAIN_REQUEST_LOD_CELL_SCALE_FAR;
+
+  global.TERRAIN_DYNAMIC_LOD_ENABLE = TERRAIN_DYNAMIC_LOD_ENABLE;
+  global.TERRAIN_DYNAMIC_LOD_SWITCH_DELAY_MS = TERRAIN_DYNAMIC_LOD_SWITCH_DELAY_MS;
+  global.TERRAIN_DYNAMIC_QTREE_CELL_SCALES = TERRAIN_DYNAMIC_QTREE_CELL_SCALES;
+  global.TERRAIN_DYNAMIC_QTREE_VIEW_PADDING_FACTOR = TERRAIN_DYNAMIC_QTREE_VIEW_PADDING_FACTOR;
+  global.TERRAIN_DYNAMIC_QTREE_RATIO_SMOOTHING = TERRAIN_DYNAMIC_QTREE_RATIO_SMOOTHING;
+  global.TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L1 = TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L1;
+  global.TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L2 = TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L2;
+  global.TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L3 = TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L3;
+  global.TERRAIN_DYNAMIC_QTREE_HEIGHT_L1_M = TERRAIN_DYNAMIC_QTREE_HEIGHT_L1_M;
+  global.TERRAIN_DYNAMIC_QTREE_HEIGHT_L2_M = TERRAIN_DYNAMIC_QTREE_HEIGHT_L2_M;
+  global.TERRAIN_DYNAMIC_QTREE_HEIGHT_L3_M = TERRAIN_DYNAMIC_QTREE_HEIGHT_L3_M;
+  global.TERRAIN_DYNAMIC_QTREE_VISIBLE_TILE_LIMIT = TERRAIN_DYNAMIC_QTREE_VISIBLE_TILE_LIMIT;
+  global.TERRAIN_DYNAMIC_QTREE_CACHE_LIMIT = TERRAIN_DYNAMIC_QTREE_CACHE_LIMIT;
+  global.TERRAIN_DYNAMIC_QTREE_LOAD_CONCURRENCY = TERRAIN_DYNAMIC_QTREE_LOAD_CONCURRENCY;
+  global.TERRAIN_GEOJSON_RENDER_RETRY_MAX = TERRAIN_GEOJSON_RENDER_RETRY_MAX;
+
+  // 统一 toast 提示：用于分析状态、错误、回退信息。
   function ensureToast() {
     var toast = document.getElementById("terrain-backend-toast");
     if (toast) return toast;
@@ -153,6 +298,16 @@
     }
   }
 
+  function resolveDynamicViewBBox(state) {
+    if (!state) return null;
+    var viewBBox = getViewBBox(state.viewer);
+    if (viewBBox) {
+      state.lastViewBBox = viewBBox;
+      return viewBBox;
+    }
+    return state.lastViewBBox || null;
+  }
+
   function fillBBoxInputs(bbox) {
     if (!bbox) return;
     const west = document.getElementById("backend-bbox-west");
@@ -193,7 +348,7 @@
     var heightM = Math.abs(bbox.north - bbox.south) * metersPerDegLat;
     var span = Math.max(widthM, heightM);
 
-    // Use ceil instead of round so effective cell size will not exceed target cell size.
+    // 用 ceil 而非 round，确保“实际米/格”不会大于用户目标米/格。
     var cellsPerEdgeRaw = Math.max(1, Math.ceil(span / cell));
     var resolutionRaw = cellsPerEdgeRaw + 1;
     var resolution = Math.max(16, Math.min(cap, resolutionRaw));
@@ -298,11 +453,14 @@
     };
   }
 
-  function estimateTerrainTileLayout(bbox, cellSizeMeters, maxResolution) {
+  function estimateTerrainTileLayout(bbox, cellSizeMeters, maxResolution, options) {
+    var opts = options || {};
     var cell = Math.max(1.0, Number(cellSizeMeters) || 50.0);
     var hardCapCellsPerEdge = Math.max(1, (Math.max(16, Number(maxResolution) || TERRAIN_MAX_RESOLUTION) - 1));
-    // Do not let a single tile become too large for browser JSON parsing/rendering.
-    var capCellsPerEdge = Math.max(1, Math.min(hardCapCellsPerEdge, TERRAIN_TILE_EDGE_TARGET));
+    // 避免单块过大导致浏览器 JSON 解析或渲染压力过高。
+    var edgeTarget = Number(opts.edgeTarget);
+    var target = Number.isFinite(edgeTarget) ? edgeTarget : TERRAIN_TILE_EDGE_TARGET;
+    var capCellsPerEdge = Math.max(1, Math.min(hardCapCellsPerEdge, Math.max(16, target)));
 
     var centerLat = ((bbox.south + bbox.north) * 0.5) * Math.PI / 180.0;
     var metersPerDegLon = 111320.0 * Math.max(1e-6, Math.cos(centerLat));
@@ -325,6 +483,16 @@
       capCellsPerEdge: capCellsPerEdge,
       hardCapCellsPerEdge: hardCapCellsPerEdge,
     };
+  }
+
+  function getTerrainRequestLodCellScale(viewer) {
+    if (!TERRAIN_REQUEST_LOD_ENABLE) return 1.0;
+    if (!viewer || !viewer.camera || !viewer.camera.positionCartographic) return TERRAIN_REQUEST_LOD_CELL_SCALE_NEAR;
+
+    var h = Number(viewer.camera.positionCartographic.height) || 0;
+    if (h >= TERRAIN_REQUEST_LOD_HEIGHT_MID_M) return TERRAIN_REQUEST_LOD_CELL_SCALE_FAR;
+    if (h >= TERRAIN_REQUEST_LOD_HEIGHT_NEAR_M) return TERRAIN_REQUEST_LOD_CELL_SCALE_MID;
+    return TERRAIN_REQUEST_LOD_CELL_SCALE_NEAR;
   }
 
   function buildPathResolutionStages(targetResolution) {
@@ -354,6 +522,65 @@
     });
   }
 
+  function roundTo(value, digits) {
+    var num = Number(value);
+    if (!Number.isFinite(num)) return 0;
+    var pow = Math.pow(10, Math.max(0, Math.floor(Number(digits) || 0)));
+    return Math.round(num * pow) / pow;
+  }
+
+  function stableStringify(value) {
+    if (value === null || typeof value === "undefined") return "null";
+    if (typeof value !== "object") return JSON.stringify(value);
+    if (Array.isArray(value)) {
+      return "[" + value.map(stableStringify).join(",") + "]";
+    }
+    var keys = Object.keys(value).sort();
+    var parts = [];
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      parts.push(JSON.stringify(key) + ":" + stableStringify(value[key]));
+    }
+    return "{" + parts.join(",") + "}";
+  }
+
+  function hashStringFNV1a(text) {
+    var str = String(text || "");
+    var hash = 2166136261;
+    for (var i = 0; i < str.length; i++) {
+      hash ^= str.charCodeAt(i);
+      hash = (hash * 16777619) >>> 0;
+    }
+    return ("00000000" + hash.toString(16)).slice(-8);
+  }
+
+  function buildTerrainTileSetId(options) {
+    var opt = options || {};
+    var bbox = opt.bbox || {};
+    var decode = opt.decodePayload || {};
+    var payload = {
+      bbox: {
+        west: roundTo(bbox.west, 6),
+        south: roundTo(bbox.south, 6),
+        east: roundTo(bbox.east, 6),
+        north: roundTo(bbox.north, 6),
+      },
+      cellSizeMeters: roundTo(opt.cellSizeMeters, 3),
+      maxResolution: Math.round(Number(opt.maxResolution) || TERRAIN_MAX_RESOLUTION),
+      demPath: String(opt.demPath || ""),
+      demDecodeMode: String(decode.dem_decode_mode || "none"),
+      demDecodeBand: Number(decode.dem_decode_band || 1),
+      demDecodeScale: roundTo(decode.dem_decode_scale, 6),
+      demDecodeOffset: roundTo(decode.dem_decode_offset, 6),
+      demDecodeNodata: (decode.dem_decode_nodata === null || typeof decode.dem_decode_nodata === "undefined")
+        ? null
+        : roundTo(decode.dem_decode_nodata, 6),
+      startPoint: Array.isArray(opt.startPoint) ? [roundTo(opt.startPoint[0], 6), roundTo(opt.startPoint[1], 6)] : null,
+      endPoint: Array.isArray(opt.endPoint) ? [roundTo(opt.endPoint[0], 6), roundTo(opt.endPoint[1], 6)] : null,
+    };
+    return "ts_" + hashStringFNV1a(stableStringify(payload));
+  }
+
   function appendCacheBust(url, marker) {
     var base = String(url || "");
     var sep = base.indexOf("?") >= 0 ? "&" : "?";
@@ -379,20 +606,25 @@
     }
   }
 
-  async function requestAnalysisJson(baseUrl, endpoint, payload, timeoutMs, stageLabel) {
+  // 统一请求入口：内置超时、HTTP错误翻译、JSON完整性校验、有限重试。
+  async function requestAnalysisJson(baseUrl, endpoint, payload, timeoutMs, stageLabel, runCtx) {
     var label = String(stageLabel || "分析请求");
     var maxAttempts = 3;
     var lastError = null;
 
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      ensureRunNotCancelled(runCtx);
       var response;
       try {
         response = await fetchJsonWithTimeout(`${baseUrl}${endpoint}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
-        }, timeoutMs);
+        }, timeoutMs, runCtx);
       } catch (error) {
+        if (runCtx && runCtx.cancelled) {
+          throw new Error(runCtx.reason || "分析已终止");
+        }
         if (error && error.name === "AbortError") {
           throw new Error(label + " 超时并中止（" + Math.round((timeoutMs || REQUEST_TIMEOUT_MS) / 1000) + "s）");
         }
@@ -422,6 +654,7 @@
       }
 
       try {
+        ensureRunNotCancelled(runCtx);
         var data = await parseJsonResponseSafe(response, label + " 返回");
         var artifacts = Array.isArray(data.artifacts) ? data.artifacts : [];
         if (!artifacts.length) {
@@ -441,23 +674,42 @@
     throw lastError || new Error(label + " 请求失败");
   }
 
+  // 地形分析分块编排：
+  // 1) 计算分块布局
+  // 2) 按块请求后端
+  // 3) 合并所有artifact并返回给渲染层
   async function runTerrainAnalysisWithAutoTiling(options) {
     var baseUrl = options.baseUrl;
     var bbox = options.bbox;
     var cellSizeMeters = options.cellSizeMeters;
+    var viewer = options.viewer;
     var maxResolution = options.maxResolution;
     var formats = options.formats;
     var demPath = options.demPath;
     var decodePayload = options.decodePayload;
     var analysisType = options.analysisType;
+    var startPoint = Array.isArray(options.startPoint) ? options.startPoint : null;
+    var endPoint = Array.isArray(options.endPoint) ? options.endPoint : null;
+    var silent = !!options.silent;
     var overlapCells = Math.max(0, Number(options.tileOverlapCells) || 0);
+    var tileSetId = options.tileSetId || null;
+    var tileKeyBase = options.tileKey || null;
+    var tileEdgeTarget = options.tileEdgeTarget;
+    var skipRequestLodScale = !!options.skipRequestLodScale;
+    var runCtx = options.runCtx || null;
 
-    var layout = estimateTerrainTileLayout(bbox, cellSizeMeters, maxResolution);
+    var fixedTileLayout = options.fixedTileLayout || null;
+    var layout = fixedTileLayout || estimateTerrainTileLayout(
+      bbox,
+      cellSizeMeters,
+      maxResolution,
+      { edgeTarget: tileEdgeTarget }
+    );
     if (layout.total > 64) {
       throw new Error("当前图幅过大，自动分块后达到 " + layout.total + " 块（上限64）。请增大米/格或缩小范围。");
     }
 
-    if (layout.total > 1) {
+    if (!silent && layout.total > 1) {
       showToast("检测到超大图幅，已启用自动分块分析（" + layout.cols + "x" + layout.rows + "）", false);
     }
 
@@ -466,17 +718,32 @@
     var requestIds = [];
     var demSource = null;
     var lastTimeoutMs = REQUEST_TIMEOUT_MS;
+    var cacheHits = 0;
+    var cacheMisses = 0;
+    var requestLodCellScale = skipRequestLodScale ? 1.0 : getTerrainRequestLodCellScale(viewer);
+    var effectiveCellSizeMeters = Math.max(1.0, Number(cellSizeMeters) * requestLodCellScale);
 
+    // 顺序请求分块，便于控制峰值负载和错误定位。
     for (var i = 0; i < tiles.length; i++) {
+      ensureRunNotCancelled(runCtx);
       var tile = tiles[i];
       var expandedBbox = expandTileBBoxWithOverlap(tile.bbox, bbox, layout.cols, layout.rows, overlapCells);
-      var tileResInfo = estimateResolutionFromCellSize(expandedBbox, cellSizeMeters, maxResolution);
+      var tileResInfo = estimateResolutionFromCellSize(expandedBbox, effectiveCellSizeMeters, maxResolution);
       var tileResolution = Number(tileResInfo.resolution);
       var timeoutMs = estimateAnalysisTimeoutMs("terrain", tileResolution, formats.length, !!demPath);
       lastTimeoutMs = timeoutMs;
 
       var tileLabel = "分块分析 " + (i + 1) + "/" + tiles.length + " (N=" + tileResolution + ")";
-      setStatus(tileLabel + "...");
+      if (!silent) {
+        setStatus(tileLabel + "...");
+      }
+
+      var tileKey = null;
+      if (tileKeyBase) {
+        tileKey = layout.total > 1
+          ? (tileKeyBase + "/sub/" + tile.row + "_" + tile.col)
+          : tileKeyBase;
+      }
 
       var tilePayload = Object.assign({
         bbox: expandedBbox,
@@ -484,15 +751,30 @@
         analysis_type: analysisType,
         output_formats: formats,
         dem_path: demPath || null,
+        tile_set_id: tileSetId,
+        tile_key: tileKey,
       }, decodePayload);
+      if (analysisType === "cost" && startPoint && endPoint) {
+        tilePayload.start_point = startPoint;
+        tilePayload.end_point = endPoint;
+      }
 
-      var tileData = await requestAnalysisJson(baseUrl, "/api/v1/analyze/terrain", tilePayload, timeoutMs, tileLabel);
+      var tileData = await requestAnalysisJson(baseUrl, "/api/v1/analyze/terrain", tilePayload, timeoutMs, tileLabel, runCtx);
+      ensureRunNotCancelled(runCtx);
+      var cacheHit = !!tileData.cache_hit;
+      if (cacheHit) {
+        cacheHits += 1;
+      } else {
+        cacheMisses += 1;
+      }
+      if (!silent) {
+        setStatus(tileLabel + (cacheHit ? " (缓存命中)" : " (新算)"));
+      }
       var tileArtifacts = Array.isArray(tileData.artifacts) ? tileData.artifacts : [];
       tileArtifacts = tileArtifacts.map(function (artifact) {
         if (!artifact || typeof artifact !== "object") return artifact;
         var extended = Object.assign({}, artifact);
-        // Keep tile core bbox for frontend clipping so overlap ring participates in
-        // calculation but is not rendered twice across adjacent tiles.
+        // 记录“核心bbox”：重叠环用于计算，但渲染时按核心区域裁剪，避免邻块重复绘制。
         extended._tileCoreBBox = tile.bbox;
         return extended;
       });
@@ -507,7 +789,12 @@
       requestIds: requestIds,
       tileCount: tiles.length,
       tileLayout: layout,
+      fixedTileLayoutApplied: !!fixedTileLayout,
+      requestLodCellScale: requestLodCellScale,
+      effectiveCellSizeMeters: effectiveCellSizeMeters,
       lastTimeoutMs: lastTimeoutMs,
+      cacheHits: cacheHits,
+      cacheMisses: cacheMisses,
     };
   }
 
@@ -520,6 +807,7 @@
     var decodePayload = options.decodePayload;
     var startPoint = options.startPoint;
     var endPoint = options.endPoint;
+    var runCtx = options.runCtx || null;
 
     var stages = buildPathResolutionStages(targetResolution);
     var tried = [];
@@ -529,6 +817,7 @@
     var lastTimeoutMs = REQUEST_TIMEOUT_MS;
 
     for (var i = 0; i < stages.length; i++) {
+      ensureRunNotCancelled(runCtx);
       var stageResolution = stages[i];
       tried.push(stageResolution);
       var timeoutMs = estimateAnalysisTimeoutMs("path", stageResolution, formats.length, !!demPath);
@@ -546,7 +835,8 @@
       }, decodePayload);
 
       try {
-        var data = await requestAnalysisJson(baseUrl, "/api/v1/analyze/path", payload, timeoutMs, label);
+        var data = await requestAnalysisJson(baseUrl, "/api/v1/analyze/path", payload, timeoutMs, label, runCtx);
+        ensureRunNotCancelled(runCtx);
         bestData = data;
         bestResolution = stageResolution;
         succeeded.push(stageResolution);
@@ -598,6 +888,47 @@
     return !(a.east <= b.west || a.west >= b.east || a.north <= b.south || a.south >= b.north);
   }
 
+  function bboxCenter(b) {
+    if (!b) return null;
+    return {
+      lon: (Number(b.west) + Number(b.east)) * 0.5,
+      lat: (Number(b.south) + Number(b.north)) * 0.5,
+    };
+  }
+
+  function expandBBoxByRatio(b, ratio) {
+    if (!b) return null;
+    var r = Math.max(0, Number(ratio) || 0);
+    var dx = (Number(b.east) - Number(b.west)) * r;
+    var dy = (Number(b.north) - Number(b.south)) * r;
+    return {
+      west: Number(b.west) - dx,
+      south: Number(b.south) - dy,
+      east: Number(b.east) + dx,
+      north: Number(b.north) + dy,
+    };
+  }
+
+  function approxTileDistanceScore(tileBBox, viewBBox) {
+    if (!tileBBox || !viewBBox) return Number.MAX_VALUE;
+    var tc = bboxCenter(tileBBox);
+    var vc = bboxCenter(viewBBox);
+    if (!tc || !vc) return Number.MAX_VALUE;
+    var dLon = tc.lon - vc.lon;
+    var dLat = tc.lat - vc.lat;
+    return dLon * dLon + dLat * dLat;
+  }
+
+  function getTerrainLodMaxActiveByHeight(viewer) {
+    if (!viewer || !viewer.camera || !viewer.camera.positionCartographic) {
+      return TERRAIN_LOD_ACTIVE_TILES_NEAR;
+    }
+    var h = Number(viewer.camera.positionCartographic.height) || 0;
+    if (h >= TERRAIN_LOD_HEIGHT_MID_M) return TERRAIN_LOD_ACTIVE_TILES_FAR;
+    if (h >= TERRAIN_LOD_HEIGHT_NEAR_M) return TERRAIN_LOD_ACTIVE_TILES_MID;
+    return TERRAIN_LOD_ACTIVE_TILES_NEAR;
+  }
+
   function bboxText(b) {
     if (!b) return "-";
     return "[" +
@@ -605,6 +936,168 @@
       Number(b.south).toFixed(6) + ", " +
       Number(b.east).toFixed(6) + ", " +
       Number(b.north).toFixed(6) + "]";
+  }
+
+  // 近似面积（经纬度矩形）用于视域占比估算，驱动LOD层级选择。
+  function bboxAreaApprox(b) {
+    if (!b) return 0;
+    var w = Math.max(0, Number(b.east) - Number(b.west));
+    var h = Math.max(0, Number(b.north) - Number(b.south));
+    return w * h;
+  }
+
+  function intersectBBox(a, b) {
+    if (!a || !b) return null;
+    var west = Math.max(Number(a.west), Number(b.west));
+    var south = Math.max(Number(a.south), Number(b.south));
+    var east = Math.min(Number(a.east), Number(b.east));
+    var north = Math.min(Number(a.north), Number(b.north));
+    if (west >= east || south >= north) return null;
+    return { west: west, south: south, east: east, north: north };
+  }
+
+  function smoothDynamicQtreeRatio(state, rawRatio) {
+    var alpha = Number(TERRAIN_DYNAMIC_QTREE_RATIO_SMOOTHING);
+    if (!state || !(alpha > 0 && alpha < 1)) return rawRatio;
+    if (!Number.isFinite(state.lastRatio)) {
+      state.lastRatio = rawRatio;
+      return rawRatio;
+    }
+    state.lastRatio = state.lastRatio * (1 - alpha) + rawRatio * alpha;
+    return state.lastRatio;
+  }
+
+  // 四叉树最大层级由 TERRAIN_DYNAMIC_QTREE_CELL_SCALES 数组长度决定。
+  function getTerrainQtreeMaxLevel() {
+    return Math.max(0, (Array.isArray(TERRAIN_DYNAMIC_QTREE_CELL_SCALES) ? TERRAIN_DYNAMIC_QTREE_CELL_SCALES.length : 1) - 1);
+  }
+
+  // 根据层级取网格缩放倍率：层级越高，scale 越小，分辨率越细。
+  function getTerrainQtreeCellScale(levelIndex) {
+    var maxLevel = getTerrainQtreeMaxLevel();
+    var idx = Math.max(0, Math.min(maxLevel, Number(levelIndex) || 0));
+    var scales = Array.isArray(TERRAIN_DYNAMIC_QTREE_CELL_SCALES) ? TERRAIN_DYNAMIC_QTREE_CELL_SCALES : [1.0];
+    var s = Number(scales[idx]);
+    var safe = Number.isFinite(s) && s > 0 ? s : 1.0;
+    return Math.max(1.0, safe);
+  }
+
+  function getDynamicTileEdgeTargetByLevel(levelIndex, baseTarget) {
+    var idx = Math.max(0, Number(levelIndex) || 0);
+    var target = Number(baseTarget) || TERRAIN_DYNAMIC_TILE_EDGE_TARGET;
+    if (idx >= 4) {
+      target = TERRAIN_DYNAMIC_TILE_EDGE_TARGET_L4;
+    } else if (idx >= 3) {
+      target = TERRAIN_DYNAMIC_TILE_EDGE_TARGET_L3;
+    }
+    return Math.max(64, Math.round(target));
+  }
+
+  // 按相机高度建议层级（越近越细）。
+  function getTerrainQtreeLodByHeight(viewer) {
+    var maxLevel = getTerrainQtreeMaxLevel();
+    if (!viewer || !viewer.camera || !viewer.camera.positionCartographic) {
+      return { levelIndex: 0, height: 0 };
+    }
+
+    var h = Number(viewer.camera.positionCartographic.height) || 0;
+    var idx = 0;
+    if (h < TERRAIN_DYNAMIC_QTREE_HEIGHT_L1_M) idx = 1;
+    if (h < TERRAIN_DYNAMIC_QTREE_HEIGHT_L2_M) idx = 2;
+    if (h < TERRAIN_DYNAMIC_QTREE_HEIGHT_L3_M) idx = 3;
+    if (h < TERRAIN_DYNAMIC_QTREE_HEIGHT_L4_M) idx = 4;
+    return {
+      levelIndex: Math.max(0, Math.min(maxLevel, idx)),
+      height: h,
+    };
+  }
+
+  // 按“视域占分析范围比例”建议层级（视域越小越细）。
+  function getTerrainQtreeLodByRatio(ratio) {
+    var r = Math.max(0, Math.min(1, Number(ratio) || 1));
+    var idx = 0;
+    if (r <= TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L1) idx = 1;
+    if (r <= TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L2) idx = 2;
+    if (r <= TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L3) idx = 3;
+    if (r <= TERRAIN_DYNAMIC_QTREE_VIEW_RATIO_L4) idx = 4;
+    return Math.max(0, Math.min(getTerrainQtreeMaxLevel(), idx));
+  }
+
+  function ensureTerrainLodBadge() {
+    var badge = document.getElementById("terrain-lod-badge");
+    if (badge) return badge;
+
+    badge = document.createElement("div");
+    badge.id = "terrain-lod-badge";
+    badge.style.cssText = "position:fixed;right:16px;top:92px;z-index:12020;padding:7px 10px;border-radius:8px;background:rgba(5,16,34,.9);border:1px solid rgba(120,160,210,.6);color:#d8e8ff;font-size:12px;line-height:1.35;display:none;box-shadow:0 6px 18px rgba(0,0,0,.35);";
+    document.body.appendChild(badge);
+    return badge;
+  }
+
+  // 角标只负责“可观测性”：给用户实时看到当前层级、米/格、缓存规模。
+  function updateTerrainLodBadge(lod, baseCellSizeMeters) {
+    var badge = ensureTerrainLodBadge();
+    if (!lod) {
+      badge.style.display = "none";
+      return;
+    }
+
+    var cellSize = Math.max(1, Number(baseCellSizeMeters) * Number(lod.scale || 1));
+    var ratioText = Number.isFinite(Number(lod.ratio)) ? (Number(lod.ratio) * 100).toFixed(1) + "%" : "-";
+    var hText = Number.isFinite(Number(lod.height)) ? Number(lod.height).toFixed(0) + "m" : "-";
+    var tileText = Number.isFinite(Number(lod.targetTileCount)) ? (" | 视域瓦片: " + Number(lod.targetTileCount)) : "";
+    var cacheText = Number.isFinite(Number(lod.cachedTileCount)) ? (" | 缓存瓦片: " + Number(lod.cachedTileCount)) : "";
+    badge.innerHTML = "LOD: <b>" + lod.level + "</b> | 米/格: <b>" + cellSize.toFixed(1) + "</b>" + tileText + cacheText + "<br>视域占比: " + ratioText + " | 相机高: " + hText;
+    badge.style.display = "block";
+  }
+
+  function hideTerrainLodBadge() {
+    var badge = document.getElementById("terrain-lod-badge");
+    if (badge) {
+      badge.style.display = "none";
+    }
+  }
+
+  // 合成LOD：取“高度建议”和“视域比例建议”的保守结果，避免过细导致OOM。
+  function getDynamicTerrainLodLevel(viewer, analysisBBox, viewBBox, state) {
+    var effectiveView = viewBBox || getViewBBox(viewer);
+    var byHeight = getTerrainQtreeLodByHeight(viewer);
+    if (!effectiveView) {
+      return {
+        level: "L0",
+        levelIndex: 0,
+        scale: getTerrainQtreeCellScale(0),
+        ratio: 1,
+        height: byHeight.height,
+        byRatioLevel: "L0",
+        byHeightLevel: "L" + byHeight.levelIndex,
+      };
+    }
+
+    var analysisArea = bboxAreaApprox(analysisBBox);
+    var intersected = intersectBBox(effectiveView, analysisBBox);
+    var viewArea = bboxAreaApprox(intersected);
+    var ratio = analysisArea > 0 ? Math.max(0, Math.min(1, viewArea / analysisArea)) : 1;
+    ratio = smoothDynamicQtreeRatio(state, ratio);
+
+    var byRatioIdx = getTerrainQtreeLodByRatio(ratio);
+    var maxLevel = getTerrainQtreeMaxLevel();
+    var bonus = Math.max(0, Math.floor(Number(TERRAIN_DYNAMIC_QTREE_HEIGHT_BONUS_LEVELS) || 0));
+    var heightCap = Math.min(maxLevel, byHeight.levelIndex + bonus);
+    // 若视域基本覆盖全域，则保持 L0，即使相机高度建议可升到 L1+。
+    var idx = byRatioIdx === 0
+      ? 0
+      : Math.max(byHeight.levelIndex, Math.min(byRatioIdx, heightCap));
+    var chosen = {
+      level: "L" + idx,
+      levelIndex: idx,
+      scale: getTerrainQtreeCellScale(idx),
+    };
+    chosen.ratio = ratio;
+    chosen.height = byHeight.height;
+    chosen.byRatioLevel = "L" + byRatioIdx;
+    chosen.byHeightLevel = "L" + byHeight.levelIndex;
+    return chosen;
   }
 
   function setDecodePanelVisible(visible, message, suggestions) {
@@ -702,12 +1195,54 @@
     setDecodePanelVisible(false);
   }
 
-  async function fetchJsonWithTimeout(url, options, timeoutMs) {
+  function createAnalysisRunContext() {
+    return {
+      id: Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+      cancelled: false,
+      reason: "",
+      controllers: [],
+    };
+  }
+
+  function registerRunController(runCtx, controller) {
+    if (!runCtx || !controller) return;
+    if (!Array.isArray(runCtx.controllers)) {
+      runCtx.controllers = [];
+    }
+    runCtx.controllers.push(controller);
+  }
+
+  function cancelAnalysisRun(runCtx, reason) {
+    if (!runCtx || runCtx.cancelled) return;
+    runCtx.cancelled = true;
+    runCtx.reason = String(reason || "分析已终止");
+    var ctrls = Array.isArray(runCtx.controllers) ? runCtx.controllers : [];
+    for (var i = 0; i < ctrls.length; i++) {
+      try {
+        ctrls[i].abort();
+      } catch (_) {
+        // 忽略重复 abort。
+      }
+    }
+  }
+
+  function ensureRunNotCancelled(runCtx) {
+    if (runCtx && runCtx.cancelled) {
+      throw new Error(runCtx.reason || "分析已终止");
+    }
+  }
+
+  async function fetchJsonWithTimeout(url, options, timeoutMs, runCtx) {
+    ensureRunNotCancelled(runCtx);
     var controller = new AbortController();
+    registerRunController(runCtx, controller);
     var timer = setTimeout(function () {
       controller.abort();
     }, timeoutMs || REQUEST_TIMEOUT_MS);
     try {
+      if (runCtx && runCtx.cancelled) {
+        controller.abort();
+      }
       var response = await fetch(url, Object.assign({}, options || {}, { signal: controller.signal }));
       return response;
     } finally {
@@ -739,6 +1274,195 @@
       throw new Error(txt || ("读取 DEM 元数据失败: HTTP " + response.status));
     }
     return response.json();
+  }
+
+  function pickLonLatOnGlobe(viewer, screenPosition) {
+    if (!viewer || !screenPosition) return null;
+    var ray = viewer.camera.getPickRay(screenPosition);
+    var cartesian = ray ? viewer.scene.globe.pick(ray, viewer.scene) : null;
+    if (!cartesian && viewer.scene.pickPositionSupported) {
+      cartesian = viewer.scene.pickPosition(screenPosition);
+    }
+    if (!cartesian) return null;
+    var c = Cesium.Cartographic.fromCartesian(cartesian);
+    if (!c) return null;
+    return {
+      lon: Cesium.Math.toDegrees(c.longitude),
+      lat: Cesium.Math.toDegrees(c.latitude),
+    };
+  }
+
+  function pointInBboxWgs84(pt, bbox) {
+    if (!pt || !bbox) return false;
+    return pt.lon >= Number(bbox.west) &&
+      pt.lon <= Number(bbox.east) &&
+      pt.lat >= Number(bbox.south) &&
+      pt.lat <= Number(bbox.north);
+  }
+
+  function buildExpandedDiagonalBBoxWgs84(p1, p2, expandMeters, limitBBox) {
+    var west0 = Math.min(Number(p1.lon), Number(p2.lon));
+    var east0 = Math.max(Number(p1.lon), Number(p2.lon));
+    var south0 = Math.min(Number(p1.lat), Number(p2.lat));
+    var north0 = Math.max(Number(p1.lat), Number(p2.lat));
+    var centerLatRad = Cesium.Math.toRadians((south0 + north0) * 0.5);
+    var metersPerDegLon = 111320.0 * Math.max(1e-6, Math.cos(centerLatRad));
+    var metersPerDegLat = 110574.0;
+    var dLon = Math.max(0, Number(expandMeters) || 0) / metersPerDegLon;
+    var dLat = Math.max(0, Number(expandMeters) || 0) / metersPerDegLat;
+
+    var bbox = {
+      west: west0 - dLon,
+      south: south0 - dLat,
+      east: east0 + dLon,
+      north: north0 + dLat,
+    };
+
+    if (limitBBox) {
+      bbox.west = Math.max(Number(limitBBox.west), bbox.west);
+      bbox.south = Math.max(Number(limitBBox.south), bbox.south);
+      bbox.east = Math.min(Number(limitBBox.east), bbox.east);
+      bbox.north = Math.min(Number(limitBBox.north), bbox.north);
+    }
+    return bbox;
+  }
+
+  function cleanupCostTwoPointPick(viewer) {
+    var ctx = global._terrainBackendCostPickCtx;
+    if (!ctx) return;
+    if (ctx.handler) {
+      try {
+        ctx.handler.destroy();
+      } catch (_) {
+        // 忽略销毁异常。
+      }
+    }
+    if (viewer && Array.isArray(ctx.entities)) {
+      for (var i = 0; i < ctx.entities.length; i++) {
+        try {
+          viewer.entities.remove(ctx.entities[i]);
+        } catch (_) {
+          // 忽略无效实体句柄。
+        }
+      }
+    }
+    global._terrainBackendCostPickCtx = null;
+  }
+
+  function cancelCostTwoPointPick(viewer) {
+    var ctx = global._terrainBackendCostPickCtx;
+    if (ctx && typeof ctx.finish === "function") {
+      try {
+        ctx.finish(null);
+        return;
+      } catch (_) {
+        // 若 finish 异常，降级到直接清理。
+      }
+    }
+    cleanupCostTwoPointPick(viewer);
+  }
+
+  function pickCostAnalysisDiagonalBBox(viewer, demBounds, expandMeters) {
+    cleanupCostTwoPointPick(viewer);
+    return new Promise(function (resolve) {
+      var selected = [];
+      var entities = [];
+      var movingPoint = null;
+      var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+
+      var settled = false;
+      function finish(result) {
+        if (settled) return;
+        settled = true;
+        cleanupCostTwoPointPick(viewer);
+        resolve(result || null);
+      }
+
+      handler.setInputAction(function (movement) {
+        if (!selected[0]) return;
+        movingPoint = pickLonLatOnGlobe(viewer, movement && movement.endPosition);
+      }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+      handler.setInputAction(function (movement) {
+        var pt = pickLonLatOnGlobe(viewer, movement && movement.position);
+        if (!pt) {
+          showToast("未拾取到地面点，请在地形区域重试", true);
+          return;
+        }
+        if (!pointInBboxWgs84(pt, demBounds)) {
+          showToast("选点超出 DEM 覆盖范围，请重新选择", true);
+          return;
+        }
+
+        selected.push(pt);
+        var marker = viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(pt.lon, pt.lat),
+          point: {
+            pixelSize: 10,
+            color: selected.length === 1 ? Cesium.Color.LIME : Cesium.Color.YELLOW,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 1,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+          },
+        });
+        entities.push(marker);
+
+        if (selected.length === 1) {
+          var previewRect = viewer.entities.add({
+            rectangle: {
+              coordinates: new Cesium.CallbackProperty(function () {
+                var p2 = movingPoint || selected[0];
+                return Cesium.Rectangle.fromDegrees(
+                  Math.min(selected[0].lon, p2.lon),
+                  Math.min(selected[0].lat, p2.lat),
+                  Math.max(selected[0].lon, p2.lon),
+                  Math.max(selected[0].lat, p2.lat)
+                );
+              }, false),
+              material: Cesium.Color.CYAN.withAlpha(0.15),
+              outline: true,
+              outlineColor: Cesium.Color.CYAN,
+              height: 0,
+            },
+          });
+          entities.push(previewRect);
+          showToast("已选第1点，请点击第2点完成通行代价分析区域");
+          return;
+        }
+
+        var minSpan = 1e-7;
+        if (Math.abs(selected[0].lon - selected[1].lon) < minSpan ||
+            Math.abs(selected[0].lat - selected[1].lat) < minSpan) {
+          showToast("两个点过近或共经纬线，无法形成有效区域，请重选", true);
+          selected = [];
+          for (var ei = 0; ei < entities.length; ei++) {
+            try {
+              viewer.entities.remove(entities[ei]);
+            } catch (_) {}
+          }
+          entities = [];
+          return;
+        }
+
+        var bbox = buildExpandedDiagonalBBoxWgs84(selected[0], selected[1], expandMeters, demBounds);
+        finish({
+          bbox: bbox,
+          startPoint: [selected[0].lon, selected[0].lat],
+          endPoint: [selected[1].lon, selected[1].lat],
+        });
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      handler.setInputAction(function () {
+        showToast("已取消两点选区");
+        finish(null);
+      }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+
+      global._terrainBackendCostPickCtx = {
+        handler: handler,
+        entities: entities,
+        finish: finish,
+      };
+    });
   }
 
   // 由于后端可能在写出结果文件后才清理缓存，所以前端在分析完成后会主动请求一次清理，避免用户下一次分析时拿到过期的结果文件。
@@ -777,6 +1501,27 @@
     }
   }
 
+  async function clearBackendTileCache(baseUrl, options) {
+    var cfg = options || {};
+    var silent = cfg.silent !== false;
+    var root = String(baseUrl || "http://127.0.0.1:8000").replace(/\/+$/, "");
+    var url = root + "/api/v1/cache/tiles/clear";
+    try {
+      var response = await fetch(url, {
+        method: "POST",
+        keepalive: true,
+        cache: "no-store",
+      });
+      if (!response.ok && !silent) {
+        showToast("后端瓦片缓存清理失败: HTTP " + response.status, true);
+      }
+    } catch (_) {
+      if (!silent) {
+        showToast("后端瓦片缓存清理请求失败", true);
+      }
+    }
+  }
+
   function getBackendTaskUri() {
     return "vscode://command/workbench.action.tasks.runTask?%5B%22Start%20Backend%22%5D";
   }
@@ -792,7 +1537,7 @@
     if (isHttpPage) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText("cd backend; .\\run_backend.ps1").catch(function () {
-          // ignore clipboard failures
+          // 忽略剪贴板写入失败，不阻断主流程。
         });
       }
       setStatus("当前为浏览器页面，无法静默拉起 VS Code 任务；已复制启动命令", true);
@@ -826,7 +1571,7 @@
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText("cd backend; .\\run_backend.ps1").catch(function () {
-        // ignore clipboard failures
+        // 忽略剪贴板写入失败，不阻断主流程。
       });
     }
     setStatus("无法自动启动后端，已复制启动命令", true);
@@ -890,7 +1635,21 @@
     var pickedId = pickedObject.id;
 
     if (pickedId && pickedId.type === "TerrainBackendCell" && Number.isFinite(Number(pickedId.value))) {
-      return metricLabel(pickedId.metric) + ": " + Number(pickedId.value).toFixed(4);
+      var baseText = metricLabel(pickedId.metric) + ": " + Number(pickedId.value).toFixed(4);
+      if (String(pickedId.metric || "").toLowerCase() === "cost") {
+        var parts = [baseText];
+        if (Number.isFinite(Number(pickedId.slopeDeg))) {
+          parts.push("坡度: " + Number(pickedId.slopeDeg).toFixed(3) + "°");
+        }
+        if (Number.isFinite(Number(pickedId.minCostDirDeg))) {
+          parts.push("最小代价坡向: " + Number(pickedId.minCostDirDeg).toFixed(1) + "°");
+        }
+        if (Number.isFinite(Number(pickedId.minCostDirSlopeDeg))) {
+          parts.push("该方向坡度: " + Number(pickedId.minCostDirSlopeDeg).toFixed(3) + "°");
+        }
+        return parts.join(" | ");
+      }
+      return baseText;
     }
 
     var entity = pickedId;
@@ -1031,7 +1790,21 @@
     panel.dataset.beautified = "1";
   }
 
-  function clearManagedBackendLayers(viewer) {
+  function clearManagedBackendLayers(viewer, options) {
+    var cfg = options || {};
+    cancelCostTwoPointPick(viewer);
+    if (!cfg.keepDynamicLod) {
+      stopDynamicTerrainRequestLod(viewer);
+    }
+
+    if (global._terrainBackendLodState && viewer) {
+      try {
+        releaseTerrainLodState(viewer);
+      } catch (_) {
+        // 全量清理阶段忽略 LOD 释放异常，避免影响主清理流程。
+      }
+    }
+
     if (window.sidebarManager && Array.isArray(window.sidebarManager.layers)) {
       var managed = window.sidebarManager.layers.filter(function (layer) {
         return layer && layer.extras && layer.extras._backendManaged === true;
@@ -1040,7 +1813,7 @@
         try {
           window.sidebarManager.removeLayer(layer.id);
         } catch (_) {
-          // ignore single-layer cleanup errors
+          // 忽略单图层清理异常，继续处理剩余图层。
         }
       });
     }
@@ -1056,7 +1829,7 @@
               viewer.scene.primitives.remove(item.primitive);
             }
           } catch (_) {
-            // ignore stale primitive handles
+            // 忽略失效 primitive 句柄异常。
           }
         }
         continue;
@@ -1064,10 +1837,869 @@
       try {
         viewer.dataSources.remove(layer, true);
       } catch (_) {
-        // ignore stale datasource handles
+        // 忽略失效 dataSource 句柄异常。
       }
     }
     global._terrainBackendLayers = [];
+    global._terrainBackendSidebarLayerId = null;
+  }
+
+  async function renderTerrainArtifacts(viewer, artifacts, baseUrl, bbox, analysisType, options) {
+    options = options || {};
+    var runCtx = options.runCtx || null;
+    var targetLayerStore = Array.isArray(options.layerStore) ? options.layerStore : global._terrainBackendLayers;
+    var visibleOverride = typeof options.visibleOverride === "boolean" ? options.visibleOverride : null;
+    var registerSidebar = options.registerSidebar !== false;
+
+    releaseTerrainLodState(viewer);
+
+    var loadedCount = 0;
+    var failedCount = 0;
+    var firstError = null;
+
+    // 逐个artifact加载，失败可局部重试并容错，不让单个瓦片拖垮整体。
+    for (var i = 0; i < artifacts.length; i++) {
+      ensureRunNotCancelled(runCtx);
+      var item = artifacts[i];
+      var url = normalizeUrl(baseUrl, item.url);
+      var clipBbox = item._tileCoreBBox || bbox;
+      var isSlope = /slope_deg\./i.test(String(item.url || ""));
+      var keepVisible = !(analysisType === "comprehensive" && !isSlope);
+      var shouldShow = visibleOverride === null ? keepVisible : visibleOverride;
+
+      var maxRetry = item.format === "geojson" ? TERRAIN_GEOJSON_RENDER_RETRY_MAX : 1;
+      var success = false;
+      var lastError = null;
+      for (var attempt = 1; attempt <= maxRetry; attempt++) {
+        try {
+          await loadArtifactToCesium(
+            viewer,
+            url,
+            item.format,
+            targetLayerStore,
+            shouldShow,
+            { clipBbox: clipBbox, registerSidebar: registerSidebar, runCtx: runCtx }
+          );
+          ensureRunNotCancelled(runCtx);
+          success = true;
+          loadedCount += 1;
+          break;
+        } catch (error) {
+          lastError = error;
+          if (attempt < maxRetry) {
+            await sleepMs(350 * attempt);
+          }
+        }
+      }
+
+      if (!success) {
+        failedCount += 1;
+        if (!firstError) firstError = lastError;
+        console.warn("[TerrainBackend] 分块渲染失败，已跳过:", item && item.url, lastError);
+      }
+    }
+
+    if (!loadedCount) {
+      throw firstError || new Error("图层渲染失败：没有可用分块被成功加载");
+    }
+    if (failedCount > 0) {
+      showToast("部分分块渲染失败（" + failedCount + "），已加载其余可用分块", true);
+    }
+
+    return {
+      loadedCount: loadedCount,
+      failedCount: failedCount,
+    };
+  }
+
+  function terrainQtreeNodeKey(z, x, y) {
+    return z + "/" + x + "/" + y;
+  }
+
+  function getTerrainQtreeTileBBox(rootBBox, z, x, y) {
+    var levelDiv = Math.pow(2, Math.max(0, Number(z) || 0));
+    var lonStep = (Number(rootBBox.east) - Number(rootBBox.west)) / levelDiv;
+    var latStep = (Number(rootBBox.north) - Number(rootBBox.south)) / levelDiv;
+
+    return {
+      west: Number(rootBBox.west) + lonStep * x,
+      south: Number(rootBBox.south) + latStep * y,
+      east: x === levelDiv - 1 ? Number(rootBBox.east) : (Number(rootBBox.west) + lonStep * (x + 1)),
+      north: y === levelDiv - 1 ? Number(rootBBox.north) : (Number(rootBBox.south) + latStep * (y + 1)),
+    };
+  }
+
+  function ensureTerrainQtreeNode(state, z, x, y) {
+    if (!state) return null;
+    if (!state.nodeMap) state.nodeMap = {};
+
+    var zi = Math.max(0, Number(z) || 0);
+    var div = Math.pow(2, zi);
+    var xi = Math.max(0, Math.min(div - 1, Math.floor(Number(x) || 0)));
+    var yi = Math.max(0, Math.min(div - 1, Math.floor(Number(y) || 0)));
+    var key = terrainQtreeNodeKey(zi, xi, yi);
+    if (state.nodeMap[key]) return state.nodeMap[key];
+
+    var parentKey = null;
+    if (zi > 0) {
+      var parent = ensureTerrainQtreeNode(state, zi - 1, Math.floor(xi / 2), Math.floor(yi / 2));
+      parentKey = parent ? parent.key : null;
+    }
+
+    // 说明：nodeMap 是本文件核心“前端四叉树缓存”。
+    var node = {
+      key: key,
+      z: zi,
+      x: xi,
+      y: yi,
+      bbox: getTerrainQtreeTileBBox(state.bbox, zi, xi, yi),
+      parentKey: parentKey,
+      childrenKeys: [],
+      layerEntries: [],
+      loaded: false,
+      loading: false,
+      lastUsedAt: 0,
+      failureCount: 0,
+    };
+    state.nodeMap[key] = node;
+
+    if (parentKey && state.nodeMap[parentKey]) {
+      state.nodeMap[parentKey].childrenKeys.push(key);
+    }
+
+    return node;
+  }
+
+  function countTerrainQtreeLoadedDetailNodes(state) {
+    if (!state || !state.nodeMap) return 0;
+    var count = 0;
+    var keys = Object.keys(state.nodeMap);
+    for (var i = 0; i < keys.length; i++) {
+      var node = state.nodeMap[keys[i]];
+      if (node && node.z > 0 && node.loaded) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  function getTerrainQtreeNodesForView(state, targetLevel, viewBBox) {
+    if (!state || targetLevel <= 0) return [];
+    if (!viewBBox) return [];
+
+    var root = state.bbox;
+    var pad = Number(state.viewPaddingFactor);
+    if (!Number.isFinite(pad)) {
+      pad = TERRAIN_DYNAMIC_QTREE_VIEW_PADDING_FACTOR;
+    }
+    var expanded = expandBBoxByRatio(viewBBox, pad) || viewBBox;
+    if (!bboxIntersects(expanded, root)) {
+      return [];
+    }
+
+    var clamped = {
+      west: Math.max(Number(root.west), Number(expanded.west)),
+      south: Math.max(Number(root.south), Number(expanded.south)),
+      east: Math.min(Number(root.east), Number(expanded.east)),
+      north: Math.min(Number(root.north), Number(expanded.north)),
+    };
+
+    var n = Math.pow(2, targetLevel);
+    var spanLon = Math.max(1e-12, Number(root.east) - Number(root.west));
+    var spanLat = Math.max(1e-12, Number(root.north) - Number(root.south));
+
+    var xMin = Math.floor(((Number(clamped.west) - Number(root.west)) / spanLon) * n);
+    var xMax = Math.floor((((Number(clamped.east) - Number(root.west)) / spanLon) * n) - 1e-9);
+    var yMin = Math.floor(((Number(clamped.south) - Number(root.south)) / spanLat) * n);
+    var yMax = Math.floor((((Number(clamped.north) - Number(root.south)) / spanLat) * n) - 1e-9);
+
+    xMin = Math.max(0, Math.min(n - 1, xMin));
+    xMax = Math.max(0, Math.min(n - 1, xMax));
+    yMin = Math.max(0, Math.min(n - 1, yMin));
+    yMax = Math.max(0, Math.min(n - 1, yMax));
+
+    var nodes = [];
+    for (var y = yMin; y <= yMax; y++) {
+      for (var x = xMin; x <= xMax; x++) {
+        nodes.push(ensureTerrainQtreeNode(state, targetLevel, x, y));
+      }
+    }
+
+    nodes.sort(function (a, b) {
+      return approxTileDistanceScore(a && a.bbox, viewBBox) - approxTileDistanceScore(b && b.bbox, viewBBox);
+    });
+
+    var cap = Math.max(8, Math.min(TERRAIN_DYNAMIC_QTREE_VISIBLE_TILE_LIMIT, 4 * Math.pow(2, targetLevel)));
+    if (nodes.length > cap) {
+      nodes = nodes.slice(0, cap);
+    }
+    return nodes;
+  }
+
+  function removeTerrainQtreeNodeLayerData(viewer, node) {
+    if (!node || !Array.isArray(node.layerEntries) || !node.layerEntries.length) return;
+    var entries = node.layerEntries.slice();
+    for (var i = 0; i < entries.length; i++) {
+      removeManagedLayerEntry(viewer, entries[i]);
+    }
+    node.layerEntries = [];
+    node.loaded = false;
+  }
+
+  async function loadTerrainQtreeNode(state, node, requestSeq) {
+    if (!state || !node || state.disposed) return;
+    if (node.loaded || node.loading) return;
+
+    node.loading = true;
+    try {
+      var tileCellScale = getTerrainQtreeCellScale(node.z);
+      var tileEdgeTarget = getDynamicTileEdgeTargetByLevel(node.z, state.tileEdgeTarget);
+      // 只请求当前节点bbox，对应“动态请求”而非全域重算。
+      var runResult = await runTerrainAnalysisWithAutoTiling({
+        baseUrl: state.baseUrl,
+        viewer: state.viewer,
+        bbox: node.bbox,
+        cellSizeMeters: state.baseCellSizeMeters * tileCellScale,
+        maxResolution: state.maxResolution,
+        formats: state.formats,
+        demPath: state.demPath,
+        decodePayload: state.decodePayload,
+        analysisType: state.analysisType,
+        startPoint: state.startPoint,
+        endPoint: state.endPoint,
+        silent: true,
+        tileOverlapCells: TERRAIN_TILE_OVERLAP_CELLS,
+        tileSetId: state.tileSetId || null,
+        tileKey: node.key,
+        tileEdgeTarget: tileEdgeTarget,
+        skipRequestLodScale: true,
+      });
+
+      if (state.disposed || state.requestSeq !== requestSeq) {
+        return;
+      }
+
+      var artifacts = Array.isArray(runResult.artifacts) ? runResult.artifacts : [];
+      if (!artifacts.length) {
+        throw new Error("四叉树瓦片无可用结果");
+      }
+
+      // staged加载：先加载到临时数组，确认成功后再挂入全局管理。
+      var tileLayers = [];
+      try {
+        await renderTerrainArtifacts(
+          state.viewer,
+          artifacts,
+          state.baseUrl,
+          node.bbox,
+          state.analysisType,
+          {
+            layerStore: tileLayers,
+            visibleOverride: false,
+            registerSidebar: false,
+          }
+        );
+      } catch (stageError) {
+        cleanupManagedLayerStore(state.viewer, tileLayers);
+        throw stageError;
+      }
+
+      if (state.disposed || state.requestSeq !== requestSeq) {
+        cleanupManagedLayerStore(state.viewer, tileLayers);
+        return;
+      }
+
+      node.layerEntries = tileLayers;
+      for (var i = 0; i < tileLayers.length; i++) {
+        addManagedLayerEntry(tileLayers[i]);
+      }
+      node.loaded = true;
+      node.lastUsedAt = Date.now();
+      node.failureCount = 0;
+
+      var shouldShow = !!(state.requiredSet && state.requiredSet[node.key]);
+      setManagedLayerStoreVisibility(node.layerEntries, shouldShow);
+    } catch (error) {
+      node.failureCount = (node.failureCount || 0) + 1;
+      console.warn("[TerrainBackend] 四叉树瓦片加载失败:", node.key, error);
+      if (node.failureCount <= 2) {
+        showToast("四叉树瓦片加载失败(" + node.key + ")，将按需重试", true);
+      }
+    } finally {
+      node.loading = false;
+    }
+  }
+
+  async function loadTerrainQtreeNodes(state, nodes, requestSeq) {
+    var queue = Array.isArray(nodes) ? nodes.slice() : [];
+    if (!queue.length) return;
+
+    var cursor = 0;
+    // 限制并发，避免并发过高压垮浏览器和后端。
+    var workerCount = Math.max(1, Math.min(4, Number(TERRAIN_DYNAMIC_QTREE_LOAD_CONCURRENCY) || 1));
+    var workers = [];
+    for (var w = 0; w < workerCount; w++) {
+      workers.push((async function () {
+        while (true) {
+          if (state.disposed || state.requestSeq !== requestSeq) return;
+          if (cursor >= queue.length) return;
+          var node = queue[cursor];
+          cursor += 1;
+          await loadTerrainQtreeNode(state, node, requestSeq);
+        }
+      })());
+    }
+    await Promise.all(workers);
+  }
+
+  function evictTerrainQtreeCache(state, requiredSet) {
+    if (!state || !state.nodeMap) return;
+    var loadedDetail = [];
+    var keys = Object.keys(state.nodeMap);
+    for (var i = 0; i < keys.length; i++) {
+      var node = state.nodeMap[keys[i]];
+      if (!node || node.z <= 0 || !node.loaded || node.loading) continue;
+      if (requiredSet && requiredSet[node.key]) continue;
+      loadedDetail.push(node);
+    }
+
+    var loadedCount = countTerrainQtreeLoadedDetailNodes(state);
+    if (loadedCount <= TERRAIN_DYNAMIC_QTREE_CACHE_LIMIT) return;
+
+    // LRU近似：按最后使用时间淘汰旧节点。
+    loadedDetail.sort(function (a, b) {
+      return Number(a.lastUsedAt || 0) - Number(b.lastUsedAt || 0);
+    });
+
+    for (var k = 0; k < loadedDetail.length && loadedCount > TERRAIN_DYNAMIC_QTREE_CACHE_LIMIT; k++) {
+      removeTerrainQtreeNodeLayerData(state.viewer, loadedDetail[k]);
+      loadedCount -= 1;
+    }
+  }
+
+  function stopDynamicTerrainRequestLod(viewer) {
+    var state = global._terrainBackendDynamicLodState;
+    if (!state) {
+      hideTerrainLodBadge();
+      return;
+    }
+    state.disposed = true;
+    state.requestSeq = (state.requestSeq || 0) + 1;
+
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    if (state.onMoveEnd && state.viewer && state.viewer.camera && state.viewer.camera.moveEnd) {
+      try {
+        state.viewer.camera.moveEnd.removeEventListener(state.onMoveEnd);
+      } catch (_) {
+        // 忽略相机事件解绑异常。
+      }
+    }
+    if (state.onCameraChanged && state.viewer && state.viewer.camera && state.viewer.camera.changed) {
+      try {
+        state.viewer.camera.changed.removeEventListener(state.onCameraChanged);
+      } catch (_) {
+        // 忽略相机事件解绑异常。
+      }
+    }
+    hideTerrainLodBadge();
+    global._terrainBackendDynamicLodState = null;
+  }
+
+  function scheduleDynamicTerrainRequestLod(state, immediate) {
+    if (!state || state.disposed) return;
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    if (immediate) {
+      refreshDynamicTerrainRequestLod(state, false);
+      return;
+    }
+    state.timer = setTimeout(function () {
+      state.timer = null;
+      refreshDynamicTerrainRequestLod(state, false);
+    }, TERRAIN_DYNAMIC_LOD_SWITCH_DELAY_MS);
+  }
+
+  async function refreshDynamicTerrainRequestLod(state, force) {
+    if (!state || state.disposed) return;
+    if (state.refreshing) {
+      state.pendingForce = state.pendingForce || !!force;
+      return;
+    }
+
+    state.refreshing = true;
+    try {
+      do {
+        var shouldForce = !!state.pendingForce || !!force;
+        state.pendingForce = false;
+        force = false;
+
+        // Step 1: 计算目标层级 + 当前视域。
+        var viewBBox = resolveDynamicViewBBox(state);
+        var lod = getDynamicTerrainLodLevel(state.viewer, state.bbox, viewBBox, state);
+        var requiredNodes = getTerrainQtreeNodesForView(state, lod.levelIndex, viewBBox);
+        var requiredSet = {};
+        for (var i = 0; i < requiredNodes.length; i++) {
+          requiredSet[requiredNodes[i].key] = true;
+        }
+        state.requiredSet = requiredSet;
+
+        // Step 2: 用签名判断“视域目标集合是否变化”，避免无效刷新。
+        var requiredSignature = requiredNodes.map(function (n) { return n.key; }).sort().join("|");
+        lod.targetTileCount = requiredNodes.length;
+        lod.cachedTileCount = countTerrainQtreeLoadedDetailNodes(state);
+        updateTerrainLodBadge(lod, state.baseCellSizeMeters);
+
+        if (!shouldForce && state.currentLevel === lod.level && state.currentRequiredSignature === requiredSignature) {
+          continue;
+        }
+
+        var seq = (state.requestSeq || 0) + 1;
+        state.requestSeq = seq;
+
+        setStatus(
+          "四叉树动态请求中：" + lod.level +
+          "，视域瓦片=" + requiredNodes.length +
+          "，当前米/格=" + (state.baseCellSizeMeters * lod.scale).toFixed(1)
+        );
+
+        // Step 3: 先切换已缓存节点显隐，立即响应视图变化。
+        var keys = Object.keys(state.nodeMap || {});
+        for (var n = 0; n < keys.length; n++) {
+          var node = state.nodeMap[keys[n]];
+          if (!node || node.z <= 0 || !node.loaded) continue;
+          var shouldShowNode = !!requiredSet[node.key] && getTerrainBackendSidebarLayerVisible();
+          setManagedLayerStoreVisibility(node.layerEntries, shouldShowNode);
+          if (shouldShowNode) {
+            node.lastUsedAt = Date.now();
+          }
+        }
+
+        // Step 4: 只请求缺失节点。
+        var missingNodes = requiredNodes.filter(function (node2) {
+          return node2 && !node2.loaded && !node2.loading;
+        });
+        await loadTerrainQtreeNodes(state, missingNodes, seq);
+
+        if (state.disposed || state.requestSeq !== seq) {
+          continue;
+        }
+
+        for (var j = 0; j < requiredNodes.length; j++) {
+          var reqNode = requiredNodes[j];
+          if (reqNode && reqNode.loaded) {
+            reqNode.lastUsedAt = Date.now();
+            setManagedLayerStoreVisibility(reqNode.layerEntries, getTerrainBackendSidebarLayerVisible());
+          }
+        }
+
+        // Step 5: 做缓存回收，控制内存上限。
+        evictTerrainQtreeCache(state, requiredSet);
+        lod.cachedTileCount = countTerrainQtreeLoadedDetailNodes(state);
+        updateTerrainLodBadge(lod, state.baseCellSizeMeters);
+
+        state.currentLevel = lod.level;
+        state.currentRequiredSignature = requiredSignature;
+        setStatus(
+          "四叉树动态LOD已更新：" + lod.level +
+          "，视域瓦片=" + requiredNodes.length +
+          "，缓存瓦片=" + lod.cachedTileCount +
+          "，米/格=" + (state.baseCellSizeMeters * lod.scale).toFixed(1)
+        );
+      } while (state.pendingForce && !state.disposed);
+    } catch (error) {
+      if (!state.disposed) {
+        console.warn("[TerrainBackend] 四叉树动态LOD刷新失败:", error);
+        showToast("四叉树动态LOD刷新失败：" + (error && error.message ? error.message : "未知错误"), true);
+      }
+    } finally {
+      state.refreshing = false;
+    }
+  }
+
+  function startDynamicTerrainRequestLod(state) {
+    stopDynamicTerrainRequestLod(state.viewer);
+
+    state.disposed = false;
+    state.refreshing = false;
+    state.pendingForce = false;
+    state.requestSeq = 0;
+    state.timer = null;
+    state.currentLevel = state.initialLevel || "L0";
+    state.currentRequiredSignature = "";
+    state.nodeMap = {};
+    state.requiredSet = {};
+    state.lastViewBBox = null;
+    state.lastRatio = NaN;
+    state.viewPaddingFactor = TERRAIN_DYNAMIC_QTREE_VIEW_PADDING_FACTOR;
+
+    // 绑定 L0：初始全域粗层作为根节点常驻展示。
+    var rootNode = ensureTerrainQtreeNode(state, 0, 0, 0);
+    rootNode.loaded = true;
+    rootNode.layerEntries = Array.isArray(global._terrainBackendLayers) ? global._terrainBackendLayers.slice() : [];
+    rootNode.lastUsedAt = Date.now();
+    setManagedLayerStoreVisibility(rootNode.layerEntries, getTerrainBackendSidebarLayerVisible());
+
+    state.onMoveEnd = function () {
+      scheduleDynamicTerrainRequestLod(state, false);
+    };
+    state.viewer.camera.moveEnd.addEventListener(state.onMoveEnd);
+
+    state.onCameraChanged = function () {
+      var viewBBox = resolveDynamicViewBBox(state);
+      var lod = getDynamicTerrainLodLevel(state.viewer, state.bbox, viewBBox, state);
+      lod.cachedTileCount = countTerrainQtreeLoadedDetailNodes(state);
+      updateTerrainLodBadge(lod, state.baseCellSizeMeters);
+      if (lod.level !== state.currentLevel) {
+        scheduleDynamicTerrainRequestLod(state, false);
+      }
+    };
+    state.viewer.camera.changed.addEventListener(state.onCameraChanged);
+
+    global._terrainBackendDynamicLodState = state;
+    scheduleDynamicTerrainRequestLod(state, true);
+  }
+
+  function removeOneManagedLayer(viewer, layer) {
+    if (!layer) return;
+    if (layer.type === "analysis" && Array.isArray(layer.items)) {
+      for (var k = 0; k < layer.items.length; k++) {
+        try {
+          var item = layer.items[k];
+          if (item && item.primitive) viewer.scene.primitives.remove(item.primitive);
+        } catch (_) {
+          // 忽略失效 primitive 句柄异常。
+        }
+      }
+      return;
+    }
+    try {
+      viewer.dataSources.remove(layer, true);
+    } catch (_) {
+      // 忽略失效 dataSource 句柄异常。
+    }
+  }
+
+  function setOneManagedLayerVisibility(layer, visible) {
+    if (!layer) return;
+    if (layer.type === "analysis" && Array.isArray(layer.items)) {
+      for (var k = 0; k < layer.items.length; k++) {
+        try {
+          var item = layer.items[k];
+          if (item && item.primitive) {
+            item.primitive.show = !!visible;
+          }
+        } catch (_) {
+          // 忽略失效 primitive 句柄异常。
+        }
+      }
+      return;
+    }
+
+    if (typeof layer.show !== "undefined") {
+      layer.show = !!visible;
+    }
+  }
+
+  function setManagedLayerStoreVisibility(layerStore, visible) {
+    var list = Array.isArray(layerStore) ? layerStore : [];
+    for (var i = 0; i < list.length; i++) {
+      setOneManagedLayerVisibility(list[i], visible);
+    }
+  }
+
+  function cleanupManagedLayerStore(viewer, layerStore) {
+    var list = Array.isArray(layerStore) ? layerStore : [];
+    for (var i = 0; i < list.length; i++) {
+      removeOneManagedLayer(viewer, list[i]);
+    }
+  }
+
+  function addManagedLayerEntry(entry) {
+    if (!entry) return;
+    if (!Array.isArray(global._terrainBackendLayers)) global._terrainBackendLayers = [];
+    global._terrainBackendLayers.push(entry);
+    syncTerrainBackendSidebarLayerObject();
+    // 新加载的 LOD 图层继承侧边栏当前可见性与透明度状态。
+    applyTerrainBackendSidebarStateToEntry(entry);
+  }
+
+  function removeManagedLayerEntry(viewer, entry) {
+    if (!entry) return;
+    removeOneManagedLayer(viewer, entry);
+    var all = global._terrainBackendLayers || [];
+    var idx = all.indexOf(entry);
+    if (idx >= 0) {
+      all.splice(idx, 1);
+    }
+    syncTerrainBackendSidebarLayerObject();
+  }
+
+  function getTerrainBackendSidebarLayer() {
+    if (!window.sidebarManager || !global._terrainBackendSidebarLayerId) return null;
+    if (typeof window.sidebarManager.getLayerById !== "function") return null;
+    return window.sidebarManager.getLayerById(global._terrainBackendSidebarLayerId) || null;
+  }
+
+  function syncTerrainBackendSidebarLayerObject() {
+    var layer = getTerrainBackendSidebarLayer();
+    if (!layer) return;
+    layer.cesiumObject = Array.isArray(global._terrainBackendLayers) ? global._terrainBackendLayers : [];
+  }
+
+  function getTerrainBackendSidebarLayerVisible() {
+    var layer = getTerrainBackendSidebarLayer();
+    if (!layer) return true;
+    return layer.visible !== false;
+  }
+
+  function getTerrainBackendSidebarLayerOpacity() {
+    var layer = getTerrainBackendSidebarLayer();
+    if (!layer || !layer.extras) return 1.0;
+    var opacity = Number(layer.extras._opacity);
+    return Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 1.0;
+  }
+
+  function setPrimitiveItemOpacity(item, opacity) {
+    if (!item || !item.primitive || !item.primitive.appearance) return;
+    var mat = item.primitive.appearance.material;
+    if (!mat || !mat.uniforms || !mat.uniforms.color) return;
+    var c = item.baseColor || mat.uniforms.color;
+    mat.uniforms.color = new Cesium.Color(c.red, c.green, c.blue, opacity);
+  }
+
+  function setOneManagedLayerOpacity(entry, opacity) {
+    if (!entry) return;
+    var alpha = Math.max(0, Math.min(1, Number(opacity)));
+    if (!Number.isFinite(alpha)) alpha = 1.0;
+
+    if (entry.type === "analysis" && Array.isArray(entry.items)) {
+      for (var i = 0; i < entry.items.length; i++) {
+        setPrimitiveItemOpacity(entry.items[i], alpha);
+      }
+      return;
+    }
+
+    if (entry && entry.primitive) {
+      setPrimitiveItemOpacity(entry, alpha);
+      return;
+    }
+  }
+
+  function applyTerrainBackendSidebarStateToEntry(entry) {
+    setOneManagedLayerVisibility(entry, getTerrainBackendSidebarLayerVisible());
+    setOneManagedLayerOpacity(entry, getTerrainBackendSidebarLayerOpacity());
+  }
+
+  function registerOrUpdateTerrainBackendSidebarLayer(modeLabel) {
+    if (!window.sidebarManager || typeof window.sidebarManager.addLayer !== "function") return;
+    if (!Array.isArray(global._terrainBackendLayers)) global._terrainBackendLayers = [];
+
+    var typeLabel = modeLabel === "path" ? "路径分析" : "地形分析";
+    var layerName = "后端" + typeLabel + "（含动态LOD）";
+    if (global._terrainBackendSidebarLayerId &&
+        typeof window.sidebarManager.getLayerById === "function" &&
+        window.sidebarManager.getLayerById(global._terrainBackendSidebarLayerId)) {
+      var existing = window.sidebarManager.getLayerById(global._terrainBackendSidebarLayerId);
+      existing.name = layerName;
+      existing.type = "Analysis";
+      existing.group = "analysis";
+      existing.cesiumObject = global._terrainBackendLayers;
+      existing.extras = Object.assign({}, existing.extras || {}, {
+        _backendManaged: true,
+        _backendUnifiedLayer: true,
+      });
+      var nameEl = document.querySelector('[data-layer-id="' + existing.id + '"] .layer-item-name');
+      if (nameEl) {
+        nameEl.textContent = layerName;
+        nameEl.title = layerName + " (Analysis)";
+      }
+      return;
+    }
+
+    global._terrainBackendSidebarLayerId = window.sidebarManager.addLayer({
+      name: layerName,
+      type: "Analysis",
+      url: "__terrain_backend_unified__",
+      cesiumObject: global._terrainBackendLayers,
+      extras: {
+        _backendManaged: true,
+        _backendUnifiedLayer: true,
+      },
+    });
+  }
+
+  async function loadTerrainLodDescriptor(viewer, descriptor) {
+    // 旧方案遗留：按“描述符列表”做装卸载。
+    // 当前主流程已迁移到“四叉树nodeMap”，该函数保留以兼容历史调用。
+    if (!descriptor || descriptor.loaded || descriptor.loading) return;
+    descriptor.loading = true;
+    descriptor.layerEntries = [];
+    try {
+      await loadArtifactToCesium(
+        viewer,
+        descriptor.absoluteUrl,
+        descriptor.format,
+        descriptor.layerEntries,
+        descriptor.keepVisible,
+        {
+          clipBbox: descriptor.clipBbox,
+          registerSidebar: false,
+        }
+      );
+
+      for (var i = 0; i < descriptor.layerEntries.length; i++) {
+        addManagedLayerEntry(descriptor.layerEntries[i]);
+      }
+
+      descriptor.loaded = true;
+      descriptor.lastUsedAt = Date.now();
+    } finally {
+      descriptor.loading = false;
+    }
+  }
+
+  function unloadTerrainLodDescriptor(viewer, descriptor) {
+    if (!descriptor || !descriptor.loaded || descriptor.loading) return;
+    var entries = Array.isArray(descriptor.layerEntries) ? descriptor.layerEntries.slice() : [];
+    for (var i = 0; i < entries.length; i++) {
+      removeManagedLayerEntry(viewer, entries[i]);
+    }
+    descriptor.layerEntries = [];
+    descriptor.loaded = false;
+  }
+
+  function pickTerrainLodTargets(state) {
+    if (!state || !Array.isArray(state.descriptors)) return [];
+    var viewer = state.viewer;
+    var maxActive = getTerrainLodMaxActiveByHeight(viewer);
+    if (maxActive <= 0) return [];
+
+    var viewBBox = getViewBBox(viewer);
+    var expandedView = expandBBoxByRatio(viewBBox, TERRAIN_LOD_VIEW_PADDING_FACTOR);
+    var candidates = state.descriptors.filter(function (d) {
+      if (!d || !d.keepVisible) return false;
+      if (!expandedView) return true;
+      return bboxIntersects(d.tileBBox, expandedView);
+    });
+
+    if (!candidates.length) {
+      candidates = state.descriptors.filter(function (d2) {
+        return d2 && d2.keepVisible;
+      });
+    }
+
+    candidates.sort(function (a, b) {
+      var da = approxTileDistanceScore(a.tileBBox, viewBBox);
+      var db = approxTileDistanceScore(b.tileBBox, viewBBox);
+      return da - db;
+    });
+
+    return candidates.slice(0, Math.max(0, maxActive));
+  }
+
+  async function refreshTerrainLodNow(state) {
+    if (!state || state.disposed) return;
+    if (state.refreshing) {
+      state.pending = true;
+      return;
+    }
+
+    state.refreshing = true;
+    try {
+      do {
+        state.pending = false;
+        var targets = pickTerrainLodTargets(state);
+        var targetSet = {};
+        for (var i = 0; i < targets.length; i++) {
+          targetSet[targets[i].id] = true;
+        }
+
+        // 先卸载再加载，优先回收内存，避免加载近景新瓦片时内存峰值过高。
+        for (var j = 0; j < state.descriptors.length; j++) {
+          var d = state.descriptors[j];
+          if (d.loaded && !targetSet[d.id]) {
+            unloadTerrainLodDescriptor(state.viewer, d);
+          }
+        }
+
+        for (var k = 0; k < targets.length; k++) {
+          if (state.disposed) break;
+          await loadTerrainLodDescriptor(state.viewer, targets[k]);
+        }
+      } while (state.pending && !state.disposed);
+    } finally {
+      state.refreshing = false;
+    }
+  }
+
+  function scheduleTerrainLodRefresh(state, immediate) {
+    if (!state || state.disposed) return;
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    if (immediate) {
+      refreshTerrainLodNow(state);
+      return;
+    }
+    state.timer = setTimeout(function () {
+      state.timer = null;
+      refreshTerrainLodNow(state);
+    }, TERRAIN_LOD_UPDATE_DELAY_MS);
+  }
+
+  function releaseTerrainLodState(viewer) {
+    // 旧方案状态释放（与四叉树动态LOD状态并存时，优先确保资源可回收）。
+    var state = global._terrainBackendLodState;
+    if (!state) return;
+    state.disposed = true;
+
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    if (state.onMoveEnd && state.viewer && state.viewer.camera && state.viewer.camera.moveEnd) {
+      try {
+        state.viewer.camera.moveEnd.removeEventListener(state.onMoveEnd);
+      } catch (_) {
+        // 忽略相机监听解绑异常。
+      }
+    }
+
+    if (Array.isArray(state.descriptors)) {
+      for (var i = 0; i < state.descriptors.length; i++) {
+        unloadTerrainLodDescriptor(viewer || state.viewer, state.descriptors[i]);
+      }
+    }
+
+    global._terrainBackendLodState = null;
+  }
+
+  function initTerrainLodState(viewer, descriptors) {
+    releaseTerrainLodState(viewer);
+
+    var state = {
+      viewer: viewer,
+      descriptors: Array.isArray(descriptors) ? descriptors : [],
+      timer: null,
+      refreshing: false,
+      pending: false,
+      disposed: false,
+      onMoveEnd: null,
+    };
+
+    state.onMoveEnd = function () {
+      scheduleTerrainLodRefresh(state, false);
+    };
+    viewer.camera.moveEnd.addEventListener(state.onMoveEnd);
+
+    global._terrainBackendLodState = state;
+    scheduleTerrainLodRefresh(state, true);
   }
 
   function parseRgbaString(rgbaStr, fallbackAlpha) {
@@ -1128,16 +2760,18 @@
   async function loadGeojsonAsAnalysisPrimitives(viewer, absoluteUrl, shouldShow, options) {
     options = options || {};
     var clipBbox = options.clipBbox || null;
+    var runCtx = options.runCtx || null;
     var fc = null;
     var parseErr = null;
     var maxAttempts = 8;
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      ensureRunNotCancelled(runCtx);
       var requestUrl = appendCacheBust(absoluteUrl, Date.now() + "_" + attempt);
-      var response = await withTimeout(fetch(requestUrl, {
+      var response = await fetchJsonWithTimeout(requestUrl, {
         method: "GET",
         cache: "no-store",
         headers: { "Cache-Control": "no-cache" },
-      }), 30000, "GeoJSON 文件请求超时");
+      }, 30000, runCtx);
       if (!response.ok) {
         if ((response.status === 404 || response.status === 503) && attempt < maxAttempts) {
           await sleepMs(Math.min(2500, 400 * attempt));
@@ -1146,6 +2780,7 @@
         throw new Error("GeoJSON 加载失败: HTTP " + response.status);
       }
       try {
+        ensureRunNotCancelled(runCtx);
         fc = await parseJsonResponseSafe(response, "GeoJSON文件(" + attempt + "/" + maxAttempts + ")");
         parseErr = null;
         break;
@@ -1189,6 +2824,12 @@
       });
       var value = Number(props.value !== undefined ? props.value : props[metricName]);
       if (!Number.isFinite(value)) value = null;
+      var slopeDegProp = Number(props.slope_deg);
+      if (!Number.isFinite(slopeDegProp)) slopeDegProp = null;
+      var minCostDirDegProp = Number(props.min_cost_dir_deg);
+      if (!Number.isFinite(minCostDirDegProp)) minCostDirDegProp = null;
+      var minCostDirSlopeDegProp = Number(props.min_cost_dir_slope_deg);
+      if (!Number.isFinite(minCostDirSlopeDegProp)) minCostDirSlopeDegProp = null;
 
       var first = ring[0];
       var last = ring[ring.length - 1];
@@ -1248,6 +2889,9 @@
             type: "TerrainBackendCell",
             metric: metricName,
             value: value,
+            slopeDeg: slopeDegProp,
+            minCostDirDeg: minCostDirDegProp,
+            minCostDirSlopeDeg: minCostDirSlopeDegProp,
           },
           geometry: new Cesium.PolygonGeometry({
             polygonHierarchy: new Cesium.PolygonHierarchy(positions),
@@ -1310,11 +2954,15 @@
   async function loadArtifactToCesium(viewer, absoluteUrl, format, layerStore, visible) {
     var options = arguments.length > 5 ? arguments[5] : null;
     var shouldShow = visible !== false;
+    var registerSidebar = !(options && options.registerSidebar === false);
+    var runCtx = options && options.runCtx ? options.runCtx : null;
+    ensureRunNotCancelled(runCtx);
     if (format === "geojson") {
       var loaded = await loadGeojsonAsAnalysisPrimitives(viewer, absoluteUrl, shouldShow, options || {});
+      ensureRunNotCancelled(runCtx);
       layerStore.push({ type: "analysis", items: loaded.primitiveItems });
 
-      if (window.sidebarManager) {
+      if (registerSidebar && window.sidebarManager) {
         var layerName = absoluteUrl.split('/').pop().replace(/\.[^/.]+$/, '');
         var layerId = window.sidebarManager.addLayer({
           name: layerName,
@@ -1334,12 +2982,14 @@
       return;
     }
     if (format === "czml") {
+      ensureRunNotCancelled(runCtx);
       const ds = await withTimeout(Cesium.CzmlDataSource.load(absoluteUrl), 20000, "CZML 图层加载超时");
+      ensureRunNotCancelled(runCtx);
       viewer.dataSources.add(ds);
       ds.show = shouldShow;
       layerStore.push(ds);
-      // Register layer to sidebar
-      if (window.sidebarManager) {
+      // 注册到侧边栏图层管理（可见性开关、后续统一清理）。
+      if (registerSidebar && window.sidebarManager) {
         var layerName = absoluteUrl.split('/').pop().replace(/\.[^/.]+$/, '');
         window.sidebarManager.addLayer({
           name: layerName,
@@ -1352,16 +3002,18 @@
       return;
     }
     if (format === "kml") {
+      ensureRunNotCancelled(runCtx);
       const ds = await withTimeout(Cesium.KmlDataSource.load(absoluteUrl, {
         camera: viewer.scene.camera,
         canvas: viewer.scene.canvas,
         clampToGround: true,
       }), 20000, "KML 图层加载超时");
+      ensureRunNotCancelled(runCtx);
       viewer.dataSources.add(ds);
       ds.show = shouldShow;
       layerStore.push(ds);
-      // Register layer to sidebar
-      if (window.sidebarManager) {
+      // 注册到侧边栏图层管理（可见性开关、后续统一清理）。
+      if (registerSidebar && window.sidebarManager) {
         var layerName = absoluteUrl.split('/').pop().replace(/\.[^/.]+$/, '');
         window.sidebarManager.addLayer({
           name: layerName,
@@ -1377,13 +3029,23 @@
   }
 
   function createRunner(viewer, slopeAnalysis) {
+    // 页面“执行后端分析”按钮的主流程入口。
     return async function runBackendAnalysis() {
+      // 运行态关键变量：
+      // runBtn：执行按钮句柄（用于防重复点击与结束后恢复）
+      // baseUrl：后端接口根地址（FastAPI 服务入口）
+      // demPath：用户选择的 DEM 文件路径（为空时走测试地形）
+      // mode：分析模式（terrain/path）
+      // formats：结果输出格式列表（geojson/czml/kml）
+      // requestTimeoutMs：当前流程估算出的请求超时时间
       const runBtn = document.getElementById("runBackendAnalysis");
       const baseUrl = document.getElementById("backend-api-url")?.value?.trim() || "http://127.0.0.1:8000";
       const demPath = document.getElementById("backend-dem-path")?.value?.trim() || "";
       const mode = document.getElementById("backend-analysis-mode")?.value || "terrain";
+      const analysisTypeForEntry = document.getElementById("backend-terrain-type")?.value || "comprehensive";
       const formats = getSelectedFormats();
       var requestTimeoutMs = REQUEST_TIMEOUT_MS;
+      var runCtx = null;
 
       if (!formats.length) {
         alert("请至少选择一种输出格式");
@@ -1399,6 +3061,48 @@
           openBackendGuide();
           throw new Error("后端未就绪。请先点“启动后端服务”或在 backend 目录运行 run_backend.ps1");
         }
+
+        // 通行代价专项入口：先两点选区，再自动填充 BBox 后继续后端分析。
+        if (mode === "terrain" &&
+            analysisTypeForEntry === "cost" &&
+            !global._terrainBackendCostPickBypass) {
+          if (!demPath) {
+            throw new Error("代价分析需基于 DEM 边界约束，请先填写 DEM 路径");
+          }
+          setStatus("正在读取 DEM 范围并等待两点选区...");
+          var demMetaForPick = await getDemMetadata(baseUrl, demPath);
+          if (!demMetaForPick || !demMetaForPick.bounds_wgs84) {
+            throw new Error("DEM 缺少可用坐标范围，无法进行两点选区");
+          }
+          showToast("请在地图中依次点击两个对角点，右键可取消");
+          var inputCell = Number(document.getElementById("backend-cell-size-m")?.value || 50);
+          var selectedPick = await pickCostAnalysisDiagonalBBox(viewer, demMetaForPick.bounds_wgs84, Math.max(1, inputCell) * 2.0);
+          if (!selectedPick || !selectedPick.bbox) {
+            setStatus("已取消两点选区");
+            return;
+          }
+          fillBBoxInputs(selectedPick.bbox);
+          var startLonEl = document.getElementById("backend-start-lon");
+          var startLatEl = document.getElementById("backend-start-lat");
+          var endLonEl = document.getElementById("backend-end-lon");
+          var endLatEl = document.getElementById("backend-end-lat");
+          if (startLonEl && startLatEl && endLonEl && endLatEl &&
+              Array.isArray(selectedPick.startPoint) && Array.isArray(selectedPick.endPoint)) {
+            startLonEl.value = Number(selectedPick.startPoint[0]).toFixed(6);
+            startLatEl.value = Number(selectedPick.startPoint[1]).toFixed(6);
+            endLonEl.value = Number(selectedPick.endPoint[0]).toFixed(6);
+            endLatEl.value = Number(selectedPick.endPoint[1]).toFixed(6);
+          }
+          global._terrainBackendCostPickBypass = true;
+          try {
+            return await runBackendAnalysis();
+          } finally {
+            global._terrainBackendCostPickBypass = false;
+          }
+        }
+
+        runCtx = createAnalysisRunContext();
+        global._terrainBackendActiveRun = runCtx;
 
         const bbox = getBBoxFromInputs();
         validateBBox(bbox);
@@ -1470,11 +3174,36 @@
         }
 
         var analysisType = document.getElementById("backend-terrain-type")?.value || "comprehensive";
+        var terrainStartPoint = [
+          Number(document.getElementById("backend-start-lon")?.value),
+          Number(document.getElementById("backend-start-lat")?.value),
+        ];
+        var terrainEndPoint = [
+          Number(document.getElementById("backend-end-lon")?.value),
+          Number(document.getElementById("backend-end-lat")?.value),
+        ];
+        var hasTerrainCostDirection =
+          Number.isFinite(terrainStartPoint[0]) && Number.isFinite(terrainStartPoint[1]) &&
+          Number.isFinite(terrainEndPoint[0]) && Number.isFinite(terrainEndPoint[1]);
+        var tileSetId = null;
+        if (mode === "terrain") {
+          tileSetId = buildTerrainTileSetId({
+            bbox: bbox,
+            cellSizeMeters: cellSizeMeters,
+            maxResolution: maxResolution,
+            demPath: demPath,
+            decodePayload: decodePayload,
+            startPoint: (analysisType === "cost" && hasTerrainCostDirection) ? terrainStartPoint : null,
+            endPoint: (analysisType === "cost" && hasTerrainCostDirection) ? terrainEndPoint : null,
+          });
+        }
+        var enableDynamicLodForRun = TERRAIN_DYNAMIC_LOD_ENABLE && analysisType !== "cost";
         var runResult;
         var artifacts = [];
         var requestIds = [];
         var demSource = null;
 
+        // 分支A：路径分析（多阶段分辨率回退策略）。
         if (mode === "path") {
           var startPoint = [
             Number(document.getElementById("backend-start-lon")?.value),
@@ -1498,6 +3227,7 @@
             decodePayload: decodePayload,
             startPoint: startPoint,
             endPoint: endPoint,
+            runCtx: runCtx,
           });
 
           requestTimeoutMs = runResult.lastTimeoutMs || requestTimeoutMs;
@@ -1512,16 +3242,37 @@
             );
           }
         } else {
+          // 分支B：地形分析（先L0粗层，再动态LOD细化）。
+          var initialDynamicLod = enableDynamicLodForRun
+            ? {
+                level: "L0",
+                levelIndex: 0,
+                scale: getTerrainQtreeCellScale(0),
+                ratio: 1,
+                height: Number(viewer && viewer.camera && viewer.camera.positionCartographic && viewer.camera.positionCartographic.height) || 0,
+              }
+            : { level: "L0", scale: 1.0, ratio: 1, height: 0 };
+          var initialTerrainCellSize = Number(cellSizeMeters) * Number(initialDynamicLod.scale || 1.0);
+          if (enableDynamicLodForRun) {
+            updateTerrainLodBadge(initialDynamicLod, Number(cellSizeMeters));
+          }
+
           runResult = await runTerrainAnalysisWithAutoTiling({
             baseUrl: baseUrl,
+            viewer: viewer,
             bbox: bbox,
-            cellSizeMeters: cellSizeMeters,
+            cellSizeMeters: initialTerrainCellSize,
             maxResolution: maxResolution,
             formats: formats,
             demPath: demPath,
             decodePayload: decodePayload,
             analysisType: analysisType,
+            startPoint: (analysisType === "cost" && hasTerrainCostDirection) ? terrainStartPoint : null,
+            endPoint: (analysisType === "cost" && hasTerrainCostDirection) ? terrainEndPoint : null,
             tileOverlapCells: TERRAIN_TILE_OVERLAP_CELLS,
+            tileSetId: tileSetId,
+            tileKey: enableDynamicLodForRun ? "0/0/0" : null,
+            runCtx: runCtx,
           });
 
           requestTimeoutMs = runResult.lastTimeoutMs || requestTimeoutMs;
@@ -1532,33 +3283,49 @@
           if (runResult.tileCount > 1) {
             showToast("分块分析完成，已拼接加载 " + runResult.tileCount + " 个分块结果", false);
           }
+          if (enableDynamicLodForRun) {
+            showToast(
+              "已渲染四叉树 L0 粗层，当前米/格=" + Number(initialTerrainCellSize).toFixed(1) + "m",
+              false
+            );
+          }
         }
 
         if (!Array.isArray(artifacts) || !artifacts.length) {
           throw new Error("后端未返回可展示文件");
         }
 
+        // 渲染前先清理旧图层，避免结果叠加混杂。
         clearManagedBackendLayers(viewer);
         global._terrainBackendLayers = [];
+        global._terrainBackendSidebarLayerId = null;
 
-        for (const item of artifacts) {
-          const url = normalizeUrl(baseUrl, item.url);
-          var clipBbox = mode === "terrain"
-            ? (item._tileCoreBBox || bbox)
-            : null;
-          var isSlope = /slope_deg\./i.test(String(item.url || ""));
-          var keepVisible = true;
-          if (mode === "terrain") {
-            keepVisible = !(analysisType === "comprehensive" && !isSlope);
-          }
-          await loadArtifactToCesium(
-            viewer,
-            url,
-            item.format,
-            global._terrainBackendLayers,
-            keepVisible,
-            { clipBbox: clipBbox }
-          );
+        releaseTerrainLodState(viewer);
+        await renderTerrainArtifacts(viewer, artifacts, baseUrl, bbox, analysisType, { registerSidebar: false, runCtx: runCtx });
+        registerOrUpdateTerrainBackendSidebarLayer(mode);
+
+        // 地形模式下启动动态四叉树请求调度。
+        if (mode === "terrain" && enableDynamicLodForRun) {
+          var dynamicState = {
+            viewer: viewer,
+            baseUrl: baseUrl,
+            bbox: bbox,
+            baseCellSizeMeters: Number(cellSizeMeters),
+            maxResolution: maxResolution,
+            formats: formats.slice(),
+            demPath: demPath,
+            decodePayload: Object.assign({}, decodePayload),
+            analysisType: analysisType,
+            startPoint: (analysisType === "cost" && hasTerrainCostDirection) ? terrainStartPoint.slice() : null,
+            endPoint: (analysisType === "cost" && hasTerrainCostDirection) ? terrainEndPoint.slice() : null,
+            initialLevel: (typeof initialDynamicLod !== "undefined" && initialDynamicLod && initialDynamicLod.level) ? initialDynamicLod.level : "L0",
+            tileSetId: tileSetId,
+            tileEdgeTarget: TERRAIN_DYNAMIC_TILE_EDGE_TARGET,
+          };
+          startDynamicTerrainRequestLod(dynamicState);
+          showToast("四叉树动态LOD已开启：将按当前视域动态请求更细层级瓦片", false);
+        } else {
+          stopDynamicTerrainRequestLod(viewer);
         }
 
         var modeExtra = "";
@@ -1569,7 +3336,12 @@
           modeExtra = "，分块数=" + runResult.tileCount;
         }
 
-        setStatus(`分析完成：request_id=${formatRequestIds(requestIds)}，加载 ${artifacts.length} 个图层${modeExtra}`);
+        var cacheExtra = "";
+        if (mode === "terrain" && runResult && Number.isFinite(Number(runResult.cacheHits))) {
+          cacheExtra = "，缓存命中 " + runResult.cacheHits + "/" + runResult.tileCount;
+        }
+
+        setStatus(`分析完成：request_id=${formatRequestIds(requestIds)}，加载 ${artifacts.length} 个图层${modeExtra}${cacheExtra}`);
         if (demSource === "synthetic") {
           showToast("当前结果使用测试地形；要用真实 DEM，请在 DEM路径 填入 .tif 路径", false);
         }
@@ -1585,6 +3357,9 @@
         });
       } catch (error) {
         var message = error && error.message ? error.message : String(error || "未知错误");
+        if (runCtx && runCtx.cancelled) {
+          message = runCtx.reason || "分析已终止";
+        }
         if (error && error.name === "AbortError") {
           message = "请求超时并已中止（" + Math.round(requestTimeoutMs / 1000) + "s）。可减小图幅、增大米/格或减少输出格式后重试。";
         }
@@ -1592,19 +3367,30 @@
         showToast(`分析失败：${message}`, true);
         console.error("[TerrainBackend] 分析失败", error);
       } finally {
+        if (global._terrainBackendActiveRun === runCtx) {
+          global._terrainBackendActiveRun = null;
+        }
         if (runBtn) runBtn.disabled = false;
       }
     };
   }
 
   function initTerrainBackendTools(viewer, slopeAnalysis) {
+    // 面板初始化：负责按钮绑定、弹窗行为、默认参数与状态提示。
     if (!viewer) return;
     global._terrainBackendViewer = viewer;
 
+    // 面板级 DOM 句柄（统一在初始化时取一次，避免后续重复查询）：
+    // panel/openBtn/closeBtn：主面板开关
+    // runBtn/clearBtn：执行分析与清理图层
+    // useViewBtn/useDemBtn：一键填充 BBox（当前视域 / DEM 覆盖范围）
+    // modeSelect/startBtn：分析模式切换与后端启动按钮
+    // decodeModeSelect/demPathInput：DEM 解码相关控件
     const panel = document.getElementById("backend-format-modal");
     const openBtn = document.getElementById("openBackendFormatModal");
     const closeBtn = document.getElementById("closeBackendFormatModal");
     const runBtn = document.getElementById("runBackendAnalysis");
+    const stopBtn = document.getElementById("stopBackendAnalysis");
     const clearBtn = document.getElementById("clearBackendLayers");
     const useViewBtn = document.getElementById("backend-use-view-bbox");
     const useDemBtn = document.getElementById("backend-use-dem-bbox");
@@ -1742,6 +3528,18 @@
       return createRunner(viewer, slopeAnalysis)();
     };
 
+    if (stopBtn) {
+      stopBtn.onclick = function (event) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        if (typeof global.cancelTerrainBackendAnalysis === "function") {
+          global.cancelTerrainBackendAnalysis();
+        }
+      };
+    }
+
     startBtn.onclick = function (event) {
       if (event) {
         event.preventDefault();
@@ -1754,6 +3552,7 @@
       clearManagedBackendLayers(viewer);
       var baseUrl = document.getElementById("backend-api-url")?.value?.trim() || "http://127.0.0.1:8000";
       clearBackendOutputCache(baseUrl, { silent: false });
+      clearBackendTileCache(baseUrl, { silent: true });
       setStatus("后端图层已清空");
       showToast("后端图层已清空");
     };
@@ -1763,6 +3562,18 @@
       setTerrainBackendNumericTipEnabled(true, viewer);
     }
   }
+
+  // 拆分模块需要调用的函数（渲染/UI工具）。
+  global.showToast = showToast;
+  global.setStatus = setStatus;
+  global.getViewBBox = getViewBBox;
+  global.bboxIntersects = bboxIntersects;
+  global.expandBBoxByRatio = expandBBoxByRatio;
+  global.renderTerrainArtifacts = renderTerrainArtifacts;
+  global.cleanupManagedLayerStore = cleanupManagedLayerStore;
+  global.setManagedLayerStoreVisibility = setManagedLayerStoreVisibility;
+  global.addManagedLayerEntry = addManagedLayerEntry;
+  global.removeManagedLayerEntry = removeManagedLayerEntry;
 
   global.initTerrainBackendTools = initTerrainBackendTools;
   global.setTerrainBackendNumericTipEnabled = function (enabled) {
@@ -1780,8 +3591,27 @@
     var baseUrl = document.getElementById("backend-api-url")?.value?.trim() || "http://127.0.0.1:8000";
     clearManagedBackendLayers(viewer);
     clearBackendOutputCache(baseUrl, { silent: true });
+    clearBackendTileCache(baseUrl, { silent: true });
     setStatus("后端图层已清空");
     showToast("后端图层已清空");
+  };
+  global.cancelTerrainBackendAnalysis = function () {
+    var viewer = global._terrainBackendViewer || global.viewer;
+    var baseUrl = document.getElementById("backend-api-url")?.value?.trim() || "http://127.0.0.1:8000";
+    var activeRun = global._terrainBackendActiveRun || null;
+    if (activeRun) {
+      cancelAnalysisRun(activeRun, "用户终止了当前分析");
+    }
+    cancelCostTwoPointPick(viewer);
+    if (viewer) {
+      clearManagedBackendLayers(viewer);
+    }
+    clearBackendOutputCache(baseUrl, { silent: true });
+    clearBackendTileCache(baseUrl, { silent: true });
+    var runBtn = document.getElementById("runBackendAnalysis");
+    if (runBtn) runBtn.disabled = false;
+    setStatus("已终止分析并清理本次结果缓存");
+    showToast("已终止分析并清理本次结果缓存");
   };
 
   function bindStartButtonOnly() {

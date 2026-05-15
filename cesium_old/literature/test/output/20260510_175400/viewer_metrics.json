@@ -1,0 +1,85 @@
+{
+  "ablation_mean_metrics": [
+    {
+      "model": "B0",
+      "mean_total_cost": 696.1702805845013,
+      "mean_ascent_per_meter": 1.1603176839057625,
+      "mean_tortuosity": 1.201515902522429
+    },
+    {
+      "model": "B1",
+      "mean_total_cost": 1797.880726254508,
+      "mean_ascent_per_meter": 1.171148061161067,
+      "mean_tortuosity": 1.285323772597558
+    },
+    {
+      "model": "B2",
+      "mean_total_cost": 4168.006613304958,
+      "mean_ascent_per_meter": 1.1767147201339967,
+      "mean_tortuosity": 1.2356558133609616
+    },
+    {
+      "model": "B3",
+      "mean_total_cost": 11366.178134775213,
+      "mean_ascent_per_meter": 1.1871704891218984,
+      "mean_tortuosity": 1.28475694355872
+    },
+    {
+      "model": "OURS",
+      "mean_total_cost": 14989.435332925672,
+      "mean_ascent_per_meter": 1.5415097390230688,
+      "mean_tortuosity": 1.243406835310606
+    }
+  ],
+  "hypothesis_tests": {
+    "H1_ours_vs_b0_total_cost": {
+      "sign_test": {
+        "n": 12,
+        "p_value": 0.00048828125,
+        "n_pos": 12,
+        "n_neg": 0
+      },
+      "bootstrap_mean_diff_95ci": [
+        14293.265052341172,
+        819.9182539730979,
+        28206.194351074268
+      ]
+    },
+    "H1_ours_vs_b0_ascent_per_meter": {
+      "sign_test": {
+        "n": 11,
+        "p_value": 1.0,
+        "n_pos": 6,
+        "n_neg": 5
+      },
+      "bootstrap_mean_diff_95ci": [
+        0.3811920551173063,
+        0.0016818154002566268,
+        0.7988855532203881
+      ]
+    },
+    "H1_ours_vs_b0_tortuosity": {
+      "sign_test": {
+        "n": 11,
+        "p_value": 0.2265625,
+        "n_pos": 8,
+        "n_neg": 3
+      },
+      "bootstrap_mean_diff_95ci": [
+        0.041890932788176925,
+        -0.026407878618381675,
+        0.10493381190659395
+      ]
+    },
+    "H2_directionality": {
+      "forward_mean_cost": 14989.435332925672,
+      "reverse_mean_cost": 14642.065246509808,
+      "path_overlap_forward_reverse_mean": 0.4010657295809424
+    },
+    "H3_multiscale_stability": {
+      "ours_hausdorff_mean": 35.336462330430976,
+      "ours_hausdorff_std": 37.002777713106276
+    }
+  },
+  "has_sample_geojson": true
+}

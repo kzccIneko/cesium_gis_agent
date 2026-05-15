@@ -89,3 +89,21 @@
 2. 后端：`backend/app/main.py`、`backend/app/schemas.py`、`backend/app/services/analysis_service.py`、`backend/app/services/export_service.py`
 3. 实验与展示：`literature/DEM方向性通行能力建模与实验方案.md`、`literature/test/run_dem_cost_experiment.py`、`literature/test/README_实验操作流程.md`、`literature/test/cesium_experiment_compare.html`
 4. 测试与配置：`playwright.config.js`、`tests/e2e/`、`package.json`、`.gitignore`
+
+***
+2026/05/15
+【VSCode工作区累计更改合并提交】
+1. 合并提交本轮 VSCode 工作区累计改动（含后端、前端、实验资产、测试配置与文档图示），统一对齐当前开发状态。
+2. 后端接口与分析服务继续完善：地形分析请求/响应结构、代价要素计算、导出流程与分阶段方案脚本同步更新。
+3. 前端后端联动模块 `TerrainBackendIntegration.js` 持续增强：请求编排、动态 LOD、终止分析、缓存清理、两点选取与结果渲染流程进一步补齐。
+4. 侧栏图层管理能力继续增强：图层条目交互、透明度调节、顺序控制、不同 Cesium 对象类型的统一管理逻辑完善。
+5. 主页面与样式更新：分析面板控件、按钮行为和相关 UI 样式同步迭代，支撑后端分析与交互流程。
+6. 新增与完善实验资产：`literature/test` 下实验脚本、操作流程、Cesium 对比页面、两批实验输出结果，以及研究与汇报支撑材料。
+7. 新增自动化测试基础设施：Playwright 配置、e2e smoke 用例、前端测试脚本与依赖锁文件更新。
+8. 补充项目展示/研究路线文件：新增项目框架图、功能流程图、后端技术路线与方向性代价算法研究文档（`literature` 目录）。
+
+【本次合并提交包含的代表性目录/文件】
+1. 后端：`backend/app/main.py`、`backend/app/schemas.py`、`backend/app/services/analysis_service.py`、`backend/app/services/export_service.py`
+2. 前端：`Cesium_coordinate_copy_czDebugging.html`、`features/slope/TerrainBackendIntegration.js`、`features/SidebarManager.js`、`features/eventBindInit.js`、`css/index.css`
+3. 实验：`cesium_old/literature/test/`、`cesium_old/literature/*.md`、`literature/*.mmd`、`literature/*.md`
+4. 测试与配置：`cesium_old/playwright.config.js`、`cesium_old/tests/e2e/`、`cesium_old/package.json`、`cesium_old/package-lock.json`、`cesium_old/.gitignore`

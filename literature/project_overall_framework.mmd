@@ -1,0 +1,52 @@
+flowchart LR
+  %% CesiumJS_Debug 项目整体框架图（前后端协同）
+
+  subgraph U["用户与交互层"]
+    A["用户操作<br/>范围选择 / 分析模式 / DEM 路径 / 图层控制"]
+    B["侧边栏与面板 UI<br/>Cesium_coordinate_copy_czDebugging.html"]
+  end
+
+  subgraph F["前端应用层（cesium_old）"]
+    C["TerrainBackendIntegration.js<br/>请求编排 + 分块 + 四叉树动态LOD + 渲染调度"]
+    D["SidebarManager.js<br/>图层注册 / 显隐 / 透明度 / 顺序管理"]
+    E["Cesium Viewer 场景<br/>GroundPrimitive / DataSource / ImageryLayer"]
+  end
+
+  subgraph G["后端网关层（backend/app/main.py）"]
+    G1["FastAPI 路由<br/>/api/v1/formats<br/>/api/v1/dem/meta<br/>/api/v1/analyze/terrain<br/>/api/v1/analyze/path<br/>/api/v1/cache/*/clear"]
+    G2["Pydantic 协议（schemas.py）<br/>请求/响应/统计/导出产物模型"]
+  end
+
+  subgraph S["后端计算服务层（backend/app/services）"]
+    S1["analysis_service.py<br/>DEM读取/解码/重采样<br/>地形指标计算<br/>路径规划(Dijkstra)"]
+    S2["export_service.py<br/>GeoJSON / CZML / KML 导出<br/>颜色映射与文件原子写入"]
+  end
+
+  subgraph DStore["数据与缓存层"]
+    D1["DEM 数据源<br/>GeoTIFF + .prj"]
+    D2["输出目录<br/>%TEMP%/cesiumjs_debug_outputs"]
+    D3["瓦片缓存目录<br/>backend/outputs/tiles"]
+  end
+
+  subgraph R["结果回流与展示"]
+    R1["后端返回 artifacts URL<br/>/outputs/... 或 /tile-cache/..."]
+    R2["前端按格式加载<br/>GeoJsonDataSource / CzmlDataSource / KmlDataSource"]
+    R3["分析结果可视化<br/>坡度/坡向/曲率/代价 + 路径"]
+  end
+
+  A --> B --> C
+  B --> D
+  C -->|"HTTP JSON"| G1
+  G1 --> G2
+  G1 --> S1
+  S1 --> S2
+  S1 --> D1
+  S2 --> D2
+  G1 --> D3
+  C -->|"tile_set_id / tile_key"| D3
+  D3 -->|"cache hit"| G1
+  G1 --> R1 --> C
+  C --> R2 --> E --> R3
+  D --> E
+  D --> R3
+

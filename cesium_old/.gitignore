@@ -9,6 +9,7 @@ out/
 
 # 缓存目录
 .cache/
+.npm-cache/
 
 # 日志目录
 logs/
@@ -27,3 +28,8 @@ logs/
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright
+playwright-report/
+test-results/
+playwright/.cache/

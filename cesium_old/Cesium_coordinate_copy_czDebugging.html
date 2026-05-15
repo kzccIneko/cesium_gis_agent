@@ -61,20 +61,11 @@
             </div>
             <!--右上角功能栏-->
             <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <div id="topMiniToolbar" class="top-mini-toolbar navbar-top-mini-toolbar">
+                    <div id="topMiniToolbarControls" class="top-mini-toolbar-controls"></div>
+                </div>
                 <!--无序列表  地理管理 三维模型 研究分析 其他-->
                 <ul class="nav navbar-nav navbar-right">
-                    <!--数据管理-->
-                    <li class="dropdown">
-                        <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true"
-                            aria-expanded="false">
-                            <img src="img/nav//menu-icon3.png" />
-                            数据管理<span class="caret"></span>
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li id="by_code"><a href="#">坐标查询</a></li>
-                            <li id="by_img"><a href="#">标绘查询</a></li>
-                        </ul>
-                    </li>
                     <!--地理管理-->
                     <li class="dropdown">
                         <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true"
@@ -117,25 +108,14 @@
                         <ul class="dropdown-menu">
                             <li id="draw_fun"><a href="#">标绘</a></li>
                             <li id="spatial-measure"><a href="#">空间量算</a></li>
-                            <li id="mousePosition"><a href="#">大地坐标开启</a></li>
                             <!-- <li id="gaosiMousePosition"><a href="#">高斯坐标显示</a></li> -->
                             <li id="czml-track"><a href="#">跟图回放</a></li>
-                            <li id="jumpTo"><a href="#">坐标定位</a></li>
                             <li id="saveMap"><a href="#">场景收藏</a></li>
-                            <li id="coordinateTransform"><a href="coordinateTransform://">坐标转换</a></li>
-                            <li id="viewerChange"><a href="#">视图切换[3d][2d]</a></li>
                             <!-- <li id="goalhistory"><a href="data/samples/ZB05萨那机场情况简报（7月7日）.pdf"
                                     target="_blank">目标情报资料积累</a></li>
                             <li id="liuchenghua"><a href="showjpg.html" target="_blank">流程化演示</a></li> -->
                         </ul>
                     </li>
-                    <!--显示设置-->
-                    <li class="dropdown">
-                    <a class="dropdown-toggle" href="#" id="displaySettingA">
-                        <img src="img/nav//menu-icon3.png"/>
-                        窗口组件&nbsp;&nbsp;
-                    </a>
-                </li>
                 </ul>
             </div>
         </div>
@@ -144,11 +124,6 @@
 
 <!--*********************************************Cesium主界面**********************************************-->
 <div id="cesiumContainer"></div>
-
-<!-- 顶部小工具条（Google Earth 风格）：承载 2D/3D、全屏、底图选择 -->
-<div id="topMiniToolbar" class="top-mini-toolbar">
-    <div id="topMiniToolbarControls" class="top-mini-toolbar-controls"></div>
-</div>
 
 <!--**********************************************仿谷歌地球侧边栏*********************************************-->
 <!-- 侧边栏折叠/展开按钮（始终可见） -->
@@ -293,111 +268,6 @@
                 <span>数值提示</span>
             </label>
         </div>
-    </div>
-</div>
-<!--坐标定位-->
-<div id="jumpToWin" class="functionWin">
-    <div class="head move">
-        <span class="title"> 坐标定位 </span>
-
-        <span class="toggle_win headfun_win open">
-            <img src="img/modal/expand.png" />
-        </span>
-        <span class="close headfun_win">
-            <img src="img/modal/close.png" title="关闭" />
-        </span>
-    </div>
-    <div class="content">
-    <!-- 用form操作会刷新页面，已用alert替代，在eventBindInit.js中 -->
-            <div class="mb10">目的地：</div>
-            <div class="form-row">
-                <div class="label">经度：</div>
-                <div class="ctl">
-                    <div class="input">
-                        <input type="text" required="required" id="destination_lng" name="destination_lng"/>
-                    </div>
-                </div>
-
-                <div class="label">纬度：</div>
-                <div class="ctl">
-                    <div class="input">
-                        <input type="text" required="required" id="destination_lat" name="destination_lat"/>
-                    </div>
-                </div>
-            </div>
-            <div class="form-row form-row-btn">
-                <input class="btn btn--primary" type="submit" id="sureJump" value="确定" />
-            </div>
-    </div>
-</div>
-
-<!--**********************************************数据管理*************************************************************-->
-<!-- 根据坐标查询弹窗 -->
-<div id="datamanage" class="functionWin">
-    <div class="head move">
-        <span class="title">坐标查询</span>
-
-        <span class="toggle_win headfun_win">
-            <img src="img/modal/expand.png" />
-        </span>
-        <span class="close headfun_win">
-            <img src="img/modal/close.png" />
-        </span>
-    </div>
-
-    <div class="content">
-        <div class="content-fluid">
-            <!--横向选择条-->
-            <form id="dataform">
-                <div class="form-row">
-                    <div class="label">左上角经度：</div>
-                    <!--输入栏-->
-                    <div class="ctl">
-                        <div class="input">
-                            <input type="text" required="required" value="120.53228" name="xmin" />
-                        </div>
-                    </div>
-                    <!--按键-->
-                </div>
-                <div class="form-row">
-                    <div class="label">左上角纬度：</div>
-                    <!--输入栏-->
-                    <div class="ctl">
-                        <div class="input ">
-                            <input type="text" name="ymin" required="required" value="30.76991" />
-                        </div>
-                    </div>
-                    <!--按键-->
-                </div>
-                <div class="form-row">
-                    <div class="label">右下角经度：</div>
-                    <!--输入栏-->
-                    <div class="ctl">
-                        <div class="input">
-                            <input type="text" name="xmax" value="120.5468" required="required" />
-                        </div>
-
-                    </div>
-                    <!--按键-->
-                </div>
-                <div class="form-row">
-                    <div class="label">右下角纬度：</div>
-                    <!--输入栏-->
-                    <div class="ctl">
-                        <div class="input">
-                            <input type="text" name="ymax" value="30.75505" required="required" />
-                        </div>
-                    </div>
-
-                    <!--按键-->
-                </div>
-            </form>
-            <div class="form-row form-row-btn">
-                <input class="btn btn--primary" type="button" id="datasubmit" value="确定" />
-
-            </div>
-        </div>
-
     </div>
 </div>
 
@@ -1228,14 +1098,6 @@
         </div> -->
     </div>
 </div>
-<!--********************************************************鼠标位置窗口***************************-->
-<div class="mousePosition_div" style="
-      position: fixed;
-      bottom: 5%;
-      right: 15%;
-      color: #1f637b;
-      display: none;
-    "></div>
 
             <div id="backend-format-modal" style="display:none; position: fixed; top: 72px; right: 16px; z-index: 10001; width: min(640px, 94vw); max-height: 80vh; overflow: auto; background: rgba(8, 18, 36, 0.95); border: 1px solid #4f6c99; border-radius: 12px; color: #e8f1ff; padding: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.35);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -1335,6 +1197,7 @@
 
                 <div class="row" style="margin-top:10px;">
                     <button id="runBackendAnalysis" type="button" class="btn btn--primary">执行后端分析</button>
+                    <button id="stopBackendAnalysis" type="button" class="btn btn--danger">终止分析</button>
                     <span id="backend-run-status" style="margin-left:8px; color:#b7d4ff; font-size:12px; display:inline-block; max-width: 95%; word-break: break-all; line-height: 1.35;">等待执行</span>
                 </div>
             </div>
@@ -1377,30 +1240,6 @@
             </div>
         </div>
     </div>
-</div>
-
-<!--********************************************************视图切换2d3d******************************-->
-<div id="viewerChangeWin" class="functionWin"> 
-    <div class="head move">
-        <span class="title"> 视图切换[3d][2d] </span>
-
-        <span class="toggle_win headfun_win open">
-            <img src="img/modal/expand.png" />
-        </span>
-        <span class="close headfun_win">
-            <img src="img/modal/close.png" title="关闭" />
-        </span>
-    </div>
-
-    <div class="content">
-        <div class="container-fluid">
-            <div class="row">
-                <input id="viewer2d" type="button" class="btn btn--primary" value="2d视图">
-                <input id="viewer3d" type="button" class="btn btn--primary" value="3d视图">
-            </div>
-        </div>
-    </div>
-
 </div>
 
 <!--*******************************************************组件加载******************************-->

@@ -511,6 +511,9 @@ class SidebarManager {
             <span class="layer-item-icon ${this._getIconClass(layer.type)}">${this._getIconByType(layer.type)}</span>
             <span class="layer-item-name" title="${layer.name} (${layer.type})">${layer.name}</span>
             <span class="layer-item-actions">
+                <button class="layer-item-action top" title="置顶图层">⤒</button>
+                <button class="layer-item-action up" title="上移图层">↑</button>
+                <button class="layer-item-action down" title="下移图层">↓</button>
                 <button class="layer-item-action delete" title="移除图层">✕</button>
             </span>
         `;
@@ -524,20 +527,43 @@ class SidebarManager {
             this.setLayerVisibility(layer.id, checkbox.checked);
         });
 
-        // 2. 删除按钮：删除图层
+        // 2. 层级按钮：置顶/上移/下移
+        const topBtn = li.querySelector('.top');
+        if (topBtn) {
+            topBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.moveLayerToTop(layer.id);
+            });
+        }
+        const upBtn = li.querySelector('.up');
+        if (upBtn) {
+            upBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.moveLayerUp(layer.id);
+            });
+        }
+        const downBtn = li.querySelector('.down');
+        if (downBtn) {
+            downBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.moveLayerDown(layer.id);
+            });
+        }
+
+        // 3. 删除按钮：删除图层
         const deleteBtn = li.querySelector('.delete');
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.removeLayer(layer.id);
         });
 
-        // 3. 单击图层项：选中高亮
+        // 4. 单击图层项：选中高亮
         li.addEventListener('click', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
             this._selectLayer(layer.id);
         });
 
-        // 4. 双击图层项：飞入定位
+        // 5. 双击图层项：飞入定位
         li.addEventListener('dblclick', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
             e.preventDefault();
@@ -643,10 +669,23 @@ class SidebarManager {
                 break;
 
             case 'Analysis':
-                // 分析图层：cesiumObject 是 primitive 数组 [{primitive, ...}, ...]
+                // 分析图层：既支持 primitive 项，也支持动态 LOD 的混合条目（analysis 包/DataSource）。
                 if (Array.isArray(obj)) {
-                    obj.forEach(item => {
-                        if (item && item.primitive) item.primitive.show = visible;
+                    obj.forEach(entry => {
+                        if (!entry) return;
+                        if (entry.type === 'analysis' && Array.isArray(entry.items)) {
+                            entry.items.forEach(item => {
+                                if (item && item.primitive) item.primitive.show = visible;
+                            });
+                            return;
+                        }
+                        if (entry.primitive) {
+                            entry.primitive.show = visible;
+                            return;
+                        }
+                        if (entry.show !== undefined) {
+                            entry.show = visible;
+                        }
                     });
                 }
                 // 同步工具栏中的复选框
@@ -751,6 +790,101 @@ class SidebarManager {
         }
 
         console.log(`[SidebarManager] 飞入图层: [${layerId}] ${layer.name}`);
+    }
+
+    _iterateAnalysisPrimitiveItems(analysisObject, callback) {
+        if (!Array.isArray(analysisObject) || typeof callback !== 'function') return;
+        analysisObject.forEach(entry => {
+            if (!entry) return;
+            if (entry.type === 'analysis' && Array.isArray(entry.items)) {
+                entry.items.forEach(item => {
+                    if (item && item.primitive) callback(item);
+                });
+                return;
+            }
+            if (entry.primitive) callback(entry);
+        });
+    }
+
+    _moveCesiumObjectOrder(layer, direction) {
+        if (!layer) return;
+        const obj = layer.cesiumObject;
+        const ds = this.viewer && this.viewer.dataSources;
+        const primitives = this.viewer && this.viewer.scene && this.viewer.scene.primitives;
+        const imagery = this.viewer && this.viewer.scene && this.viewer.scene.imageryLayers;
+
+        const callOrderApi = (collection, target) => {
+            if (!collection || !target) return;
+            try {
+                if (direction === 'top' && typeof collection.raiseToTop === 'function') {
+                    collection.raiseToTop(target);
+                } else if (direction === 'up' && typeof collection.raise === 'function') {
+                    collection.raise(target);
+                } else if (direction === 'down' && typeof collection.lower === 'function') {
+                    collection.lower(target);
+                }
+            } catch (e) {
+                console.warn('[SidebarManager] 调整 Cesium 图层顺序失败:', e);
+            }
+        };
+
+        switch (layer.type) {
+            case 'KML':
+            case 'GeoJson':
+            case 'CZML':
+                callOrderApi(ds, obj);
+                break;
+            case 'Tileset':
+                callOrderApi(primitives, obj);
+                break;
+            case 'Tiff':
+                callOrderApi(imagery, obj);
+                break;
+            case 'Analysis':
+                this._iterateAnalysisPrimitiveItems(obj, (item) => {
+                    callOrderApi(primitives, item.primitive);
+                });
+                break;
+            default:
+                break;
+        }
+    }
+
+    _moveLayerDomOrder(layerId, direction) {
+        const layer = this.layers.find(l => l.id === layerId);
+        if (!layer) return;
+        const listEl = document.getElementById(`layerList-${layer.group}`);
+        const li = document.querySelector(`[data-layer-id="${layerId}"]`);
+        if (!listEl || !li) return;
+
+        if (direction === 'top') {
+            listEl.appendChild(li);
+            return;
+        }
+        if (direction === 'up') {
+            const next = li.nextElementSibling;
+            if (next) listEl.insertBefore(next, li);
+            return;
+        }
+        if (direction === 'down') {
+            const prev = li.previousElementSibling;
+            if (prev) listEl.insertBefore(li, prev);
+        }
+    }
+
+    moveLayerToTop(layerId) {
+        this._moveCesiumObjectOrder(this.getLayerById(layerId), 'top');
+        this._moveLayerDomOrder(layerId, 'top');
+    }
+
+    moveLayerUp(layerId) {
+        this._moveCesiumObjectOrder(this.getLayerById(layerId), 'up');
+        this._moveLayerDomOrder(layerId, 'up');
+    }
+
+    moveLayerDown(layerId) {
+        this._moveCesiumObjectOrder(this.getLayerById(layerId), 'down');
+        this._moveLayerDomOrder(layerId, 'down');
     }
 
     /**
@@ -861,9 +995,22 @@ class SidebarManager {
             case 'Analysis':
                 // 分析图层：移除所有 primitive 并通知 SlopeAspect 清理
                 if (Array.isArray(obj)) {
-                    obj.forEach(item => {
-                        if (item && item.primitive) {
-                            try { this.viewer.scene.primitives.remove(item.primitive); } catch (e) {}
+                    obj.forEach(entry => {
+                        if (!entry) return;
+                        if (entry.type === 'analysis' && Array.isArray(entry.items)) {
+                            entry.items.forEach(item => {
+                                if (item && item.primitive) {
+                                    try { this.viewer.scene.primitives.remove(item.primitive); } catch (e) {}
+                                }
+                            });
+                            return;
+                        }
+                        if (entry && entry.primitive) {
+                            try { this.viewer.scene.primitives.remove(entry.primitive); } catch (e) {}
+                            return;
+                        }
+                        if (entry && entry.show !== undefined) {
+                            try { this.viewer.dataSources.remove(entry, true); } catch (e) {}
                         }
                     });
                 }
@@ -1062,11 +1209,24 @@ class SidebarManager {
             case 'Analysis':
                 // 分析图层：修改每个 primitive 的 material color alpha
                 if (Array.isArray(obj)) {
-                    obj.forEach(item => {
-                        if (item && item.primitive && item.primitive.appearance) {
-                            var mat = item.primitive.appearance.material;
+                    obj.forEach(entry => {
+                        if (!entry) return;
+                        if (entry.type === 'analysis' && Array.isArray(entry.items)) {
+                            entry.items.forEach(item => {
+                                if (item && item.primitive && item.primitive.appearance) {
+                                    var matIn = item.primitive.appearance.material;
+                                    if (matIn && matIn.uniforms && matIn.uniforms.color) {
+                                        var cIn = item.baseColor || matIn.uniforms.color;
+                                        matIn.uniforms.color = new Cesium.Color(cIn.red, cIn.green, cIn.blue, opacity);
+                                    }
+                                }
+                            });
+                            return;
+                        }
+                        if (entry.primitive && entry.primitive.appearance) {
+                            var mat = entry.primitive.appearance.material;
                             if (mat && mat.uniforms && mat.uniforms.color) {
-                                var c = item.baseColor || mat.uniforms.color;
+                                var c = entry.baseColor || mat.uniforms.color;
                                 mat.uniforms.color = new Cesium.Color(c.red, c.green, c.blue, opacity);
                             }
                         }
