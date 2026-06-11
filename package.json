@@ -1,0 +1,28 @@
+{
+  "name": "cesiumjs_debug",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test:e2e": "npx playwright test",
+    "test:e2e:ui": "npx playwright test --ui",
+    "test:e2e:headed": "npx playwright test --headed",
+    "test:report": "npx playwright show-report mcp/playwright-report",
+    "serve": "npx http-server ./cesium_old -p 8080 -c-1 --cors",
+    "dev": "npm run serve"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@codeup.aliyun.com:66b0812239eec40a6d4bed99/CesiumJS_Debug.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/mcp": "^0.0.75",
+    "@playwright/test": "^1.60.0",
+    "http-server": "^14.1.1",
+    "playwright": "^1.60.0"
+  }
+}

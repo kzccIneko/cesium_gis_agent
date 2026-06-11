@@ -1,0 +1,62 @@
+# ========================
+#  Python
+# ========================
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+backend/.venv/
+.venv/
+
+# ========================
+#  后端运行产物
+# ========================
+backend/outputs/
+backend/__tmp_cite19_*.py
+
+# ========================
+#  Node.js
+# ========================
+node_modules/
+package-lock.json
+
+# ========================
+#  环境变量 / 密钥
+# ========================
+.env
+.env.local
+.env.*.local
+
+# ========================
+#  Playwright 测试产物
+# ========================
+playwright-report/
+test-results/
+.playwright-mcp/
+
+# ========================
+#  IDE / 编辑器
+# ========================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.bak*
+
+# ========================
+#  Codex / Claude 个人配置
+# ========================
+.codex/
+.claude/settings.local.json
+mcp/
+skills/
+
+# ========================
+#  临时文件
+# ========================
+*.tmp
+*.log
+cesium_old/新建文本文档.txt

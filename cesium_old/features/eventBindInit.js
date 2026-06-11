@@ -106,6 +106,10 @@ $(document).ready(
         $('#slop').click(function () {
             EventModel.slope();
         });
+        //剖面分析
+        $('#profileAnalysis').click(function () {
+            EventModel.profile();
+        });
         //等高线分析
         $('#contour').click(function () {
             EventModel.contour();
@@ -250,13 +254,38 @@ $(document).ready(
 
 var EventModel = {
     //等高线分析
-    contour: function () { 
+    contour: function () {
         console.log('等高线分析');
         $('#contourWindow').css('display', 'block');
 
 
         ContourAnalysis = new ContourMaterial(viewer);console.log(111);
         ContourAnalysis.init();
+    },
+
+    // 剖面分析
+    profile: function () {
+        console.log('剖面分析');
+        var v = window.viewer || (typeof viewer !== 'undefined' ? viewer : null);
+        if (!v) {
+            var container = document.querySelector('.cesium-viewer');
+            if (container && container.__cesium_viewer) {
+                v = container.__cesium_viewer;
+            }
+        }
+        if (!v) { console.error('viewer 未初始化'); return; }
+        if (!window._profileAnalysisInstance) {
+            window._profileAnalysisInstance = new TerrainProfileAnalysis(v);
+        }
+        var inst = window._profileAnalysisInstance;
+        // 面板被隐藏 → 重新显示（不重新绘制）
+        if (inst.chartPanel && inst.chartPanel.style.display === 'none') {
+            inst.chartPanel.style.display = '';
+            if (inst.chartInstance) inst.chartInstance.resize();
+            return;
+        }
+        // 显示功能面板，用户点击"开始分析"后再开始绘制
+        inst._showPanel();
     },
 
     // 坡度分析

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="chorme" />
+    <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <meta name="description" content="Layer imagery from multiple sources, including WMS servers, Bing Maps, ArcGIS Online, OpenStreetMaps, and more, and adjust the alpha of each independently.">
+    <meta name="cesium-sandcastle-labels" content="Showcases">
+    <title>Cesium Demo</title>
+    <script src="libs/Cesium-1.93/Build/Cesium/Cesium.js"></script>
+    <!--引入Cesium样式文件-->
+    <link
+            rel="stylesheet"
+            href="libs/Cesium-1.93/Build/Cesium/Widgets/widgets.css"
+    />
+    <style>
+        #toolbar {
+            background: rgba(42, 42, 42, 0.8);
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        #toolbar input {
+            vertical-align: middle;
+            padding-top: 2px;
+            padding-bottom: 2px;
+        }
+
+        #toolbar table tr {
+            transform: translateY(0);
+            transition: transform 0.4s ease-out;
+        }
+
+        #toolbar table tr.up {
+            transform: translateY(33px);
+            transition: none;
+        }
+
+        #toolbar table tr.down {
+            transform: translateY(-33px);
+            transition: none;
+        }
+    </style>
+</head>
+
+<div id="cesiumContainer" class="fullSize"></div>
+<script id="cesium_sandcastle_script">
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYTQ2ZjdjNS1jM2E0LTQ1M2EtOWM0My1mODMzNzY3YjYzY2YiLCJpZCI6MjkzMjcsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1OTE5NDIzNjB9.RzKlVTVDTQ9r7cqCo-PDydgUh8Frgw0Erul_BVxiS9c';
+    var terrainProvider = new Cesium.CesiumTerrainProvider({
+        url : 'data/terrain/ludingqiepian/'
+    });
+
+    var viewer = new Cesium.Viewer('cesiumContainer',{
+       terrainProvider:terrainProvider
+    });
+    providerLayer = new Cesium.WebMapServiceImageryProvider({
+        url:'http://localhost:8082/geoserver/cite/wms?service=WMS',    //协议路径
+        layers: 'cite:TH01-03_P201912309053212_1B_GFB_08_030_147',  //图层名称
+        parameters: {
+            service: 'WMS',   //服务类型
+            format: 'image/png',
+            transparent: true,  //透明度
+        }
+    })
+    viewer.imageryLayers.addImageryProvider(providerLayer);
+    viewer.camera.setView( {
+        destination: Cesium.Cartesian3.fromDegrees(102.231570, 29.911947, 30000)
+    } );
+
+</script>
+</body>
+</html>

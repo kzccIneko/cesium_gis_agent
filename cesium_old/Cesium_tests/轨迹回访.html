@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>GPS轨迹回放</title>
+    <script src="libs/Cesium-1.93/Build/Cesium/Cesium.js"></script>
+    <meta
+            name="viewport"
+            content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"
+    />
+    <!--引入Cesium样式文件-->
+    <link
+            rel="stylesheet"
+            href="libs/Cesium-1.93/Build/Cesium/Widgets/widgets.css"
+    />
+    <!--网页图标-->
+    <link rel="shortcut icon" href="img/tangerine2.png" type="image/x-icon"/>
+    <!--引入bootstrap-->
+    <link rel="stylesheet" href="libs/bootstrap/css/bootstrap.css"/>
+    <script src="libs/jquery/jquery.js"></script>
+</head>
+<body>
+<div id="cesiumContainer"></div>
+
+</body>
+<script>
+    /*初始化*/
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkZTlkNjBmMi05NjdjLTQwMTgtOTBiOC04NDU1NWJjYmFkZWEiLCJpZCI6MzA2MzMzLCJpYXQiOjE3NDgyNDg4MTl9.r7m_tXkLjZOAcHKP_oI0BuCvE6xuaujzU3CL7f4TG9A';
+    var viewer = new Cesium.Viewer('cesiumContainer', {
+        geocoder: false,
+        homeButton: true,
+        sceneModePicker: false,
+        fullscreenButton: false,
+        vrButton: false,
+        baseLayerPicker: true,
+        infoBox: false,
+        selectionIndicator: false,
+        animation: true,
+
+        //开启会和坐标显示框重合
+        timeline: true,
+        shouldAnimate: true,
+        navigationHelpButton: true,
+        navigationInstructionsInitiallyVisible: false,
+    })
+    //隐藏版权信息
+    viewer._cesiumWidget._creditContainer.style.display = "none";
+    //关闭日照阴影
+    viewer.scene.globe.enableLighting = false;
+    //开启深度检测
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+    //关闭/开启大气层
+    viewer.scene.globe.showGroundAtmosphere = false;
+    const canvas = viewer.scene.canvas;
+    /*function getFrustumPlanesFromCamera(camera) {
+        const frustum = camera.frustum;
+        const planes = [];
+        console.log(frustum._cullingVolume.planes)
+        planes.push(new Cesium.Plane.fromCartesian4(frustum.top.clone(), frustum.top.w)); // 上平面
+        planes.push(new Cesium.Plane.fromCartesian4(frustum.bottom.clone(), frustum.bottom.w)); // 下平面
+        planes.push(new Cesium.Plane.fromCartesian4(frustum.right.clone(), frustum.right.w)); // 右平面
+        planes.push(new Cesium.Plane.fromCartesian4(frustum.left.clone(), frustum.left.w)); // 左平面
+        planes.push(new Cesium.Plane.fromCartesian4(frustum.near.clone(), frustum.near.w)); // 近平面
+        planes.push(new Cesium.Plane.fromCartesian4(frustum.far.clone(), frustum.far.w)); // 远平面
+
+        return planes;
+    }*/
+    /*1. 添加轨迹点*/
+    // 创建Cesium视锥体
+    const frustum = new Cesium.PerspectiveFrustum({
+        fov: Cesium.Math.PI_OVER_THREE,
+        aspectRatio: canvas.clientWidth / canvas.clientHeight,
+        near: 1.0,
+        far: 1000.0
+    });
+    const camera = viewer.scene.camera;
+    camera.frustum = frustum;
+    const planes=frustum._offCenterFrustum._cullingVolume.planes
+    console.log(planes)
+
+    const viewMatrix = camera.viewMatrix;
+    const worldPlanes = planes.map(plane => {
+        const normal = new Cesium.Cartesian3(plane.normal.x, plane.normal.y, plane.normal.z);
+        const distance = plane.distance;
+        const transformedNormal = Cesium.Matrix3.transpose(Cesium.Matrix4.getMatrix3(viewMatrix, new Cesium.Matrix3()), new Cesium.Matrix3()).multiplyByVector(normal, new Cesium.Cartesian3());
+        const transformedDistance = distance - Cesium.Cartesian3.dot(transformedNormal, camera.positionWC);
+        return new Cesium.Cartesian4(transformedNormal.x, transformedNormal.y, transformedNormal.z, -transformedDistance);
+    });
+
+
+    console.log(worldPlanes);
+
+
+</script>
+</html>

@@ -46,6 +46,7 @@ function earthInit() {
 
 	//加载离线地图
 	this.viewer = new Cesium.Viewer('cesiumContainer', options);
+	viewer = window.viewer = this.viewer; // 确保全局 viewer 可访问（供其他模块使用）
 	this.viewer.scene.debugShowFramesPerSecond = true;console.log(999);
 	// 加载地形  加载初始地图
 	// var globalMap=new Cesium.WebMapServiceImageryProvider({

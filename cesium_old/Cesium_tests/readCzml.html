@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="libs/jquery/jquery.js"></script>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.79.1/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.79.1/Build/Cesium/Widgets/widgets.css"
+          rel="stylesheet">
+    <style>
+        html,
+        body,
+        #container {
+            height: 100%;
+        }
+
+        .text {
+            width: 30px;
+        }
+
+        span {
+            width: 230px;
+        }
+    </style>
+</head>
+<body>
+<div id="cesiumContainer"></div>
+<input type="file" id="czmlFiles" name="pic">
+
+</body>
+<script>
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYTQ2ZjdjNS1jM2E0LTQ1M2EtOWM0My1mODMzNzY3YjYzY2YiLCJpZCI6MjkzMjcsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1OTE5NDIzNjB9.RzKlVTVDTQ9r7cqCo-PDydgUh8Frgw0Erul_BVxiS9c';
+    var viewer = new Cesium.Viewer('cesiumContainer', {
+        geocoder: false,
+        homeButton: true,
+        sceneModePicker: false,
+        fullscreenButton: false,
+        vrButton: false,
+        baseLayerPicker: true,
+        infoBox: false,
+        selectionIndicator: false,
+        animation: true,
+
+        //开启会和坐标显示框重合
+        timeline: true,
+        shouldAnimate: true,
+        navigationHelpButton: true,
+        navigationInstructionsInitiallyVisible: false,
+    })
+    //隐藏版权信息
+    viewer._cesiumWidget._creditContainer.style.display = "none";
+    //关闭日照阴影
+    viewer.scene.globe.enableLighting = false;
+    //开启深度检测
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+    //关闭/开启大气层
+    viewer.scene.globe.showGroundAtmosphere = false;
+
+    $('#czmlFiles').change(function (){
+        let fileBox=document.getElementById('czmlFiles');
+        let fileList=fileBox.files;
+        let file=fileList[0];
+        //读到选中的文件
+        console.log("file="+file);
+
+        Cesium.CzmlDataSource.load(file);
+        readCzml(file);
+        function readCzml(file) {
+            let reader=new FileReader();
+            console.log("reader="+reader)
+            reader.readAsDataURL(file);
+            reader.onload=()=>{
+
+                Cesium.KmlDataSource.load(reader.result).then((KmlDataSource)=>{
+                    console.log(KmlDataSource);
+                });
+            }
+        }
+        /*if(window.FileReader){
+            let reader=new FileReader();
+            reader.readAsDataURL(file);
+            //监听文件读取结束后事件
+            reader.onloadend=function (e) {
+                console.log(e.target.result);
+            }
+        }*/
+    })
+</script>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cesium Viewshed3D Example</title>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Cesium.js"></script>
+    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Widgets/widgets.css" />
+    <style>
+        html,
+        body,
+        #cesiumContainer {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<div id="cesiumContainer"></div>
+<script>
+    // 创建地形提供者
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYTQ2ZjdjNS1jM2E0LTQ1M2EtOWM0My1mODMzNzY3YjYzY2YiLCJpZCI6MjkzMjcsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1OTE5NDIzNjB9.RzKlVTVDTQ9r7cqCo-PDydgUh8Frgw0Erul_BVxiS9c';
+
+
+
+    // 定义地形数据源
+    var terrainProvider = Cesium.createWorldTerrain();
+    var viewer = new Cesium.Viewer('cesiumContainer', {
+        terrainProvider: terrainProvider
+    });
+    // 定义起点和终点的经纬度坐标
+    let 起点经度 = 120.143948;
+    let 起点纬度 = 30.25978;
+    let 终点经度 = 120.159714;
+    let 终点纬度 = 30.246936;
+
+    // 创建起点和终点的位置
+    let 起点 = Cesium.Cartesian3.fromDegrees(起点经度, 起点纬度);
+    let 终点 = Cesium.Cartesian3.fromDegrees(终点经度, 终点纬度);
+
+    // * 计算射线的方向
+    let direction = Cesium.Cartesian3.normalize(
+        Cesium.Cartesian3.subtract(
+            终点,
+            起点,
+            new Cesium.Cartesian3()
+        ),
+        new Cesium.Cartesian3()
+    );
+
+    // 建立射线
+    let ray = new Cesium.Ray(起点, direction);
+    let result = viewer.scene.globe.pick(ray, viewer.scene); // 计算交点
+
+    if (result !== undefined && result !== null) {
+        drawLine(result, 起点, Cesium.Color.GREEN); // 可视
+        drawLine(result, 终点, Cesium.Color.RED); // 不可视
+    } else {
+        drawLine(起点, 终点, Cesium.Color.GREEN);
+    }
+
+    // * 绘制线
+    function drawLine(起点, 终点, color) {
+        viewer.entities.add({
+            polyline: {
+                positions: [起点, 终点],
+                width: 1,
+                material: color,
+                depthFailMaterial: color
+            }
+        });
+    }
+    // 定义两个点的经纬度信息
+    const point1 = [110, 30];
+    const point2 = [120, 40];
+
+    // 调用函数
+   drawLine(point1, point2);
+    viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(110, 30, 130)
+    })
+
+
+</script>
+</body>
+</html>
