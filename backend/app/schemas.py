@@ -84,6 +84,28 @@ class PathPlanResponse(BaseModel):
     artifacts: List[OutputArtifact]
 
 
+class TerrainClassifyRequest(BaseModel):
+    """地形分类请求参数。"""
+    bbox: BBox
+    resolution: int = Field(default=80, ge=8, le=1024)
+    dem_path: Optional[str] = None
+    dem_decode_mode: Literal["none", "single_band", "terrain_rgb"] = "none"
+    dem_decode_band: int = Field(default=1, ge=1, le=16)
+    dem_decode_scale: float = 1.0
+    dem_decode_offset: float = 0.0
+    dem_decode_nodata: Optional[float] = None
+    output_formats: List[OutputFormat] = Field(default_factory=lambda: ["geojson"])
+
+
+class TerrainClassifyResponse(BaseModel):
+    """地形分类响应。"""
+    request_id: str
+    resolution: int
+    dem_source: Literal["synthetic", "real_dem"] = "synthetic"
+    artifacts: List[OutputArtifact]
+    legend: List[Dict[str, object]]
+
+
 class FormatOption(BaseModel):
     """格式选项（用于前端展示）。"""
     value: OutputFormat

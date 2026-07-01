@@ -220,6 +220,46 @@ def export_grid_as_geojson(
     return len(features)
 
 
+def export_grid_classification_as_geojson(
+    path: Path,
+    lon_grid,
+    lat_grid,
+    class_ids,
+    confidence,
+    legend: List[Dict[str, object]],
+    stride: int = 2,
+) -> int:
+    """导出地貌分类 GeoJSON 面要素，附带分类名与置信度。"""
+    n_rows, n_cols = class_ids.shape
+    id_to_label = {int(item["id"]): str(item["label_cn"]) for item in legend}
+    id_to_color = {int(item["id"]): str(item["color"]) for item in legend}
+    features: List[Dict[str, Any]] = []
+    for i in range(0, n_rows - 1, stride):
+        for j in range(0, n_cols - 1, stride):
+            ring = _cell_polygon(lon_grid, lat_grid, i, j)
+            cid = int(class_ids[i, j])
+            conf = float(confidence[i, j])
+            color = id_to_color.get(cid, "#888888")
+            features.append({
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [ring]},
+                "properties": {
+                    "class_id": cid,
+                    "label_cn": id_to_label.get(cid, "unknown"),
+                    "confidence": round(conf, 3),
+                    "fill": color,
+                    "stroke": "#000000",
+                },
+            })
+    geojson: Dict[str, Any] = {
+        "type": "FeatureCollection",
+        "features": features,
+        "legend": legend,
+    }
+    _write_json(path, geojson)
+    return len(features)
+
+
 def export_path_as_geojson(path: Path, path_lonlat: Iterable[Tuple[float, float]]) -> int:
     """导出路径 GeoJSON（LineString）。"""
     coords = [[float(lon), float(lat)] for lon, lat in path_lonlat]

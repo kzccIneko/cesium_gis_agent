@@ -10,7 +10,7 @@ import numpy as np
 
 @dataclass
 class TerrainResult:
-    """地形分析结果：网格坐标 + 四类指标 + 数据来源。"""
+    """地形分析结果：网格坐标 + 四类指标 + DEM + 数据来源。"""
     lon_grid: np.ndarray
     lat_grid: np.ndarray
     slope_deg: np.ndarray
@@ -20,6 +20,7 @@ class TerrainResult:
     min_cost_dir_deg: np.ndarray
     min_cost_dir_slope_deg: np.ndarray
     flowline_intensity: np.ndarray
+    dem_grid: np.ndarray  # 原始高程栅格，供地貌分类等下游使用
     dem_source: Literal["synthetic", "real_dem"]
 
 
@@ -709,6 +710,7 @@ def analyze_terrain(
         min_cost_dir_deg=min_cost_dir_deg,
         min_cost_dir_slope_deg=min_cost_dir_slope_deg,
         flowline_intensity=flowline_intensity,
+        dem_grid=dem,
         dem_source=dem_source,
     )
 

@@ -26,12 +26,16 @@ from .schemas import (
     PathPlanResponse,
     TerrainAnalysisRequest,
     TerrainAnalysisResponse,
+    TerrainClassifyRequest,
+    TerrainClassifyResponse,
 )
 from .services.analysis_service import analyze_terrain, get_dem_metadata, plan_path
+from .services.terrain_classifier import classify_terrain, get_terrain_class_legend
 from .services.export_service import (
     export_grid_as_czml,
     export_grid_as_geojson,
     export_grid_as_kml,
+    export_grid_classification_as_geojson,
     export_path_as_czml,
     export_path_as_geojson,
     export_path_as_kml,
@@ -447,6 +451,106 @@ def analyze_terrain_api(req: TerrainAnalysisRequest) -> TerrainAnalysisResponse:
         cache_hit=False,
         artifacts=artifacts,
         stats=stats,
+    )
+
+
+@app.post("/api/v1/analyze/classify", response_model=TerrainClassifyResponse)
+def classify_terrain_api(req: TerrainClassifyRequest) -> TerrainClassifyResponse:
+    """地貌语义分类接口。"""
+    t0 = perf_counter()
+    request_id = uuid4().hex
+    out_dir = OUTPUT_ROOT / request_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        terrain = analyze_terrain(
+            west=req.bbox.west,
+            south=req.bbox.south,
+            east=req.bbox.east,
+            north=req.bbox.north,
+            resolution=req.resolution,
+            dem_path=req.dem_path,
+            dem_decode_mode=req.dem_decode_mode,
+            dem_decode_band=req.dem_decode_band,
+            dem_decode_scale=req.dem_decode_scale,
+            dem_decode_offset=req.dem_decode_offset,
+            dem_decode_nodata=req.dem_decode_nodata,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # 用 BBox 估算栅格单元大小（米）
+    lon_span = abs(float(req.bbox.east) - float(req.bbox.west))
+    lat_span = abs(float(req.bbox.north) - float(req.bbox.south))
+    mean_lat = math.radians((float(req.bbox.south) + float(req.bbox.north)) * 0.5)
+    lon_m = lon_span * 111320.0 * max(1e-6, math.cos(mean_lat)) / max(1, req.resolution - 1)
+    lat_m = lat_span * 110574.0 / max(1, req.resolution - 1)
+    cell_size_m = (lon_m + lat_m) * 0.5
+
+    class_ids, cost_adjustment, confidence = classify_terrain(
+        dem=terrain.dem_grid,
+        slope_deg=terrain.slope_deg,
+        curvature=terrain.curvature,
+        cell_size_m=cell_size_m,
+    )
+
+    legend = get_terrain_class_legend()
+    url_prefix = f"/outputs/{request_id}"
+    artifacts: List[OutputArtifact] = []
+
+    for fmt in req.output_formats:
+        if fmt == "geojson":
+            out_file = out_dir / "terrain_classification.geojson"
+            feature_count = None
+            if not out_file.exists():
+                feature_count = export_grid_classification_as_geojson(
+                    out_file,
+                    terrain.lon_grid,
+                    terrain.lat_grid,
+                    class_ids,
+                    confidence,
+                    legend,
+                )
+            artifacts.append(OutputArtifact(
+                format="geojson",
+                url=f"{url_prefix}/terrain_classification.geojson",
+                feature_count=feature_count,
+            ))
+        elif fmt == "czml":
+            out_file = out_dir / "terrain_classification.czml"
+            if not out_file.exists():
+                export_grid_as_czml(
+                    out_file,
+                    terrain.lon_grid,
+                    terrain.lat_grid,
+                    class_ids.astype(np.float64),
+                    "terrain_classification",
+                )
+            artifacts.append(OutputArtifact(
+                format="czml",
+                url=f"{url_prefix}/terrain_classification.czml",
+            ))
+        elif fmt == "kml":
+            out_file = out_dir / "terrain_classification.kml"
+            if not out_file.exists():
+                export_grid_as_kml(
+                    out_file,
+                    terrain.lon_grid,
+                    terrain.lat_grid,
+                    class_ids.astype(np.float64),
+                    "terrain_classification",
+                )
+            artifacts.append(OutputArtifact(
+                format="kml",
+                url=f"{url_prefix}/terrain_classification.kml",
+            ))
+
+    return TerrainClassifyResponse(
+        request_id=request_id,
+        resolution=req.resolution,
+        dem_source=terrain.dem_source,
+        artifacts=artifacts,
+        legend=legend,
     )
 
 
