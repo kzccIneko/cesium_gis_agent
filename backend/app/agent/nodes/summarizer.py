@@ -1,0 +1,158 @@
+"""总结节点：把工具执行结果组织成面向用户的回答。
+
+两层策略：
+    LLM 可用  → 让模型基于结构化结果写自然语言回答
+    LLM 不可用 → 模板拼接（仍然要给出可用的答案，而不是抛异常）
+
+模板路径不是"降级敷衍"，而是刻意的兜底：
+Agent 的核心价值是工具执行与自校验，回答措辞是次要的。
+即使没有 LLM，用户也应该拿到结构化的可信结论。
+
+模板回答会强制包含三部分：
+    1. 每个步骤的结论（来自工具的 summary 字段）
+    2. 数据局限（合成地形 / 有效数据占比 / 规则告警）
+    3. 失败步骤的说明（若有）
+第 2 点是刻意设计的 —— 宁可显得啰嗦，也不能让用户拿着合成地形的
+结果去做真实决策。
+"""
+
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+from ..llm import LLMClient
+from ..state import (
+    AgentState,
+    STATUS_DONE,
+    STATUS_FAILED,
+    append_message,
+    append_trace,
+)
+
+SUMMARY_PROMPT = """你是地理空间分析助手。基于以下工具执行结果，用中文回答用户的问题。
+
+用户问题：{query}
+
+工具执行结果：
+{results}
+
+执行轨迹：
+{trace}
+
+回答要求：
+- 直接回答问题，不要复述过程
+- 引用具体数值（带单位），数值必须来自上述结果，不得编造
+- 若结果基于合成地形或存在数据局限，必须在结尾用一句话明确说明
+- 若某些步骤失败，如实说明哪部分没能完成
+- 控制在 300 字以内
+"""
+
+
+def _template_summary(state: AgentState) -> str:
+    """无 LLM 时的模板化回答。"""
+    calls: List[Dict[str, Any]] = list(state.get("tool_calls") or [])
+    lines: List[str] = []
+
+    if not calls:
+        return (
+            "未能获得有效的分析结果。"
+            + (f"原因：{(state.get('reflection') or {}).get('reason', '未知')}"
+               if state.get("reflection") else "")
+        )
+
+    lines.append(f"针对「{state.get('query', '')}」，完成 {len(calls)} 项分析：")
+
+    ok_calls = [c for c in calls if c.get("success")]
+    failed_calls = [c for c in calls if not c.get("success")]
+
+    for i, c in enumerate(ok_calls, 1):
+        lines.append(f"{i}. {c.get('tool')}：{c.get('summary')}")
+        args = c.get("arguments") or {}
+        if args.get("resolution"):
+            lines.append(f"   栅格分辨率 {args['resolution']}×{args['resolution']}")
+
+    if failed_calls:
+        lines.append("")
+        lines.append("以下分析未能完成：")
+        for c in failed_calls:
+            lines.append(
+                f"- {c.get('tool')}：{c.get('error')}（错误类型：{c.get('error_type')}）"
+            )
+
+    # 数据局限必须显式声明
+    caveats: List[str] = []
+    for c in ok_calls:
+        pass
+    reflections = state.get("reflection") or {}
+    for w in reflections.get("code_warnings", []) or []:
+        caveats.append(str(w))
+    if any("合成地形" in str(c.get("summary", "")) for c in ok_calls):
+        caveats.append(
+            "注意：本次分析基于合成地形（未提供真实 DEM），"
+            "结果仅用于验证分析流程，不能作为真实地理结论。"
+            "如需真实数据，请先调用 download_srtm 下载 SRTM 高程数据。"
+        )
+    if caveats:
+        lines.append("")
+        lines.append("数据说明：")
+        seen = set()
+        for cv in caveats:
+            key = cv[:40]
+            if key in seen:
+                continue
+            seen.add(key)
+            lines.append(f"- {cv}")
+
+    return "\n".join(lines)
+
+
+def summarize_node(state: AgentState, llm: Optional[LLMClient]) -> Dict[str, Any]:
+    """总结节点：生成最终回答。"""
+    trace = list(state.get("trace") or [])
+    calls = list(state.get("tool_calls") or [])
+
+    answer: Optional[str] = None
+    if llm is not None and calls:
+        results_text = "\n".join(
+            f"- {c.get('tool')}（第 {c.get('attempt')} 次尝试，"
+            f"{'成功' if c.get('success') else '失败'}）：{c.get('summary')}"
+            for c in calls
+        )
+        trace_text = "\n".join(f"- {t}" for t in (state.get("trace") or [])[-10:])
+        try:
+            resp = llm.chat(
+                [
+                    {
+                        "role": "user",
+                        "content": SUMMARY_PROMPT.format(
+                            query=state.get("query", ""),
+                            results=results_text,
+                            trace=trace_text,
+                        ),
+                    }
+                ],
+                temperature=0.0,
+            )
+            if resp.content and resp.content.strip():
+                answer = resp.content.strip()
+                trace.append("由 LLM 生成最终回答")
+        except Exception as exc:
+            trace.append(f"LLM 总结失败（{type(exc).__name__}），改用模板回答")
+
+    if not answer:
+        answer = _template_summary(state)
+        trace.append("由模板生成最终回答")
+
+    # 保留失败状态：放弃（abort）时同样会走到总结节点 —— 用户需要知道为什么
+    # 拿不到结果 —— 但这时不能把 status 改回 done，否则调用方无法区分
+    # "分析成功完成" 与 "分析失败但已向用户说明"。
+    final_status = (
+        STATUS_FAILED if state.get("status") == STATUS_FAILED else STATUS_DONE
+    )
+
+    return {
+        "final_answer": answer,
+        "status": final_status,
+        "trace": trace,
+        "messages": append_message(state, "assistant", answer),
+    }

@@ -4,3 +4,17 @@ numpy==2.3.3
 rasterio==1.5.0
 pydantic>=2.12.0
 python-multipart==0.0.20
+
+# ------------------------------------------------------------------
+# GeoAgent 编排层（backend/app/agent/）
+#
+# 以下依赖只被 Agent 用到，不装也不影响原有分析服务。
+# 未安装时编排层会自动降级：
+#   - 无 langgraph          → 内置执行循环接管（行为与状态图一致）
+#   - 无 sqlite 检查点      → 退化为内存检查点
+#   - 无 openai / 无 API key → 规划走关键词启发式、回答走模板
+# ------------------------------------------------------------------
+langgraph>=1.0.0
+langgraph-checkpoint-sqlite>=2.0.0
+openai>=1.40.0
+python-dotenv>=1.0.0
