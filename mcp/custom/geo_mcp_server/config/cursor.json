@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "GeoMCP —— 地理空间分析 MCP Server 的 Cursor 配置。",
+    "",
+    "两种作用域，二选一：",
+    "  项目级：复制到 <项目根>/.cursor/mcp.json",
+    "  全局级：复制到 ~/.cursor/mcp.json",
+    "",
+    "与 Claude Desktop 配置同样的注意点：",
+    "1. command 必须是 backend 虚拟环境的 python（工具依赖重型 GIS 包）。",
+    "2. 必须用脚本绝对路径启动，不能用 -m 方式（项目根的 mcp/ 目录会遮蔽 SDK）。",
+    "3. 仓库移动后三条绝对路径都要改。"
+  ],
+  "mcpServers": {
+    "geo-mcp": {
+      "command": "D:/VS_Code_Program/CesiumJS_Debug/backend/.venv/Scripts/python.exe",
+      "args": [
+        "D:/VS_Code_Program/CesiumJS_Debug/mcp/custom/geo_mcp_server/server.py"
+      ],
+      "env": {
+        "GEO_MCP_LOG_LEVEL": "INFO",
+        "GEOAGENT_LLM_ENABLED": "0"
+      }
+    }
+  }
+}

@@ -51,8 +51,14 @@ test-results/
 # ========================
 .codex/
 .claude/settings.local.json
-mcp/
 skills/
+
+# mcp/ 下只有 custom/ 是自研代码，需入库；
+# playwright-report/ 与 test-results/ 是运行产物，保持忽略。
+# 注意：不能写 mcp/，否则父目录被排除后子目录无法再被 re-include。
+mcp/*
+!mcp/README.md
+!mcp/custom/
 
 # ========================
 #  临时文件

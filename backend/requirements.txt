@@ -18,3 +18,26 @@ langgraph>=1.0.0
 langgraph-checkpoint-sqlite>=2.0.0
 openai>=1.40.0
 python-dotenv>=1.0.0
+
+# ------------------------------------------------------------------
+# GeoAgent MCP Server（mcp/custom/geo_mcp_server/）
+#
+# 版本约束是踩坑得出的，改动前请先读完，否则会静默搞坏后端。
+#
+# 1) mcp 必须 <2。
+#    mcp 2.x 在 Python 3.14 下要求 starlette>=0.48，与下面第 2 条冲突；
+#    且 2.x 把 FastMCP 改名为 MCPServer，server.py 需要同步改。
+#
+# 2) starlette 必须钉在 <0.48（fastapi 0.116.1 的硬约束）。
+#    mcp 对 starlette 不设上界，直接 `pip install mcp` 会装到 1.6.0，
+#    而 starlette 1.x 移除了 Router(on_startup=...)，
+#    结果是 fastapi 能导入、但 FastAPI() 一实例化就抛 TypeError
+#    ——属于「pip 装完没报错、服务起不来」的静默破坏。
+#    重装/升级后务必复查：
+#      python -c "from fastapi import FastAPI; FastAPI()"
+#
+# 安装顺序：先装 mcp，再强制钉住 starlette。
+# ------------------------------------------------------------------
+mcp[cli]<2
+starlette==0.47.3
+sse-starlette==2.3.6

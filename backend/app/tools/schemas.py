@@ -243,6 +243,14 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
             },
             "resolution": RES_PARAM,
             "dem_path": DEM_PARAM,
+            "breaks": {
+                "type": "array",
+                "items": {"type": "number"},
+                "description": "分级断点（升序）。不传则按指标取默认值："
+                               "坡度为 [0,5,10,15,25,90]，高程按分位数，"
+                               "其余指标按等间距取 5 档。断点必须覆盖指标的"
+                               "全部取值范围，否则区间外的像元不计入任何一档。",
+            },
         },
         ["bbox"],
     ),

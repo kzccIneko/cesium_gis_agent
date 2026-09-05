@@ -1,0 +1,28 @@
+{
+  "_comment": [
+    "GeoMCP —— 地理空间分析 MCP Server 的 Claude Desktop 配置。",
+    "",
+    "用法：把 mcpServers 下的 geo-mcp 一项合并到",
+    "%APPDATA%\\Claude\\claude_desktop_config.json ，然后完全退出并重启 Claude Desktop。",
+    "",
+    "三个必须注意的点：",
+    "1. command 必须指向 backend 的虚拟环境 python。工具依赖 numpy / rasterio /",
+    "   onnxruntime，用系统 python 会在调用时模块导入失败。",
+    "2. 必须用脚本路径启动（args 里的 server.py 绝对路径）。",
+    "   不能用 -m mcp.custom... 的方式：项目根目录下的 mcp/ 目录与官方 SDK 同名，",
+    "   那样启动会遮蔽 SDK，报 'No module named mcp.server'。",
+    "3. 如果仓库换了位置，下面三条绝对路径都要改。"
+  ],
+  "mcpServers": {
+    "geo-mcp": {
+      "command": "D:/VS_Code_Program/CesiumJS_Debug/backend/.venv/Scripts/python.exe",
+      "args": [
+        "D:/VS_Code_Program/CesiumJS_Debug/mcp/custom/geo_mcp_server/server.py"
+      ],
+      "env": {
+        "GEO_MCP_LOG_LEVEL": "INFO",
+        "GEOAGENT_LLM_ENABLED": "0"
+      }
+    }
+  }
+}
