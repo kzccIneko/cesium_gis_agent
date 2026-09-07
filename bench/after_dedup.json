@@ -1,0 +1,26 @@
+{
+  "url": "http://127.0.0.1:8765/Cesium_coordinate_copy_czDebugging.html",
+  "consoleErrors": [],
+  "consoleErrorCount": 0,
+  "pageErrors": [
+    "SyntaxError: Unexpected token '<'",
+    "TypeError: Cannot read properties of undefined (reading 'viewModel')"
+  ],
+  "pageErrorCount": 2,
+  "failedLocalRequests": [],
+  "otherFailedRequests": [],
+  "globals": {
+    "jquery": "function",
+    "jqueryVersion": "3.2.1",
+    "hasDraggable": "function",
+    "turf": "object",
+    "echarts": "object",
+    "layui": "object",
+    "cesium": "object",
+    "toolbarMove": "function",
+    "RoughAnalysis": "function",
+    "TerrainProfileAnalysis": "function",
+    "TerrainClassification": "undefined",
+    "viewer": "object"
+  }
+}
