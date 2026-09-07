@@ -169,8 +169,13 @@ backend/.venv/Scripts/python.exe backend/app/tools/tests/test_tools.py
 
 ## 已知限制 / 下一步
 
-- **MCP Server（Week 3）**：把工具层暴露给 Claude Desktop / Cursor 等外部客户端。
-  注意 `.gitignore` 当前忽略了整个 `mcp/` 目录，届时需要为例外路径加白名单。
+> 进度以 `IMPROVEMENT_PLAN.md` 第三节「6 周改造方案」为准，详见仓库根
+> `GEOAGENT_PROGRESS.md`。以下条目按该计划更新。
+
+- ~~MCP Server（Week 3）~~ **已完成**（`mcp/custom/geo_mcp_server/`，22 测试），
+  `.gitignore` 已为 `mcp/custom/` 加白名单。
 - **步骤间数据传递**：`PlanStep.depends_on` 字段已就位，但尚未实现前序结果
   作为后序输入的参数占位符解析。
-- **RAG 增强（Week 4）**：接入文献知识库，让规划与反思有领域资料可依据。
+- **RAG 增强（Week 4 · 9/29–10/5）**：接入文献知识库，让规划与反思有领域资料可依据。
+  语料优先级：`literature/` → `earthscape/` → GDAL/rasterio 文档 → Geomorphons 论文。
+  这是本层**正统的下一步**；`backend/app/optimization/` 是计划外支线，不占 Week 4 名额。

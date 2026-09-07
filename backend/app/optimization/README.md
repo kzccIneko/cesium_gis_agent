@@ -1,5 +1,11 @@
 # 地形分类模型优化（垂直场景）
 
+> **定位说明（重要）**：本层是**计划外支线**，对应 `IMPROVEMENT_PLAN.md` **二·五节
+> 「ONNX 模型真实评测结果」** 的工程化延伸，**不是 Week 4，也不替代 Week 4（RAG 知识层）**。
+> 它优化的是**工具层内部被 Agent 调用的 ONNX 地貌分类模型**，**不是 Agent 的大脑 LLM**
+> （后者见 `backend/app/agent/llm.py`，默认 qwen2.5:14b / 本地 Ollama）。
+> 计划与进度对齐见仓库根 `GEOAGENT_PROGRESS.md`。
+
 针对本项目的 ONNX 地貌分类模型（8 类 / 3.9 MB / 输入 `[batch,1,64,64]`）
 在**滑窗推理**场景下的优化与量化。
 
