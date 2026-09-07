@@ -228,15 +228,19 @@ $(document).ready(
         // 初始化窗口组件复选框事件（侧边栏）
         EventModel.displaySetting();
 
-        //窗口事件
-        $('.move').mousedown(function () {
-            toolbarMove(this);
+        // 窗口事件
+        // 用事件委托而非直接绑定：RoughAnalysis / TerrainProfileAnalysis 等模块的
+        // 面板是运行时动态创建的，直接绑定抓不到，过去只能各复制一份实现。
+        // 委托后，凡是带 .move / .close / .toggle_win 的元素（含后续动态插入的）
+        // 都自动生效。详见 FRONTEND_AUDIT.md 第三节。
+        $(document).on('mousedown', '.move', function (e) {
+            toolbarMove(this, e);
         });
-        $('.close').click(function () {
-            $(this.parentNode.parentNode).css('display', 'none');
+        $(document).on('click', '.close', function () {
+            $(this).closest('.functionWin').css('display', 'none');
         });
-        $('.toggle_win').click(function () {
-            $(".content", this.parentNode.parentNode).slideToggle();
+        $(document).on('click', '.toggle_win', function () {
+            $(".content", $(this).closest('.functionWin')).slideToggle();
         });
 
         //搜索设置
