@@ -31,7 +31,9 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-DEFAULT_GGUF = REPO / "models" / "llm" / "qwen3.5-4b-q4km.gguf"
+# Must be the official unsloth GGUF - the Ollama blob is rejected by upstream
+# llama.cpp (qwen35.rope.dimension_sections len 3 vs required 4).
+DEFAULT_GGUF = REPO / "models" / "llm" / "Qwen3.5-4B-Q4_K_M.gguf"
 
 # A realistic GeoAgent planner turn: tool schema + Chinese spatial question.
 TOOL_SCHEMA = {

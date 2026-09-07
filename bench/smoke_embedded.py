@@ -9,7 +9,10 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-GGUF = REPO / "models" / "llm" / "qwen3.5-4b-q4km.gguf"
+# NOTE: the Ollama blob (qwen3.5-4b-q4km.gguf) is NOT loadable by upstream
+# llama.cpp - its qwen35.rope.dimension_sections has 3 entries instead of 4.
+# Use the official unsloth GGUF instead. See IMPROVEMENT_PLAN.md 3.5.2.
+GGUF = REPO / "models" / "llm" / "Qwen3.5-4B-Q4_K_M.gguf"
 
 def main() -> int:
     print(f"[1/4] GGUF: {GGUF}")

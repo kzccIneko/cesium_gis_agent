@@ -709,9 +709,56 @@ RTX 2060 6 GB 可支撑 **2B/4B 级别**的 QLoRA（batch=1 + 梯度累积）；
 | llama.cpp 源码 | ✅ `D:\llama_build\llama.cpp`（ggml 0.23.0 / commit e71b805） |
 | 编译工具链 | ✅ MSVC 19.38 + Ninja + Windows SDK 10.0.22621 已验证可用 |
 | **llama-cpp-python** | ✅ **0.3.35 源码编译安装成功**（Python 3.14，CPU 后端，wheel 7.2 MB） |
-| GGUF 权重 | ⏳ 下载 `unsloth/Qwen3.5-4B-Q4_K_M.gguf`（blob 已证伪，见 3.5.2） |
-| **冒烟测试** | ⬜ 待权重下载完成后执行 `bench/smoke_embedded.py` |
+| GGUF 权重 | ✅ `models/llm/Qwen3.5-4B-Q4_K_M.gguf` **2.55 GiB**（metadata 校验：sections len=4 ✅） |
+| **冒烟测试** | ✅ **通过**（`bench/smoke_embedded.py`）—— 见下方实测 |
 | CUDA Toolkit | ❌ **winget 失败**（exit 2148270085，需管理员授权）→ 见 3.5.7 |
+
+#### 冒烟测试实测（2026-09-07 23:51，CPU 后端）
+
+```
+GGUF      : Qwen3.5-4B-Q4_K_M.gguf  2.55 GiB
+load_s    : 4.55
+gen_s     : 5.39   (23 tokens)
+gen_tps   : 4.27 tok/s   ← CPU backend
+输出      : 「坡度分析是计算地表任意两点间垂直高差与水平距离之比，以量化地形陡峭程度的过程。」
+```
+
+**架构验证通过**：进程内加载官方 GGUF、中文回答专业准确，零 HTTP、零外部服务。
+
+**但性能不达标**：CPU 4.27 tok/s 对 Agent 场景太慢（单轮规划+反思约
+30–60 s）。这反过来证明 **GPU 不是锦上添花而是必需**——上 CUDA 后预计
+20–40 tok/s（RTX 2060 跑 4B Q4 的常态区间）。**在 CUDA 装上之前，
+本模块只具备架构验证价值，不具备实用价值。**
+
+> 下载踩坑：HF 直连 ~1.2 MB/s 且中途彻底不可达；改 **ModelScope（魔搭）**
+> 后 ~5.2 MB/s，2.55 GiB 约 8 分钟。另有两点：`curl -C -` 在 HF 的 302
+> 之后续传静默失效（观测到文件从 1.26 GB **倒退**到 957 MB）；4 段并发
+> Range 请求被服务端限流（5 次重试全 0 字节）。**最终方案：魔搭 + 单线程。**
+
+#### ⚠️ 基准实测：现在还不能卸 Ollama（2026-09-08 00:05）
+
+同模型（Qwen3.5-4B Q4_K_M）、同 prompt、max_tokens=64：
+
+| 后端 | 硬件 | 实测速度 | 备注 |
+|---|---|---|---|
+| **Ollama HTTP** | **GPU**（VRAM 4.6 GB） | **39.95 / 39.58 / 40.32 tok/s** | 预热后稳定 ~40 tok/s，1.6 s/64 tok |
+| **嵌入式 llama.cpp** | **CPU**（8 核） | **6.01 tok/s** | 慢 **6.6 倍** |
+
+**这组数据把问题说清楚了**：
+
+1. **它证实了"HTTP 不是瓶颈"的判断**。Ollama 走了完整的 HTTP 栈，
+   却比进程内调用快 6.6 倍 —— 因为瓶颈是 GPU 算力，不是进程间通信。
+   在 40 tok/s 的水平上，HTTP 那 1–5 ms 连零头都算不上。
+2. **当前对比是不公平的**：一边 GPU 一边 CPU。嵌入式一旦上 CUDA，
+   跑的是同一个 llama.cpp、同一份权重，预期同样落在 35–45 tok/s 区间。
+3. **因此：在 CUDA 装上并完成重编译之前，绝不能卸载 Ollama**，
+   否则系统性能会从 ~40 tok/s 暴跌到 ~6 tok/s。
+   `bench/llm_bench.py` 的 Ollama 组 `ttft_ms`/`gen_tps` 为 null
+   （流式解析未覆盖），且首次延迟 34.9 s 实为 3.4 GB 模型冷加载，
+   **该组数据不可用于结论**，真实值取上表的预热后测量。
+
+**下一步唯一阻塞项**：装 CUDA（需管理员 UAC，见 3.5.7）→ 重编译 → 重跑基准
+→ 确认嵌入式 GPU 档位追平或超过 40 tok/s → 才可卸载 Ollama。
 | 评测基准 | ✅ 100 条评测集已生成并校验（`backend/app/eval/dataset.json`） |
 | 垂直微调 | ⬜ 未开始 |
 | **Ollama 卸载** | ⬜ 待上述跑通后执行（含模型目录 `D:\OllamaModels` 清理） |
