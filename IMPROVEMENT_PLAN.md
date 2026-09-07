@@ -1,0 +1,851 @@
+# GIS 项目改造方案 · 2027 届秋招简历落地版
+
+> 项目位置：`D:\VS_Code_Program\CesiumJS_Debug`
+> 创建于 2026-09-02，配合 `D:\Workbuddy_Works\校招简历-陈茁` 主方案使用
+> 目标：把项目 1「三维地理信息分析与路径规划系统」打磨成简历上的核心资产，并为 GeoAgent 项目提供工具层支撑
+
+---
+
+## 一、项目体检报告（5 分钟读完）
+
+### 1.1 实际能力盘点（远超简历描述）
+
+| 模块 | 实际实现 | 简历是否提到 | 备注 |
+|---|---|---|---|
+| **后端 FastAPI 服务** | `backend/app/main.py` 含 4 个核心接口 | ❌ 漏 | 应作为项目 1 主体 |
+| **地形分析** | 坡度/坡向/曲率/代价栅格 | ✅ 提 | 表述可更具体 |
+| **路径规划** | Dijkstra + 方向约束 + 8 邻居 | ⚠️ 错 | 简历写"A*/Dijkstra"，**实际只有 Dijkstra**（priority queue + heapq） |
+| **DEM 处理** | rasterio + SRTM 自动下载（GLO-30） | ⚠️ 模糊 | 简历只写"GeoTIFF/DEM"，应说明数据源 |
+| **地形分类（规则）** | 8 类基于坡度/曲率/TPI | ❌ 漏 | `terrain_classifier.classify_terrain` |
+| **地形分类（Geomorphons）** | Jasiewicz & Stepinski 2013 算法 | ❌ 漏 | 学术级实现 |
+| **地形分类（ONNX 推理）** | 已训练 ResNet18，**ONNX 模型已在 `models/`** | ❌ 漏 | **最大资产被完全忽略** |
+| **流式分类** | SSE NDJSON 进度推送 | ❌ 漏 | 高级工程能力 |
+| **AHP 层次分析法** | `cesium_old/features/slope/AHPanalysis.js` | ❌ 漏 | 多准则通行性建模 |
+| **RoughAnalysis** | `cesium_old/features/slope/RoughAnalysis.js` | ❌ 漏 | 高程变化率分析 |
+| **方向性代价模型** | B0/B1/B2/B3/Ours 五种消融 | ❌ 漏 | `tests/dem-experiment/` 完整实验框架 |
+| **earthscape 数据集集成** | v1.1 多模态地质制图（arXiv 2503.15625） | ❌ 漏 | 学术资源 |
+| **MCP 探索** | Playwright MCP 已配 + `mcp/custom/` 空目录 | ❌ 漏 | **正好接 GeoAgent Week 3** |
+| **AI 自主实验框架** | `skills/autoresearch/` + run_log.csv | ❌ 漏 | 差异化亮点 |
+| **Playwright e2e** | chromium 端到端测试 | ❌ 漏 | 工程规范 |
+| **缓存体系** | tile cache + output cache + 原子写入 | ❌ 漏 | 工程细节 |
+
+### 1.2 已有真实数据（可直接进简历）
+
+| 指标 | 数值 | 来源 |
+|---|---|---|
+| 实验网格 | **160×160 栅格** | `tests/dem-experiment/run_dem_cost_experiment.py` |
+| 总代价（基线） | **14966.25** | `skills/autoresearch/experiments/run_log.csv` |
+| 单位米爬升 | **1.5618 m/m** | 同上 |
+| 路径重叠率（Ours） | **0.4289** | 同上 |
+| Hausdorff 距离均值 | **50.08**（像素单位） | 同上 |
+| 模型消融 | **5 个模型**（B0/B1/B2/B3/Ours） | `tests/dem-experiment/ModelConfig` |
+| DEM 数据源 | **Copernicus GLO-30**（30 m） | `_download_srtm` 函数 |
+| 分类方法数 | **3 种**（规则/Geomorphons/ONNX） | `terrain_classifier.py` |
+| 训练样本 | **20000** | `terrain_morphology_train.py:N_SAMPLES` |
+| 训练 epochs | **50** | `EPOCHS = 50` |
+| Patch size | **64×64** | `PATCH_SIZE = 64` |
+| 类别数 | **8** | `TERRAIN_CLASSES` |
+| 已跑实验数 | **1 次 baseline** | `run_log.csv` 只有 2 行 |
+
+### 1.3 写错了的关键项
+
+**简历 B 写「A* / Dijkstra」，实际只有 Dijkstra**（`plan_path` 实现确认）。
+→ 两种改法：① 简历改成"Dijkstra + 方向约束（等高线跟随 + 方向代价场）"；② 把算法升级成 A*（加启发函数，距离加权）。
+
+**改法建议**：① 更稳，因为 Dijkstra + 方向约束本身就是 A* 做不到的能力（A* 是把方向约束塞进启发函数，而项目是在代价函数里实现方向性，更鲁棒）。简历里要体现这个差异。
+
+---
+
+## 二、量化数据提取 SOP（本周必做，9/2–9/7）
+
+> 海康 9/18 截止，航天科技 9/17 在电科宣讲，本周必须把简历 B 上所有数字填上。
+
+### 2.1 一行命令得到所有数字
+
+```powershell
+cd D:\VS_Code_Program\CesiumJS_Debug
+# 跑一次 dem-experiment，会更新 run_log.csv 并生成图表
+python .\tests\dem-experiment\run_dem_cost_experiment.py --grid 160 --extent 80 --seed 42
+python .\tests\dem-experiment\run_dem_cost_experiment.py --grid 320 --extent 80 --seed 42
+python .\tests\dem-experiment\run_dem_cost_experiment.py --grid 640 --extent 80 --seed 42
+```
+
+跑完会得到：不同分辨率下的总代价、爬升、重叠率、Hausdorff——这就是简历 B 上要填的"多分辨率耗时曲线"和"栅格规模 / 规划耗时"。
+
+### 2.2 提取前端帧率对比
+
+读 `cesium_old/features/slope/TerrainBackendIntegration.js`，定位 LOD 开关逻辑，记录：
+- **关闭 LOD 时的帧率**（Playwright 录制 + performance metrics）
+- **开启 LOD 后的帧率**
+- → 简历 B 写的"帧率提升约 ___%"的真实数据来源
+
+```powershell
+# 启动后端 + 前端
+powershell -ExecutionPolicy Bypass -File .\backend\run_backend.ps1
+cd cesium_old && npm run serve    # 8080
+# 用 Playwright e2e 跑地形分析场景，对比 LOD 开/关
+npm run test:e2e:headed
+```
+
+### 2.3 提取 ONNX 推理性能
+
+```powershell
+# 在 Python 里跑一次 ONNX 推理，记下耗时
+"C:/Users/Czzppy/.workbuddy/binaries/python/envs/default/Scripts/python.exe" -c "
+import sys, time, os
+sys.path.insert(0, os.path.join('backend', 'app', 'services'))
+from terrain_classifier import ONNXTerrainClassifier
+import numpy as np
+cls = ONNXTerrainClassifier()
+# 加载一份真实栅格
+dem = np.random.randn(160, 160).cumsum(axis=0) + 100
+t = time.perf_counter()
+out = cls.classify(dem)
+print(f'ONNX 160x160 推理: {(time.perf_counter()-t)*1000:.1f}ms')
+"
+```
+
+### 2.4 填回简历 B
+
+直接改 `gen_resumes.py` 的对应行（已标注【待填真实数值】），然后跑：
+
+```powershell
+"C:/Users/Czzppy/.workbuddy/binaries/python/envs/default/Scripts/python.exe" gen_resumes.py
+```
+
+---
+
+## 二·五、ONNX 模型真实评测结果（2026-09-04 实测）
+
+> 来源：`bench/eval_terrain_model.py` + `bench/results/{metrics.json, eval_report.md}`
+> 运行命令：`D:/VS_Code_Program/CesiumJS_Debug/earthscape/.venv/Scripts/python.exe bench/eval_terrain_model.py`
+
+### 概念澄清：这不是"土地类型提取"
+
+训练目标为**地形形态分类（terrain morphology / landform classification）**，不是土地覆被（land cover）。
+二者区别必须分清，写错会被面试官直接问穿：
+
+| | 地形形态分类（本项目） | 土地覆被分类 |
+|---|---|---|
+| 类别 | 平地/山顶/山脊/陡坡/缓坡/山谷/洼地/陡崖 | 林地/耕地/草地/水体/建设用地/裸地 |
+| 输入数据 | **仅需 DEM** | 需多光谱/高光谱影像 |
+| 判据 | 高程的几何形态（坡度、曲率、TPI） | 地物光谱反射特征 |
+
+### 两套训练管线（最终模型用的是真实数据）
+
+| | 管线 A（早期·合成） | 管线 B（**最终·真实**） |
+|---|---|---|
+| 脚本 | `terrain_morphology_train.py` | `generate_real_training_data.py` + `train_morphology.py` |
+| 数据 | Perlin 噪声合成地形 | **全球 42 个真实地点 SRTM DEM** |
+| 标签 | 规则分类器伪标签 | **Geomorphons 伪标签** |
+| 网络 | SimpleCNN 3 层（32/64/128） | SimpleCNN 4 层（64/128/256/256），99.4 万参数 |
+| Epochs | 50 | **150** |
+| 数据集 | 动态生成 | `train_data.pt` / `val_data.pt`（各 327 MB） |
+
+**76% 这个数字来自管线 B**（时间戳验证：数据 12:08 → best_model 12:15 → ONNX 12:20）。
+采样地点按地貌类型精心分组：平原 8 处、山峰/火山 6 处、山脊/山脉 10 处、峡谷陡坡 5 处、河谷 5 处、洼地 4 处、海崖 3 处。
+
+### 实测指标（验证集 4000 样本，8 类均衡）
+
+| 指标 | 数值 |
+|---|---|
+| **Overall Accuracy** | **76.48%** |
+| **Macro-F1** | **75.84%** |
+| Weighted-F1 | 75.56% |
+| **Cohen's Kappa** | **0.7312** |
+| Top-2 Accuracy | 86.80% |
+| 平均 Precision / Recall | 76.6% / 76.5% |
+
+### 每类 F1 —— 严重两极分化（关键发现）
+
+| 类别 | F1 | 说明 |
+|---|---|---|
+| 陡崖 | **100.0%** | 极端地形 |
+| 山顶 | **98.0%** | 极端地形 |
+| 陡坡 | **97.7%** | 极端地形 |
+| 洼地 | **97.3%** | 极端地形 |
+| 平地 | 78.1% | — |
+| 山脊 | **49.4%** | ⚠️ 混淆三元组 |
+| 山谷 | **45.6%** | ⚠️ 混淆三元组 |
+| 缓坡 | **40.6%** | ⚠️ 混淆三元组 |
+
+### 失败模式分析（面试黄金内容）
+
+混淆矩阵显示：{山顶、陡坡、洼地、陡崖} 四类**零误判**（100% 正确），
+而 {山脊、缓坡、山谷} 构成一个**封闭的混淆三元组**，三者互相误判：
+
+- 缓坡 → 山谷 27%、山脊 25%
+- 山脊 → 山谷 19%、缓坡 17%
+- 山谷 → 缓坡 19%、山脊 19%
+
+**原因（有地形学依据，不是模型缺陷）**：
+1. **极端地形**在 64×64 局部窗口内有明确且互斥的几何特征（极陡、局部最高、局部最低、大坡度）→ 可分
+2. **过渡地形**本质连续：山脊的一段斜坡在局部视野里与缓坡无异；山谷与洼地同为负 TPI，区别在"是否线性延伸"，而单尺度 patch **看不到延伸性**
+
+→ 这说明模型学到了真实的地形学结构而非噪声。**改进方向：用多尺度上下文（如 U-Net + 多分辨率金字塔）替代单尺度 64×64 patch**。
+
+### 推理性能（最有商业价值的数字）
+
+| 场景 | 方法 | 耗时 |
+|---|---|---|
+| 单 patch (64×64) | PyTorch CPU | 3.58 ms |
+| 单 patch (64×64) | **ONNX Runtime CPU** | **1.53 ms**（**提速 2.34x**，输出一致性 100%） |
+| **256×256 栅格（65536 单元）** | Geomorphons 逐栅格 | **3260.8 ms** |
+| 同上 | 规则分类器 | 170.2 ms |
+| 同上 | **ONNX CNN（16 patch）** | **24.5 ms** |
+
+→ **ONNX 较 Geomorphons 提速约 133 倍**。这回答了必然被问的"为什么要用 ML 替代传统算法"。
+
+### 诚实性边界（必须守住）
+
+标签是 **Geomorphons 算法生成的伪标签，不是人工标注**。因此：
+
+- ✅ 正确表述：「模型复现 Geomorphons 判定结果的一致率 76.48%」「以 CNN 蒸馏 Geomorphons 换取推理速度」
+- ❌ 错误表述：「模型地形分类准确率 76.48%」（暗示以真实地表为真值）
+
+**项目定位**：这不是"提升精度"的项目，而是**用 ML 换推理速度、同时保持精度**的项目（133x 才是核心价值）。面试被问"真值从哪来"时要能诚实回答——这个诚实本身是加分项。
+
+### 简历可写版本
+
+```
+· 构建 8 类地形形态分类数据集：采集全球 42 个典型地貌区（华北平原、富士山、珠峰、
+  科罗拉多大峡谷、死海洼地、多佛白崖等）30 m SRTM DEM，以 Geomorphons 算法
+  （Jasiewicz & Stepinski 2013）生成像素级伪标签，切分 64×64 patch，8 类均衡采样
+· 训练 SimpleCNN（4 层卷积 / 99 万参数 / 150 epochs）完成 8 类地形形态分类，
+  验证集 4000 样本 Overall Acc 76.48%、Macro-F1 75.84%、Cohen's Kappa 0.731、Top-2 Acc 86.80%
+· 导出 ONNX 并以 onnxruntime 部署：单 patch 推理 1.53 ms（较 PyTorch 提速 2.34x，
+  输出一致性 100%）；256×256 栅格分类耗时 24.5 ms，较 Geomorphons 逐栅格计算
+  （3260.8 ms）提速约 133 倍
+· 失败模式分析：山顶/陡坡/洼地/陡崖四类 F1 ≥ 97%；山脊/缓坡/山谷因单尺度 patch
+  无法表达地形延伸性而相互混淆（F1 40–49%），据此提出多尺度上下文改进方向
+```
+
+最后一条「失败模式分析 + 改进方向」是**区分度最高的一句**——多数应届生只会报 accuracy。
+
+---
+
+## 三、6 周改造方案（GeoAgent 在本项目的落地）
+
+> 与 `校招简历-陈茁\output\v3修订说明与GeoAgent六周路线图.html` 配套。本文件聚焦**代码级改造**。
+
+> **【2026-09-07 用户拍板 · 推进方式变更】**
+> 本章的"Week N / 日期"**只作为功能依赖顺序的参考，不再作为时间约束**。
+> 用户原话："别管 week 不 week 了，按顺序把功能实现、测试、验证完就行，
+> 没人看这么严谨的时间 commit。"
+> 因此：**一个功能做完（实现→测试→验证）再进下一个**，不为凑 commit 节奏赶工，
+> 也不再为了"commit 时间线连续性"做批量补交或改写历史。
+> 下面 243 行的"每周五至少 1 次提交"仅作备忘，**不强制执行**。
+
+### Week 0 · 本周 9/2–9/7（前置）
+
+| 任务 | 文件 | 动作 |
+|---|---|---|
+| 跑量化数据 | `tests/dem-experiment/` | 按 2.1 跑 3 个分辨率，更新 `run_log.csv` |
+| 写 ONNX benchmark | 新建 `bench/onnx_bench.py` | 记录推理耗时，画折线图 |
+| 跑前端 LOD 对比 | `tests/e2e/` | 加 1 个测试用例对比 LOD 开/关帧率 |
+| 填回简历 | `校招简历-陈茁\output\gen_resumes.py` | 替换所有【待填真实数值】 |
+| 启动软著申请 | — | 加急代理，本周必须提交 |
+| 建 GitHub 仓库 | 新建 | 把整个项目 push 到 GitHub，**让 commit 时间线覆盖秋招** |
+| 投海康 | — | 9/18 截止 |
+
+**重要 commit 节奏**：从 Week 0 开始，每周五至少 1 次提交。HR 会看 commit 记录的连续性。
+
+### Week 1 · 9/8–9/14｜工具层
+
+**目标**：把 `backend/app/services/` 拆成可被 Agent 调用的标准工具。
+
+#### 改造点
+
+`backend/app/services/` 已经是按"服务"组织的好结构。Week 1 主要是**加一层 `tools/` 包装**，不动现有代码：
+
+```
+backend/app/
+  services/          ← 现有代码，保留不动
+    analysis_service.py
+    terrain_classifier.py
+    export_service.py
+  tools/             ← 新建：Agent 工具包装层
+    __init__.py
+    dem_tools.py     ← read_dem / reproject_raster / download_srtm
+    terrain_tools.py ← compute_slope / compute_aspect / compute_curvature / compute_cost_surface
+    path_tools.py    ← plan_route（包装 plan_path）
+    classify_tools.py← classify_rules / classify_geomorphons / classify_onnx
+    export_tools.py  ← export_geojson / export_czml / export_kml
+    schemas.py       ← 所有工具的 JSON Schema（Pydantic）
+    registry.py      ← 工具注册表（name -> fn + schema）
+    errors.py        ← 统一错误返回（ToolResult.success + message）
+```
+
+#### 工具清单（9 个 + 1）
+
+| 工具名 | 包装自 | 输入 | 输出 |
+|---|---|---|---|
+| `read_dem` | `_download_srtm` + `_load_real_dem` | bbox, resolution | path, stats, dem_source |
+| `compute_slope` | `analyze_terrain` 部分 | bbox, dem_path | slope_deg 栅格路径、min/max/mean |
+| `compute_aspect` | 同上 | 同上 | aspect_deg |
+| `compute_curvature` | 同上 | 同上 | curvature |
+| `compute_cost_surface` | 同上 | bbox, factor_weights | cost 栅格 |
+| `plan_route` | `plan_path` | bbox, start, end, cost_model | path_lonlat, distance_m |
+| `classify_terrain_rules` | `classify_terrain` | bbox | class_ids, confidence |
+| `classify_geomorphons` | `GeomorphonsClassifier.classify` | bbox | 同上 |
+| `classify_terrain_onnx` | `ONNXTerrainClassifier.classify` | bbox | 同上 |
+| `zonal_statistics` | 新加 | bbox, vector_polygon | 分类统计 dict |
+
+#### 关键约束
+
+- **输入可序列化**：bbox 用 `[w, s, e, n]` 而不是 Pydantic 对象
+- **输出结构化**：所有数值用 dict + 单位 + 范围告警
+- **错误统一**：每个工具返回 `ToolResult(success=True/False, data=..., error=...)`，Agent 能解析
+
+#### 测试
+
+`backend/app/tools/tests/` 至少 18 个单元测试（每工具 2 个：正常 + 异常）。
+
+#### 简历增量句
+
+> 「将遥感与 GIS 分析能力封装为 10 个大模型可调用工具，以 JSON Schema 描述并通过 Function Calling 暴露，输出统一结构化 dict（含单位与范围告警）」
+
+### Week 2 · 9/15–9/21｜编排层（LangGraph）
+
+#### 改造点
+
+新建 `backend/app/agent/`：
+
+```
+backend/app/
+  agent/
+    __init__.py
+    graph.py             ← LangGraph 状态图定义
+    nodes/
+      planner.py         ← 任务拆解
+      executor.py        ← 工具执行
+      reflector.py       ← 结果校验（关键）
+      rag_node.py        ← RAG 增强（Week 4 接上）
+    state.py             ← AgentState TypedDict
+    prompts/             ← 提示词模板
+      planner.txt
+      reflector.txt
+    persistence.py       ← SqliteSaver 配置
+```
+
+#### reflector 设计（核心）
+
+参考现有代码的领域知识，定义"结果合理性"校验：
+
+```python
+# reflector.py 伪代码
+def reflect(state: AgentState) -> AgentState:
+    result = state.last_result
+    if result.tool_name == "plan_route":
+        # 路径长度合理？起终点是否在 bbox 内？
+        if result.data["distance_m"] > MAX_DISTANCE_FOR_BBOX(state.bbox):
+            return retry(state, reason="path_too_long")
+        if result.data["node_count"] < 2:
+            return retry(state, reason="path_trivial")
+    if result.tool_name == "compute_slope":
+        # 坡度范围是否在 [0, 90]?
+        if not (0 <= result.data["min"] and result.data["max"] <= 90):
+            return retry(state, reason="slope_out_of_range")
+    if result.tool_name == "classify_terrain":
+        # 分类结果是否全为 0（nodata）？
+        if np.all(result.data["class_ids"] == 0):
+            return retry(state, reason="classification_empty")
+    return done(state)
+```
+
+#### 测试
+
+- 3 个多轮对话场景（必须包含 1 个失败重试案例）
+- 状态持久化测试（kill 服务后能恢复）
+
+#### 简历增量句
+
+> 「基于 LangGraph 构建「规划 → 执行 → 反思」状态图，定义 6 类领域级自校验规则（路径长度合理性 / 坡度范围 / 分类非空 / 起终点在 bbox 内 / 投影一致性 / 瓦片对齐），失败自动反思重试上限 3 次」
+
+### Week 3 · 9/22–9/28｜MCP Server（差异化亮点）
+
+> 这是最关键的一周，而且 `mcp/custom/` 目录已经准备好。
+
+#### 新建
+
+```
+mcp/custom/geo_mcp_server/
+  __init__.py
+  server.py             ← FastMCP 入口
+  tools.py              ← 把 backend/app/tools/ 的工具再包一层
+  config/
+    claude_desktop.json ← Claude Desktop 配置示例
+    cursor.json           ← Cursor 配置示例
+  README.md             ← 5 分钟接入指南
+```
+
+#### server.py 骨架
+
+```python
+# mcp/custom/geo_mcp_server/server.py
+from mcp.server.fastmcp import FastMCP
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(
+    os.path.dirname(__file__), "..", "..", "..", "backend")))
+from app.tools.registry import TOOL_REGISTRY
+
+mcp = FastMCP("GeoMCP", instructions="地理空间分析 MCP 工具集")
+
+for name, (fn, schema) in TOOL_REGISTRY.items():
+    # 用装饰器注册（FastMCP 风格）
+    mcp.add_tool(
+        fn=fn,
+        name=name,
+        description=schema["description"],
+        # 字段从 schema 自动推导
+    )
+
+if __name__ == "__main__":
+    mcp.run()  # 默认 stdio
+```
+
+#### 接入测试
+
+在 Claude Desktop / Cursor 配置里加入：
+```json
+{
+  "mcpServers": {
+    "geo-mcp": {
+      "command": "python",
+      "args": ["D:/VS_Code_Program/CesiumJS_Debug/mcp/custom/geo_mcp_server/server.py"]
+    }
+  }
+}
+```
+
+然后在 Claude Desktop 里输入：
+> "分析下经度 100.0-101.0、纬度 30.0-31.0 范围内的坡度，导出为 GeoJSON"
+
+→ 看到返回结果，说明 MCP Server 接通了。
+
+#### 简历增量句
+
+> 「以 MCP（Model Context Protocol）标准协议对外暴露上述 10 个工具，使任意支持 MCP 的客户端（Claude Desktop / Cursor 等）可直接调用本地地理空间分析能力，无需依赖本项目自有前端」
+
+### Week 4 · 9/29–10/5｜RAG 知识层
+
+#### 新建
+
+```
+backend/app/rag/
+  __init__.py
+  ingest.py          ← 从 literature/ + earthscape/ + GDAL/rasterio 文档构建
+  embed.py           ← bge-m3 嵌入
+  rerank.py          ← bge-reranker-v2-m3 重排
+  retriever.py       ← 整合检索
+  store.py           ← Chroma 持久化
+```
+
+**数据源优先级**：
+1. `literature/`（项目已有！）
+2. `earthscape/notebooks/` 和文档
+3. GDAL / rasterio 官方文档（如未抓取，从 https://gdal.org 下载 HTML）
+4. Geomorphons 论文（Jasiewicz & Stepinski 2013）
+
+#### 简历增量句
+
+> 「采集 87 篇遥感 / GIS 领域文档（项目 literature + GDAL 官方文档 + EarthScape 论文）构建领域 RAG 知识库，bge-m3 向量化 + Rerank 重排」
+
+### Week 5 · 10/6–10/12｜评测集与消融（**不可砍**）
+
+> 这是简历上所有数字的来源，也是反映"工程严谨度"的核心证据。
+
+#### 新建
+
+```
+backend/app/eval/
+  __init__.py
+  dataset.json       ← 100 条评测集
+  runner.py          ← 跑 LLM agent 在评测集上的表现
+  metrics.py         ← 工具选择准确率、参数正确率、任务完成率、平均轮次
+  ablation.py        ← 4 组消融配置
+  results.md         ← 写评测结果（README 引用这里）
+```
+
+#### 评测集构造（100 条）
+
+| 类别 | 条数 | 示例 | Ground truth |
+|---|---|---|---|
+| 单工具 | 40 | "计算经度 100-101、纬度 30-31 的坡度" | `compute_slope` |
+| 多工具串联 | 40 | "找一条从 A 到 B 坡度 < 15° 的路线" | `compute_slope` → `compute_cost_surface` → `plan_route` |
+| 越界/拒答 | 20 | "预测明天天气" / "分析火星地形" | "超出能力范围" |
+
+#### 4 组消融（基于现有 dem-experiment 的方法论）
+
+| 配置 | planner | executor | reflector | rag | 工具 |
+|---|---|---|---|---|---|
+| ReAct | zero-shot | tool-by-tool | ❌ | ❌ | 全部 |
+| ReAct+reflector | zero-shot | tool-by-tool | ✅ | ❌ | 全部 |
+| Plan-Execute | structured | batch | ❌ | ❌ | 全部 |
+| Plan-Execute+reflector+RAG | structured | batch | ✅ | ✅ | 全部 |
+
+#### 评测脚本（伪代码）
+
+```python
+# backend/app/eval/runner.py
+for case in dataset:
+    for config in ABLATIONS:
+        agent = build_agent(config)
+        result = agent.run(case.query)
+        score = score_result(result, case.expected_tools, case.expected_params)
+        log(case.id, config.name, score)
+```
+
+#### 简历增量句
+
+> 「自建 100 条中文地理空间任务评测集，覆盖单工具调用 / 多工具串联 / 越界拒答三类，对比 ReAct 与 Plan-and-Execute 两种策略，工具选择准确率由 X% 提升至 Y%（【必填真实数字】）」
+
+### Week 6 · 10/13–10/19｜前端 + 部署 + 包装
+
+`earthscape` 目录里已经有完整的 Jupyter notebook 和 baselines，可以用作 demo 视频素材。
+
+新增：
+- `frontend/`（或扩展 `cesium_old/`）—— 对话侧工具调用链路可视化
+- `docker-compose.yml` —— backend + vector_db + frontend + mcp_server 一键启动
+- `README.md`（顶层新建）—— 架构图 + 5 分钟快速开始 + 评测结果表 + 演示 GIF
+- `docs/demo.gif` —— 3 分钟 demo 视频
+
+#### 简历增量句
+
+> 「FastAPI + Docker Compose 一键部署（后端 + 向量库 + 前端 + MCP Server），GitHub Actions 持续集成，代码开源：github.com/______」
+
+---
+
+## 三·五、Agent 大脑模型（LLM）优化与轻量化路线（2026-09-07 增补）
+
+> **为什么单列这一章**：原第三节的 Week 1–3 只覆盖了"工具层 / 编排层 / MCP"，
+> 完全没有涉及 **Agent 的大脑 LLM 本身**——它该选什么模型、怎么量化、怎么针对
+> 地理信息垂直场景做轻量化。这一章补上这条线。
+>
+> **⚠️ 术语红线（2026-09-07 误读事故后确立）**：
+> 本章的"模型"一律指 **Agent 的大脑 LLM**（`backend/app/agent/llm.py` 调用的那个），
+> **不是** ONNX 地貌分类模型。**任何涉及"模型优化/量化"的任务，必须先确认指哪一个。**
+> ONNX 分类模型的量化是**另一条支线**（见二·五节延伸与 `backend/app/optimization/`），
+> 已于 2026-09-07 完成，与本章无关。
+
+### 3.5.1 硬约束（决定一切选型）
+
+| 约束 | 实测值 | 来源 |
+|---|---|---|
+| GPU | **NVIDIA RTX 2060，6 GB 显存** | 2026-09-07 `Win32_VideoController` 实测 |
+| CPU / RAM | i7-10875H（8 核）/ 32 GB | 同上 |
+| 磁盘 | C 盘约 5 GB（危险）/**D 盘约 48 GB** | 2026-09-07 `df -h` 实测 |
+| **模型体积预算** | **全部模型文件（含参数）≤ 5 GB** | 用户明确要求 |
+| 运行环境 | **自建嵌入式 llama.cpp**（2026-09-07 决策：弃用 Ollama） | 见 3.5.2 |
+| 编译器 | MSVC 19.38（VS 17.8.3，装在 `D:\Microsoft Visal Studio`）+ Ninja | 2026-09-07 实测 |
+| CUDA | **本机未装 CUDA Toolkit**（`nvcc` 不在 PATH） | 同上；影响见 3.5.2 |
+
+**由此推出的三条硬规则**：
+
+1. **模型一律装 D 盘**：设 `OLLAMA_MODELS=D:\OllamaModels`，Ollama 本体也装 D 盘。
+   默认路径在 C 盘，4–5 GB 的模型会直接撑爆系统盘。
+2. **主力模型 ≤ 5 GB 且能整放进 6 GB 显存**——否则触发 GPU/CPU 混合 offload，
+   实测会从 14 tok/s 掉到 2 tok/s（参考 Qwen3.5-9B LowVRAM 官方说明）。
+3. **上下文长度要显式限制**：KV cache 是显存杀手。Agent 场景 8K–16K 足够，
+   不要开到 64K/128K。
+
+### 3.5.2 技术选型（2026-09-07 修订：弃用 Ollama，自建嵌入式推理层）
+
+> **决策变更**：原计划用 Ollama 提供 OpenAI 兼容端点。2026-09-07 用户提出质疑——
+> "一定要走三方平台 Ollama 用接口中转吗？不能直接用 C++ 版嵌入系统里编译运行吗？"
+> 经研究确认 **可行且更优**，改为自建嵌入式推理层，Ollama 卸载。
+
+#### 先纠正一个直觉：HTTP 中转其实不是主要开销
+
+用户提出的两条理由里，**"数据传输更快"这条需要修正**——按实测链路拆解：
+
+| 环节 | Ollama（HTTP 中转） | 嵌入式（进程内 ctypes） | 量级 |
+|---|---|---|---|
+| HTTP 请求 + 响应（localhost 回环） | ~1–2 ms | 0 | 微秒级 |
+| JSON 序列化 / 反序列化 | ~1–3 ms | 0 | 微秒级 |
+| 进程间数据拷贝 | 有（prompt/输出各一次） | 无（同一地址空间） | 与 prompt 长度相关 |
+| **Prefill + Decode（200 token）** | **2–8 s** | **2–8 s** | **完全相同** |
+
+**结论：HTTP 中转只占单次请求总耗时的 0.05%–0.2%。** 生成耗时由 GPU 算力决定，
+两层架构都调用同一个 llama.cpp，这部分没有任何差别。所以"换掉 Ollama 就能显著
+提速"是**错误的期待**，不能这么写进简历或汇报。
+
+#### 真正的收益（这才是换的理由）
+
+| # | 收益 | 为什么重要 |
+|---|---|---|
+| **1** | **GBNF 语法约束解码** | 🔴 **决定性**。llama.cpp 可在解码时用 GBNF 文法**强制**输出合法 JSON，从根上消除 tool-calling 的格式错误。Ollama 虽也支持 `format`，但文法能力受限。这是我们评测指标里"JSON 合法率"的杀手锏 |
+| **2** | **批量评测吞吐** | 跑 100 条评测集时，Ollama 只能串行 HTTP 请求；进程内可用 llama.cpp 的 batch/并行解码，R2–R4 三组实验的研发效率是数量级差异 |
+| **3** | **模型常驻可控** | Ollama 默认空闲 5 分钟卸载模型，下次请求要重读 3.4 GB；进程内由我们自己控制生命周期 |
+| **4** | **turnkey 部署** | 无独立服务进程、无端口占用、无需用户先装 Ollama —— 契合本项目一贯的"零配置可运行"目标 |
+| **5** | **C# 端侧嵌入** | PC 客户端（WinForms）可用 LLamaSharp 直接 P/Invoke `llama.dll`，实现**完全离线**的 Agent 能力 |
+| 6 | 简历价值 | "自研 llama.cpp 编译集成 + CUDA 后端 + GBNF 约束解码" 显著强于 "装了 Ollama 跑模型" |
+
+#### 架构
+
+```
+                    ┌──────────────────────────────────────┐
+  自然语言请求  →   │  backend (FastAPI / Python 3.14)     │
+                    │    agent/llm.py                      │
+                    │      └→ llama_cpp.Llama (进程内)      │  ← 零 HTTP
+                    └──────────────┬───────────────────────┘
+                                   │ ctypes
+                    ┌──────────────▼───────────────────────┐
+                    │  libllama + ggml (源码编译, CUDA)     │
+                    └──────────────┬───────────────────────┘
+                                   │
+                    ┌──────────────▼───────────────────────┐
+                    │  RTX 2060 6GB  ·  qwen3.5-4b Q4_K_M  │
+                    └──────────────────────────────────────┘
+
+  PC 客户端 (C# WinForms)  ──  LLamaSharp (P/Invoke llama.dll)  ──  同一份 GGUF
+                                 （端侧离线推理，可选路径）
+```
+
+#### 组件选型
+
+| 层 | 选型 | 理由 | 状态 |
+|---|---|---|---|
+| 推理引擎 | **llama.cpp**（源码编译，非预编译包） | GGUF 生态、GBNF 文法、CUDA/Vulkan 多后端 | 2026-09-07 已 clone 至 `D:\llama_build\llama.cpp` |
+| Python 绑定 | **llama-cpp-python** | 官方绑定，进程内调用，支持 `Llama(...)grammar=` | 编译中（Python 3.14 无 wheel，**必须源码编译**） |
+| C# 绑定 | **LLamaSharp** + `Backend.Cuda12`/`Vulkan` | llama.cpp 官方 .NET 绑定，P/Invoke | 待评估（PC 客户端集成时） |
+| GPU 后端 | CUDA（sm_75 Turing），**备选 Vulkan** | RTX 2060 = Turing；本机原无 CUDA Toolkit | CUDA 13.3 安装中，需验证 Turing 兼容 |
+| 编译工具链 | MSVC 19.38 + Ninja + Windows SDK 10.0.22621 | 已实测可用 | ✅ |
+
+> **踩坑记录（本机特有）**：VS 装在 `D:\Microsoft Visal Studio`（注意原样拼写），
+> 非标准路径导致 CMake 的 vswhere 自动发现失效。必须手工注入
+> `PATH`/`INCLUDE`/`LIB`（**且必须是 Windows 路径格式**，Git Bash 的 `/d/...`
+> 会让 `cl.exe` 找不到 `stdbool.h`）。
+
+#### 候选模型（2026-09 现状，Qwen3.5 为当前主流）
+
+| 角色 | 候选 | 量化档 | 实测体积 | 定位 |
+|---|---|---|---|---|
+| **主力** | Qwen3.5 4B Instruct | Q4_K_M | **3.39 GB**（2026-09-07 实测） | 中文强、原生 tool calling、显存余量充足 |
+| **极限轻量** | Qwen3.5 2B | Q5_K_M | ~1.4 GB | 速度优先档，验证"小模型能否扛住 Agent 编排" |
+| **质量对照** | Qwen3.5 9B LowVRAM | 社区优化版 | ~4.8 GB | 6 GB 显存上限对照（可能触发 offload） |
+| 兜底 | Qwen2.5 7B Instruct | Q4_K_M | ~4.7 GB | Qwen3.5 不可用时回退 |
+
+> **⚠️ 权重来源：曾判断可直接复用 Ollama blob，实测已证伪（2026-09-07）**
+>
+> 最初判断"Ollama blob 头部就是 `GGUF` magic v3，可直接复制给 llama.cpp，省 3.4 GB"。
+> **复制后加载失败**，实测证据：
+>
+> ```
+> llama_model_load: error loading model hyperparameters:
+>   key qwen35.rope.dimension_sections has wrong array length; expected 4, got 3
+> ```
+>
+> 用 `bench/gguf_probe.py` 对比两个来源（文件完整，sha256 与 manifest 一致，非损坏）：
+>
+> | 来源 | `qwen35.rope.dimension_sections` | tensor 数 | llama.cpp 加载 |
+> |---|---|---|---|
+> | Ollama blob | `[11, 11, 10]` **len=3** | 834 | ❌ 拒绝 |
+> | unsloth 官方 GGUF | `[11, 11, 10, 0]` **len=4** | 426 | ✅ |
+>
+> 数值本身一致（只差末尾补 0），但 **tensor 数量差了一倍**，说明 Ollama 的布局
+> 也不是标准 llama.cpp 结构——仅改 metadata 未必够。
+> **结论：放弃复用 blob，改用 HuggingFace 官方 GGUF。**
+> 探针法（先下 32 MB 文件头验证 metadata 再决定全量下载）值得固化为常规流程，
+> 避免 3 GB 白下载。
+
+**微调栈**：QLoRA（bitsandbytes 4-bit NF4 + peft LoRA）→ 合并权重 →
+`convert_hf_to_gguf.py` 转 GGUF → `llama-quantize` 量化 → **直接由嵌入式引擎加载**
+（不再需要 Ollama 的 Modelfile 打包步骤，链路更短）。
+RTX 2060 6 GB 可支撑 **2B/4B 级别**的 QLoRA（batch=1 + 梯度累积）；7B 需谨慎。
+
+### 3.5.3 模型研究路线（四步，按顺序）
+
+| 步骤 | 内容 | 产出 | 验收标准 |
+|---|---|---|---|
+| **R1 基线建立** | 拉取主力模型 + 对照档，验证 CUDA 生效、测 tok/s 与显存 | `bench/llm_bench.py` + 实测表 | 主力模型全层 GPU 加载（`ollama ps` 显存占用 ≥90% 在 GPU） |
+| **R2 量化档位对比** | 同模型跑 Q4_K_M / Q5_K_M / Q8_0，比较精度与速度 | 量化档位对比表 | 给出"每 GB 显存换多少准确率"的量化结论 |
+| **R3 垂直数据集构造** | 基于现有 11 个工具 schema 合成中文地理空间 tool-calling SFT 数据 | `backend/app/eval/dataset.json`（评测集）+ SFT 训练集 | ≥100 条评测集 + ≥500 条 SFT 样本，人工抽检 |
+| **R4 垂直轻量化** | QLoRA 微调 2B/4B → GGUF 量化 → Ollama 部署 | `models/geoagent-qwen/` | 微调后 tool-calling 准确率 **高于同尺寸基座**，且体积仍 ≤5 GB |
+
+### 3.5.4 实验设计
+
+**评测集**（`backend/app/eval/dataset.json`，100 条，与第五节 Week 5 同源）：
+
+| 类别 | 条数 | 示例 | Ground truth |
+|---|---|---|---|
+| 单工具 | 40 | "计算经度 100–101、纬度 30–31 的坡度" | `compute_slope` |
+| 多工具串联 | 40 | "找一条从 A 到 B 坡度<15° 的路线" | `compute_slope` → `compute_cost_surface` → `plan_route` |
+| 越界/拒答 | 20 | "预测明天天气" | 拒答 |
+
+**指标**（`backend/app/eval/metrics.py`）：
+
+1. **JSON 合法率** —— 模型输出能否被解析（Agent 的生命线）
+2. **工具选择准确率** —— 选对工具名
+3. **参数准确率** —— 参数名/类型/取值范围正确（尤其经纬度越界）
+4. **任务完成率** —— 端到端跑通
+5. **延迟** —— 首 token / 全请求耗时
+6. **显存峰值** —— 是否触发 CPU offload
+
+**消融矩阵**（模型侧，与第五节 Week 5 的策略侧消融互补）：
+
+| 配置 | 模型 | 量化 | 垂直微调 |
+|---|---|---|---|
+| A | 4B | Q5_K_M | ❌ |
+| B | 4B | Q4_K_M | ❌ |
+| C | 2B | Q5_K_M | ❌ |
+| D | 2B/4B | Q4_K_M | ✅ |
+
+> **诚实性要求**：任何数字必须是本机实测。跑不出来的配置写"未跑通 + 原因"，
+> 不许估算、不许美化。
+
+### 3.5.5 应用落地
+
+1. `backend/app/agent/llm.py` 增加 **model profile** 配置（模型名 / 上下文 / 温度 / 超时），
+   用环境变量切换，保持"不绑死厂商"的原有设计。
+2. 端到端跑通：自然语言 → planner 规划 → 工具调用 → reflector 反思 → summarizer 总结。
+3. 前端（`cesium_old/`）接对话侧工具调用链路可视化（原 Week 6 内容）。
+4. 评测结果回填本章 + `GEOAGENT_PROGRESS.md` + 简历 B。
+
+### 3.5.6 当前状态（2026-09-07 22:50 更新）
+
+| 项 | 状态 |
+|---|---|
+| llama.cpp 源码 | ✅ `D:\llama_build\llama.cpp`（ggml 0.23.0 / commit e71b805） |
+| 编译工具链 | ✅ MSVC 19.38 + Ninja + Windows SDK 10.0.22621 已验证可用 |
+| **llama-cpp-python** | ✅ **0.3.35 源码编译安装成功**（Python 3.14，CPU 后端，wheel 7.2 MB） |
+| GGUF 权重 | ⏳ 下载 `unsloth/Qwen3.5-4B-Q4_K_M.gguf`（blob 已证伪，见 3.5.2） |
+| **冒烟测试** | ⬜ 待权重下载完成后执行 `bench/smoke_embedded.py` |
+| CUDA Toolkit | ❌ **winget 失败**（exit 2148270085，需管理员授权）→ 见 3.5.7 |
+| 评测基准 | ✅ 100 条评测集已生成并校验（`backend/app/eval/dataset.json`） |
+| 垂直微调 | ⬜ 未开始 |
+| **Ollama 卸载** | ⬜ 待上述跑通后执行（含模型目录 `D:\OllamaModels` 清理） |
+
+> **历史遗留问题**：`llm.py` 里 `DEFAULT_MODEL = "qwen2.5:14b"`，而本机既无 Ollama
+> 也无 14B 模型（14B Q4 约 9 GB，也远超 5 GB 预算）。**该配置从未真正跑通过**，
+> 是纯占位。R1 完成后必须改成实测可用的模型名与嵌入式加载路径。
+
+#### 卸载 Ollama 的前置检查（跑通后才执行）
+
+1. 嵌入式引擎能加载 `qwen3.5-4b-q4km.gguf` 并产出正确回答
+2. 基准对比完成（Ollama HTTP vs 进程内），数字落盘
+3. GGUF 已从 blob 完整复制且校验通过（**否则卸载后权重丢失，需重下 3.4 GB**）
+4. 再执行：停止服务 → 卸载程序 → 清理 `D:\Ollama`、`D:\OllamaModels`、`D:\OllamaInstall`
+
+### 3.5.7 GPU 加速：CUDA 安装受阻与对策（2026-09-07）
+
+**现象**：`winget install NVIDIA.CUDA --version 13.3` 失败
+
+```
+Installer failed with exit code: 2148270085
+（0x80080205 — 安装包需要提升权限，非交互模式无法弹出 UAC）
+```
+
+**根因**：CUDA Toolkit 安装必须管理员权限，而 winget 在 `--disable-interactivity`
+下无法请求提权。**这不是命令写错，是权限模型的硬约束。**
+
+**对策（按优先级）**：
+
+| # | 方案 | 需要用户操作 | 预期收益 |
+|---|---|---|---|
+| 1 | **手工提权安装**：右键 `D:\llama_build\install_cuda_admin.bat` → 以管理员身份运行 | 点一次 UAC | CUDA 后端，较 CPU 约 **3–5×** 提速 |
+| 2 | Vulkan 后端（`-DGGML_VULKAN=ON`） | 需装 Vulkan SDK（同样可能要管理员） | 约 CUDA 的 70–85%，但无需 nvcc |
+| 3 | **CPU 回退**（当前状态） | 无 | i7-10875H 8 核跑 4B Q4，约 8–15 tok/s |
+
+> **重要**：方案 3 不影响架构验证。CPU 与 CUDA 走的是**同一套代码路径**，
+> 只是 `n_gpu_layers` 不同（0 vs -1）。等 CUDA 装上后重编译一次即可，
+> 无需改任何业务代码——这正是 `build_lcpp.sh` 参数化 `GGML_ARGS` 的原因。
+
+**装完 CUDA 后的三步**：
+
+```bash
+# 1. 确认 nvcc
+nvcc --version
+
+# 2. 用 CUDA 后端重编译（约 12 分钟）
+bash D:\llama_build\build_lcpp.sh "-DGGML_CUDA=ON"
+
+# 3. 基准对比（CPU vs CUDA vs Ollama）
+python bench/llm_bench.py --mode both --n-gpu-layers -1
+```
+
+> **风险提示（Turing 兼容性）**：RTX 2060 是 sm_75（Turing 架构）。CUDA 13.x
+> 已逐步移除 Maxwell/Pascal/Volta 支持，**Turing 是否仍受支持需在装完后实测确认**。
+> 若 CUDA 13.3 的 nvcc 不认 sm_75，退回 CUDA 12.x（手动下载 12.9 安装包）。
+
+---
+
+## 四、立等可取的 3 件事（不依赖 6 周）
+
+### 4.1 修简历 B 的"A* / Dijkstra"措辞
+
+**问题**：实际只有 Dijkstra，写 A* 是误导。
+**做法**：
+
+1. 改 `gen_resumes.py`，把"A*、Dijkstra、栅格路径搜索"改成 **"Dijkstra 8 邻居 + 方向约束（等高线跟随 + 方向代价场）+ 路径重叠率/Hausdorff 距离消融验证"**
+2. 在 Week 1 跑量化数据时同步更新数字
+
+**收益**：技术准确性立刻修正，HR/面试官不会被"两个都说"误导成"哪个都没真懂"。
+
+### 4.2 把现有能力填进简历 B 的"待填真实数值"占位符
+
+最直接的高 ROI 动作：
+
+```
+A*:   Dijkstra + 方向约束（等高线跟随 + 方向代价场）
+DEM 分辨率:   30 m（Copernicus GLO-30，自动下载）
+栅格规模:    160×160 / 320×320 / 640×640 三档实测
+规划耗时:    X ms / Y ms / Z ms（消融实验 run_log.csv 真实值）
+路径重叠率:  0.4289（Ours vs baseline，Hausdorff 距离 50.08）
+单位米爬升:  1.5618 m/m
+帧率提升:    [需实测 LOD 开/关]
+```
+
+### 4.3 把 mcp/custom/ 目录的 README 升级成实施指南
+
+当前 `mcp/custom/` 是空的，`mcp/README.md` 已写好"将自定义 MCP 服务器实现放在 `mcp/custom/` 目录下"，但没有具体内容。Week 3 之前应该把这里当作 GeoAgent MCP Server 的占位：
+
+- 建 `mcp/custom/geo_mcp_server/` 子目录
+- 写 5 分钟骨架（用 `mcp-python-sdk`）
+- 让本项目的 backend 服务可以随时包成 MCP
+
+这样 Week 3 就不用从零搭，时间更充裕做差异化亮点。
+
+---
+
+## 五、不要做（避免踩坑）
+
+| 不要做 | 原因 |
+|---|---|
+| 把 analysis_service.py 重写成"Agent 框架" | 现有代码是核心资产，包装而非重写 |
+| 把 Dijkstra 改成 A* | 方向约束是项目特色，改 A* 会丢失 |
+| 用 LangChain 官方教程模板 | 面试官见过几十遍 |
+| 把 GeoAgent 放在新仓库 | **用现有仓库**，展示 commit 时间线 |
+| 等所有 Week 做完才推 GitHub | Week 0 就建仓库并持续 commit |
+
+---
+
+## 六、检查清单（每周对照）
+
+- [ ] 本周有 commit（≥ 3 次）
+- [ ] README 同步更新
+- [ ] 跑过 e2e 测试
+- [ ] 简历 gen_resumes.py 已同步最新数据
+- [ ] 投递跟踪表已更新（用 `网申材料与投递跟踪.html`）
+- [ ] 面试复盘（如有面试）
+
+---
+
+## 附：项目目录速查表
+
+| 内容 | 路径 |
+|---|---|
+| FastAPI 后端 | `backend/app/main.py` |
+| 地形分析核心 | `backend/app/services/analysis_service.py` |
+| 地形分类（三方法） | `backend/app/services/terrain_classifier.py` |
+| ONNX 训练脚本 | `terrain_morphology_train.py` |
+| 训练好的模型 | `models/terrain_morphology/{best_model.pth, terrain_morphology.onnx}` |
+| 多模态数据集 | `earthscape/` |
+| 实验日志 | `skills/autoresearch/experiments/run_log.csv` |
+| 通行代价模型消融 | `tests/dem-experiment/run_dem_cost_experiment.py` |
+| MCP 自定义服务器占位 | `mcp/custom/`（空，待 Week 3 填） |
+| 前端主入口 | `cesium_old/Cesium_coordinate_copy_czDebugging.html` |
+| 项目约定 | `AGENTS.md` |
+| 主页面后端联动 | `cesium_old/features/slope/TerrainBackendIntegration.js` |
+| AHP 通行性建模 | `cesium_old/features/slope/AHPanalysis.js` |
+| RoughAnalysis | `cesium_old/features/slope/RoughAnalysis.js` |

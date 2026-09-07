@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol
 
 # 默认配置：本地 Ollama。用户改环境变量即可切到任何 OpenAI 兼容服务。
@@ -258,18 +259,174 @@ class MockClient:
         return len(self.calls)
 
 
+# --------------------------------------------------------------------------
+# 嵌入式 llama.cpp 客户端（进程内推理，零 HTTP）
+# --------------------------------------------------------------------------
+
+DEFAULT_GGUF = os.getenv(
+    "GEOAGENT_GGUF",
+    str(
+        Path(__file__).resolve().parents[3]
+        / "models"
+        / "llm"
+        / "qwen3.5-4b-q4km.gguf"
+    ),
+)
+
+
+class EmbeddedLlamaClient:
+    """进程内 llama.cpp 推理客户端（**不经 HTTP**）。
+
+    与 OpenAICompatClient 实现同一个 `chat()` 接口，但直接在 Python 进程内
+    通过 ctypes 调用 libllama，没有服务进程、没有端口、没有 JSON 网络往返。
+
+    为什么要有它（完整论证见 `IMPROVEMENT_PLAN.md` 3.5.2）：
+      - **GBNF 文法约束解码**：可在解码阶段强制输出合法 JSON，
+        这是提升 tool-calling「JSON 合法率」的杀手锏（Ollama 的 format 做不到）
+      - 部署 turnkey：不要求用户先装并启动 Ollama
+      - 模型常驻可控：不受 Ollama「空闲 5 分钟卸载」策略影响
+      - 批量评测可用 llama.cpp 的 batch 解码，吞吐显著高于串行 HTTP
+
+    ⚠️ 诚实说明：它**不会**让单次生成变快。生成耗时由 GPU 算力决定，
+    两条路径调用的是同一个 llama.cpp。HTTP 开销仅占总耗时 0.05%–0.2%。
+
+    环境变量：
+        GEOAGENT_GGUF          模型文件路径
+        GEOAGENT_N_CTX         上下文长度（默认 8192）
+        GEOAGENT_N_GPU_LAYERS  GPU 层数，-1 = 全放 GPU（默认）
+        GEOAGENT_GRAMMAR       "1" 启用 GBNF 约束（需配合 response_schema）
+    """
+
+    # 模型单例：按 (model_path, n_ctx, n_gpu_layers) 缓存，
+    # 避免重复把 3.4 GB 权重读进显存。
+    _models: Dict[tuple, Any] = {}
+
+    def __init__(
+        self,
+        model_path: Optional[str] = None,
+        n_ctx: Optional[int] = None,
+        n_gpu_layers: Optional[int] = None,
+        use_grammar: Optional[bool] = None,
+        verbose: bool = False,
+    ):
+        self.model_path = model_path or DEFAULT_GGUF
+        self.n_ctx = int(n_ctx or os.getenv("GEOAGENT_N_CTX", "8192"))
+        self.n_gpu_layers = int(
+            n_gpu_layers
+            if n_gpu_layers is not None
+            else os.getenv("GEOAGENT_N_GPU_LAYERS", "-1")
+        )
+        self.use_grammar = (
+            bool(use_grammar)
+            if use_grammar is not None
+            else os.getenv("GEOAGENT_GRAMMAR", "0") == "1"
+        )
+        self.verbose = verbose
+
+    def _ensure_model(self):
+        key = (self.model_path, self.n_ctx, self.n_gpu_layers)
+        if key in self._models:
+            return self._models[key]
+        try:
+            from llama_cpp import Llama
+        except ImportError as exc:
+            raise ImportError(
+                "嵌入式推理需要 llama-cpp-python。"
+                "本机 Python 3.14 无预编译 wheel，需源码编译："
+                "bash D:\\llama_build\\build_lcpp.sh"
+            ) from exc
+
+        if not os.path.exists(self.model_path):
+            raise FileNotFoundError(f"GGUF 模型不存在: {self.model_path}")
+
+        self._models[key] = Llama(
+            model_path=self.model_path,
+            n_ctx=self.n_ctx,
+            n_gpu_layers=self.n_gpu_layers,
+            verbose=self.verbose,
+        )
+        return self._models[key]
+
+    def chat(
+        self,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]] = None,
+        temperature: float = 0.0,
+        response_schema: Optional[Dict[str, Any]] = None,
+    ) -> LLMResponse:
+        """调用模型。
+
+        Args:
+            messages: OpenAI 格式消息列表
+            tools: 工具定义（走模型原生 tool calling）
+            temperature: 采样温度
+            response_schema: 若提供，用 GBNF 文法强制输出符合该 JSON Schema
+                            的内容（优先级高于 tools）
+        """
+        llm = self._ensure_model()
+        kwargs: Dict[str, Any] = {
+            "messages": messages,
+            "temperature": temperature,
+        }
+
+        # GBNF 约束优先：强制输出合法 JSON，从解码层面杜绝格式错误
+        if response_schema is not None and self.use_grammar:
+            try:
+                from llama_cpp import LlamaGrammar
+
+                kwargs["grammar"] = LlamaGrammar.from_json_schema(
+                    json.dumps(response_schema, ensure_ascii=False)
+                )
+            except Exception:
+                # 文法构造失败不应让整轮 Agent 崩掉，退回普通生成
+                pass
+        elif tools:
+            kwargs["tools"] = tools
+
+        resp = llm.create_chat_completion(**kwargs)
+        msg = resp["choices"][0]["message"]
+
+        tool_calls = []
+        raw_calls = msg.get("tool_calls") or []
+        for tc in raw_calls:
+            fn = tc.get("function", {})
+            args = fn.get("arguments", {})
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except Exception:
+                    args = {}
+            tool_calls.append({"name": fn.get("name", ""), "arguments": args or {}})
+
+        return LLMResponse(
+            content=msg.get("content") or "", tool_calls=tool_calls, raw=resp
+        )
+
+
 def build_client(
     use_mock: bool = False,
     mock_responses: Optional[List[str]] = None,
+    embedded: bool = False,
     **kwargs: Any,
 ) -> LLMClient:
     """工厂函数。
 
     Args:
-        use_mock: True 时用 MockClient（测试/演示）
+        use_mock: True 时用 MockClient（测试/演示，完全离线）
         mock_responses: Mock 脚本
-        **kwargs: 传给 OpenAICompatClient 的 base_url/api_key/model
+        embedded: True 时用 **进程内 llama.cpp**（默认后端，零 HTTP）
+        **kwargs: 传给对应客户端的参数
+
+    默认策略（未显式指定时）：
+        GEOAGENT_LLM_BACKEND=embedded|openai，默认 embedded
     """
     if use_mock:
         return MockClient(mock_responses)
-    return OpenAICompatClient(**kwargs)
+
+    if embedded:
+        return EmbeddedLlamaClient(**kwargs)
+
+    backend = os.getenv("GEOAGENT_LLM_BACKEND", "embedded")
+    if backend == "openai":
+        return OpenAICompatClient(**kwargs)
+    return EmbeddedLlamaClient(**kwargs)

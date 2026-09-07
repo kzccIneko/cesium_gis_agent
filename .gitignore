@@ -66,3 +66,14 @@ mcp/*
 *.tmp
 *.log
 cesium_old/新建文本文档.txt
+
+# ========================
+#  LLM 权重（GGUF）—— 体积 3GB 级，禁止入库
+#  下载方式见 IMPROVEMENT_PLAN.md 3.5.2
+# ========================
+models/llm/
+*.gguf
+*.gguf.part
+
+# 运行时数据
+backend/.data/
