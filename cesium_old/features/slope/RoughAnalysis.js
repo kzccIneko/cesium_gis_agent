@@ -157,7 +157,7 @@ RoughAnalysis.prototype.showMultipleRoughness = function (indices, pathCollectio
             panel.style.overflow = 'hidden';
 
             panel.innerHTML = ''
-            +    '<div id="roughMultiHeader" style="height:40px;display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid #eee;cursor:move;background:#fafafa;">'
+            +    '<div id="roughMultiHeader" class="move" style="height:40px;display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid #eee;cursor:move;background:#fafafa;">'
             +      '<div style="font-weight:600">陡峭度曲线 (距离 ： 陡峭度) — 多路径</div>'
             +      '<div><button id="closeRoughChartBtn">关闭</button></div>'
             +    '</div>'
@@ -171,35 +171,7 @@ RoughAnalysis.prototype.showMultipleRoughness = function (indices, pathCollectio
             const closeBtnMulti = document.getElementById('closeRoughChartBtn');
             if (closeBtnMulti) closeBtnMulti.onclick = function () { panel.remove(); };
 
-            // 可拖拽头部
-            (function makeDraggable(p, headerId) {
-                const header = document.getElementById(headerId);
-                if (!header) return;
-                header.addEventListener('mousedown', startDrag);
-                function startDrag(e) {
-                    e.preventDefault();
-                    const rect = p.getBoundingClientRect();
-                    const offsetX = e.clientX - rect.left;
-                    const offsetY = e.clientY - rect.top;
-                    function onMove(ev) {
-                      const minVisible = 56;
-                      const minLeft = minVisible - p.offsetWidth;
-                      const maxLeft = window.innerWidth - minVisible;
-                      const minTop = minVisible - p.offsetHeight;
-                      const maxTop = window.innerHeight - minVisible;
-                      const nextLeft = Math.max(minLeft, Math.min(maxLeft, ev.clientX - offsetX));
-                      const nextTop = Math.max(minTop, Math.min(maxTop, ev.clientY - offsetY));
-                      p.style.left = nextLeft + 'px';
-                      p.style.top = nextTop + 'px';
-                    }
-                    function endDrag() {
-                        window.removeEventListener('mousemove', onMove);
-                        window.removeEventListener('mouseup', endDrag);
-                    }
-                    window.addEventListener('mousemove', onMove);
-                    window.addEventListener('mouseup', endDrag);
-                }
-            })(panel, 'roughMultiHeader');
+            // 拖拽由 eventBindInit.js 的 document 级委托统一处理（头部带 class="move" 即生效）
 
             // 四边拖拽调整大小功能
             (function makeResizable(p) {
@@ -383,7 +355,7 @@ RoughAnalysis.prototype.showMultipleRoughnessRate = function (indices, pathColle
             panel.style.overflow = 'hidden';
 
             panel.innerHTML = ''
-            +    '<div id="roughRateMultiHeader" style="height:40px;display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid #eee;cursor:move;background:#fafafa;">'
+            +    '<div id="roughRateMultiHeader" class="move" style="height:40px;display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid #eee;cursor:move;background:#fafafa;">'
             +      '<div style="font-weight:600">陡峭度变化曲线 (距离 ： 陡峭度变化) — 多路径</div>'
             +      '<div><button id="closeroughRateChartBtn">关闭</button></div>'
             +    '</div>'
@@ -397,35 +369,7 @@ RoughAnalysis.prototype.showMultipleRoughnessRate = function (indices, pathColle
             const closeBtnMulti = document.getElementById('closeroughRateChartBtn');
             if (closeBtnMulti) closeBtnMulti.onclick = function () { panel.remove(); };
 
-            // 可拖拽头部
-            (function makeDraggable(p, headerId) {
-                const header = document.getElementById(headerId);
-                if (!header) return;
-                header.addEventListener('mousedown', startDrag);
-                function startDrag(e) {
-                    e.preventDefault();
-                    const rect = p.getBoundingClientRect();
-                    const offsetX = e.clientX - rect.left;
-                    const offsetY = e.clientY - rect.top;
-                    function onMove(ev) {
-                      const minVisible = 56;
-                      const minLeft = minVisible - p.offsetWidth;
-                      const maxLeft = window.innerWidth - minVisible;
-                      const minTop = minVisible - p.offsetHeight;
-                      const maxTop = window.innerHeight - minVisible;
-                      const nextLeft = Math.max(minLeft, Math.min(maxLeft, ev.clientX - offsetX));
-                      const nextTop = Math.max(minTop, Math.min(maxTop, ev.clientY - offsetY));
-                      p.style.left = nextLeft + 'px';
-                      p.style.top = nextTop + 'px';
-                    }
-                    function endDrag() {
-                        window.removeEventListener('mousemove', onMove);
-                        window.removeEventListener('mouseup', endDrag);
-                    }
-                    window.addEventListener('mousemove', onMove);
-                    window.addEventListener('mouseup', endDrag);
-                }
-            })(panel, 'roughRateMultiHeader');
+            // 拖拽由 eventBindInit.js 的 document 级委托统一处理（头部带 class="move" 即生效）
 
           // 四边拖拽调整大小功能
           (function makeResizable(p) {
@@ -651,7 +595,7 @@ RoughAnalysis.prototype.showMultipleHeightRate = function (indices, pathCollecti
             panel.style.overflow = 'hidden';
 
             panel.innerHTML = ''
-            +    '<div id="heightRateMultiHeader" style="height:40px;display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid #eee;cursor:move;background:#fafafa;">'
+            +    '<div id="heightRateMultiHeader" class="move" style="height:40px;display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid #eee;cursor:move;background:#fafafa;">'
             +      '<div style="font-weight:600">高程变化率曲线 (距离 ： 高程变化率) — 多路径</div>'
             +      '<div><button id="closeheightRateChartBtn">关闭</button></div>'
             +    '</div>'
@@ -665,35 +609,7 @@ RoughAnalysis.prototype.showMultipleHeightRate = function (indices, pathCollecti
             const closeBtnMulti = document.getElementById('closeheightRateChartBtn');
             if (closeBtnMulti) closeBtnMulti.onclick = function () { panel.remove(); };
 
-            // 可拖拽头部
-            (function makeDraggable(p, headerId) {
-                const header = document.getElementById(headerId);
-                if (!header) return;
-                header.addEventListener('mousedown', startDrag);
-                function startDrag(e) {
-                    e.preventDefault();
-                    const rect = p.getBoundingClientRect();
-                    const offsetX = e.clientX - rect.left;
-                    const offsetY = e.clientY - rect.top;
-                    function onMove(ev) {
-                      const minVisible = 56;
-                      const minLeft = minVisible - p.offsetWidth;
-                      const maxLeft = window.innerWidth - minVisible;
-                      const minTop = minVisible - p.offsetHeight;
-                      const maxTop = window.innerHeight - minVisible;
-                      const nextLeft = Math.max(minLeft, Math.min(maxLeft, ev.clientX - offsetX));
-                      const nextTop = Math.max(minTop, Math.min(maxTop, ev.clientY - offsetY));
-                      p.style.left = nextLeft + 'px';
-                      p.style.top = nextTop + 'px';
-                    }
-                    function endDrag() {
-                        window.removeEventListener('mousemove', onMove);
-                        window.removeEventListener('mouseup', endDrag);
-                    }
-                    window.addEventListener('mousemove', onMove);
-                    window.addEventListener('mouseup', endDrag);
-                }
-            })(panel, 'heightRateMultiHeader');
+            // 拖拽由 eventBindInit.js 的 document 级委托统一处理（头部带 class="move" 即生效）
 
             // 四边拖拽调整大小功能
             (function makeResizable(p) {

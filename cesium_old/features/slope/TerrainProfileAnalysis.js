@@ -397,6 +397,7 @@
     // 头部
     var header = document.createElement('div');
     header.id = 'profileChartHeader';
+    header.className = 'move';   // 拖拽由 eventBindInit.js 的 document 级委托统一处理
     header.style.cssText = 'height:40px;display:flex;justify-content:space-between;align-items:center;'
       + 'padding:6px 12px;border-bottom:1px solid #eee;cursor:move;background:#fafafa;';
     header.innerHTML = '<div style="font-weight:600;font-size:14px;">'
@@ -425,29 +426,8 @@
 
     this.chartPanel = panel;
 
-    // 拖拽头部
-    (function makeDraggable(hdr) {
-      hdr.addEventListener('mousedown', function (e) {
-        if (e.target.closest('button, select, input')) return;
-        e.preventDefault();
-        var rect = panel.getBoundingClientRect();
-        var ox = e.clientX - rect.left;
-        var oy = e.clientY - rect.top;
-        function onMove(ev) {
-          var minVis = 56;
-          var l = Math.max(minVis - panel.offsetWidth, Math.min(window.innerWidth - minVis, ev.clientX - ox));
-          var t = Math.max(minVis - panel.offsetHeight, Math.min(window.innerHeight - minVis, ev.clientY - oy));
-          panel.style.left = l + 'px';
-          panel.style.top = t + 'px';
-        }
-        function endDrag() {
-          window.removeEventListener('mousemove', onMove);
-          window.removeEventListener('mouseup', endDrag);
-        }
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', endDrag);
-      });
-    })(header);
+    // 拖拽由 eventBindInit.js 的 document 级委托统一处理（头部带 class="move" 即生效，
+    // 头部内按钮/下拉框不触发拖拽的守卫也在委托 handler 里）
 
     // 关闭按钮 → 隐藏面板
     panel.querySelector('#profileCloseBtn').onclick = function () {

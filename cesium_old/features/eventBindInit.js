@@ -234,6 +234,8 @@ $(document).ready(
         // 委托后，凡是带 .move / .close / .toggle_win 的元素（含后续动态插入的）
         // 都自动生效。详见 FRONTEND_AUDIT.md 第三节。
         $(document).on('mousedown', '.move', function (e) {
+            // 头部内的按钮/下拉框/输入框不触发拖拽（如剖面分析面板头部带控件）
+            if ($(e.target).closest('button, select, input, a, label').length) return;
             toolbarMove(this, e);
         });
         $(document).on('click', '.close', function () {
