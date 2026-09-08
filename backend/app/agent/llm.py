@@ -404,6 +404,7 @@ class EmbeddedLlamaClient:
         tools: Optional[List[Dict[str, Any]]] = None,
         temperature: float = 0.0,
         response_schema: Optional[Dict[str, Any]] = None,
+        max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         """调用模型。
 
@@ -413,11 +414,16 @@ class EmbeddedLlamaClient:
             temperature: 采样温度
             response_schema: 若提供，用 GBNF 文法强制输出符合该 JSON Schema
                             的内容（优先级高于 tools）
+            max_tokens: 生成上限。不设的话模型可能一直生成到撑爆上下文
+                       （实测会触发 CUDA error 并终止进程），故默认 512
         """
         llm = self._ensure_model()
         kwargs: Dict[str, Any] = {
             "messages": messages,
             "temperature": temperature,
+            "max_tokens": int(
+                max_tokens or os.getenv("GEOAGENT_MAX_TOKENS", "512")
+            ),
         }
 
         # GBNF 约束优先：强制输出合法 JSON，从解码层面杜绝格式错误
