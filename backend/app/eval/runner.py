@@ -11,7 +11,7 @@
    Agent runner 不关心这些。
 
 3. 支持两种调用模式，用于对比"原生 function calling"与"JSON 输出"的差异：
-       mode="tool_calling" —— 走 OpenAI tools 协议（Ollama / Qwen 支持）
+       mode="tool_calling" —— 走 OpenAI tools 协议（Qwen 支持）
        mode="json"         —— 要求模型直接输出 JSON，再用 extract_json 解析
 """
 
@@ -41,7 +41,12 @@ TOOL_MODE_SYSTEM = """你是一个地理空间分析助手，负责为用户的�
 如果用户的问题超出地理空间分析能力范围（如天气预测、股票、医学、法律、
 外星天体、月球火星地形等），不要调用任何工具，直接说明这超出了你的能力范围。
 
-注意：bbox 顺序固定为 [西经, 南纬, 东经, 北纬]，即 [west, south, east, north]。"""
+注意：bbox 顺序固定为 [西经, 南纬, 东经, 北纬]，即 [west, south, east, north]。
+
+调用策略：只调用回答问题所必需的工具。坡度/坡向/曲率/代价/分类类问题
+直接调用对应 compute_* 或 classify_* 工具即可，不要为了「先取数据」而额外
+调用 download_srtm —— 除非用户明确要求真实 DEM 数据。一次调用能解决就
+不要拆成两步。"""
 
 
 class EvalRunner:

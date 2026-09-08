@@ -98,8 +98,9 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
     "download_srtm": _tool(
         "download_srtm",
         "按经纬度范围下载真实 DEM 数据（Copernicus GLO-30，30 米分辨率）并缓存到本地。"
-        "当用户要求分析某个真实地理位置、但没有提供 DEM 文件时，必须先调用本工具获取高程数据，"
-        "然后把返回的 dem_path 传给其他分析工具。"
+        "⚠ 默认不要调用：坡度、坡向、曲率、代价、分类等分析工具本身就能接受 bbox 直接计算，"
+        "只有在用户明确要求「用真实 DEM / 真实高程数据」「下载 SRTM」或已提供 dem_path 时才调用本工具，"
+        "之后把返回的 dem_path 传给分析工具。"
         "首次调用需联网（10–30 秒），相同范围后续直接命中缓存。",
         {"bbox": BBOX_PARAM},
         ["bbox"],

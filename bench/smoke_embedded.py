@@ -1,6 +1,6 @@
 """Smoke test: does the embedded llama.cpp actually load our GGUF and generate?
 
-This is the go/no-go gate for dropping Ollama. If this passes, the embedded
+Go/no-go gate for the embedded backend. If this passes, the embedded
 route is viable and we can proceed to the real benchmark.
 """
 

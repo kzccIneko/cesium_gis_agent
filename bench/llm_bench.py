@@ -1,22 +1,19 @@
-"""GeoAgent LLM benchmark: embedded llama.cpp vs Ollama HTTP.
+"""GeoAgent LLM benchmark for the embedded llama.cpp backend.
 
-Purpose
--------
-Decide (with numbers, not intuition) whether the embedded llama.cpp path is
-worth replacing Ollama. Three things get measured:
+Measures three things on this machine (never estimate, never copy from docs):
 
   1. Latency      - cold load, TTFT, generation speed (tokens/s)
   2. Throughput   - how fast can we chew through the 100-item eval set
   3. GBNF effect  - JSON validity with / without grammar-constrained decoding
-                    (this is the real reason to drop Ollama, see IMPROVEMENT_PLAN 3.5.2)
 
 Usage
 -----
-  python bench/llm_bench.py --mode embedded
-  python bench/llm_bench.py --mode ollama
-  python bench/llm_bench.py --mode both --report bench/llm_bench_report.md
+  python bench/llm_bench.py                      # embedded, all layers on GPU
+  python bench/llm_bench.py --n-gpu-layers 0     # CPU baseline
+  python bench/llm_bench.py --report bench/llm_bench_report.md
 
-All numbers are measured on this machine. Never estimate, never copy from docs.
+History: the Ollama HTTP baseline was removed on 2026-09-08 after the embedded
+CUDA backend measured 51.3 tok/s vs Ollama's ~40 tok/s and Ollama was uninstalled.
 """
 
 from __future__ import annotations
@@ -163,60 +160,6 @@ def bench_embedded(gguf: Path, n_ctx: int, n_gpu_layers: int, runs: int) -> dict
     }
 
 
-# --------------------------------------------------------------------------
-# Ollama HTTP (baseline to be replaced)
-# --------------------------------------------------------------------------
-def bench_ollama(model: str, runs: int) -> dict:
-    try:
-        from openai import OpenAI
-    except ImportError:
-        return {"error": "openai package not installed"}
-
-    client = OpenAI(base_url="http://127.0.0.1:11434/v1", api_key="ollama")
-
-    t0 = time.perf_counter()
-    try:
-        client.models.list()
-    except Exception as e:
-        return {"error": f"ollama unreachable: {e}"}
-    connect_s = time.perf_counter() - t0
-
-    ttfts, tps_list, latencies = [], [], []
-    for i in range(runs):
-        q = QUESTIONS[i % len(QUESTIONS)]
-        start = time.perf_counter()
-        stream = client.chat.completions.create(
-            model=model,
-            messages=build_messages(q),
-            max_tokens=128,
-            temperature=0.0,
-            stream=True,
-        )
-        first_tok_at, n_tok = None, 0
-        for chunk in stream:
-            if chunk.choices and chunk.choices[0].delta.content:
-                if first_tok_at is None:
-                    first_tok_at = time.perf_counter()
-                n_tok += 1
-        end = time.perf_counter()
-        if first_tok_at:
-            ttfts.append((first_tok_at - start) * 1000)
-            gen = end - first_tok_at
-            if gen > 0 and n_tok > 1:
-                tps_list.append((n_tok - 1) / gen)
-        latencies.append((end - start) * 1000)
-
-    return {
-        "backend": "ollama-http",
-        "model": model,
-        "connect_s": round(connect_s, 3),
-        "ttft_ms": round(statistics.mean(ttfts), 1) if ttfts else None,
-        "gen_tps": round(statistics.mean(tps_list), 2) if tps_list else None,
-        "latency_ms": round(statistics.mean(latencies), 1) if latencies else None,
-        "vram_mb": gpu_memory_mb(),
-    }
-
-
 def render(results: list[dict]) -> str:
     lines = ["# LLM 后端基准实测", "", f"_generated: {time.strftime('%Y-%m-%d %H:%M:%S')}_", ""]
     keys = ["backend", "model", "model_size_gb", "n_gpu_layers", "load_s", "connect_s",
@@ -234,27 +177,19 @@ def render(results: list[dict]) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--mode", choices=["embedded", "ollama", "both"], default="embedded")
     ap.add_argument("--gguf", default=str(DEFAULT_GGUF))
-    ap.add_argument("--model", default="qwen3.5:4b")
     ap.add_argument("--n-ctx", type=int, default=8192)
     ap.add_argument("--n-gpu-layers", type=int, default=-1)
     ap.add_argument("--runs", type=int, default=10)
     ap.add_argument("--report", default=str(REPO / "bench" / "llm_bench_report.md"))
     args = ap.parse_args()
 
-    results = []
-    if args.mode in ("embedded", "both"):
-        gguf = Path(args.gguf)
-        if not gguf.exists():
-            print(f"[FATAL] GGUF not found: {gguf}", file=sys.stderr)
-            return 1
-        print(f"[bench] embedded: {gguf.name}")
-        results.append(bench_embedded(gguf, args.n_ctx, args.n_gpu_layers, args.runs))
-
-    if args.mode in ("ollama", "both"):
-        print(f"[bench] ollama: {args.model}")
-        results.append(bench_ollama(args.model, args.runs))
+    gguf = Path(args.gguf)
+    if not gguf.exists():
+        print(f"[FATAL] GGUF not found: {gguf}", file=sys.stderr)
+        return 1
+    print(f"[bench] embedded: {gguf.name}")
+    results = [bench_embedded(gguf, args.n_ctx, args.n_gpu_layers, args.runs)]
 
     print(json.dumps(results, ensure_ascii=False, indent=2))
 

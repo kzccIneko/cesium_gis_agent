@@ -7,9 +7,9 @@
    MockClient 让测试完全可控、可复现。
 
 2. **不能绑死某家厂商**
-   用户的 LLM 可能是 DeepSeek、通义、本地 Ollama 或 OpenAI。
-   它们都兼容 OpenAI 的 `/chat/completions` 协议，
-   抽象成"base_url + api_key + model"三元组即可统一。
+   默认走**进程内嵌入式推理**（EmbeddedLlamaClient，零外部依赖）；
+   如需云端能力可切 OpenAICompatClient —— DeepSeek、通义、vLLM、OpenAI
+   都兼容 `/chat/completions` 协议，抽象成"base_url + api_key + model"即可。
 
 3. **JSON 解析必须容错**
    大模型输出 JSON 时经常裹 markdown 代码块、加前缀后缀、用中文引号。
@@ -24,10 +24,10 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol
 
-# 默认配置：本地 Ollama。用户改环境变量即可切到任何 OpenAI 兼容服务。
-DEFAULT_BASE_URL = os.getenv("GEOAGENT_LLM_BASE_URL", "http://localhost:11434/v1")
-DEFAULT_API_KEY = os.getenv("GEOAGENT_LLM_API_KEY", "ollama")
-DEFAULT_MODEL = os.getenv("GEOAGENT_LLM_MODEL", "qwen2.5:14b")
+# OpenAI 兼容后端配置（仅 GEOAGENT_LLM_BACKEND=openai 时用到）
+DEFAULT_BASE_URL = os.getenv("GEOAGENT_LLM_BASE_URL", "")
+DEFAULT_API_KEY = os.getenv("GEOAGENT_LLM_API_KEY", "")
+DEFAULT_MODEL = os.getenv("GEOAGENT_LLM_MODEL", "")
 DEFAULT_TIMEOUT = float(os.getenv("GEOAGENT_LLM_TIMEOUT", "120"))
 
 
@@ -119,6 +119,54 @@ def extract_json(text: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+# Qwen 系列原生工具调用格式（llama-cpp-python 0.3.35 不解析，必须自己来）：
+#   <tool_call>
+#   <function=compute_slope>
+#   <parameter=bbox>
+#   [103.5, 30.2, 104.5, 31.0]
+#   </parameter>
+#   </function>
+#   </tool_call>
+_TOOL_CALL_BLOCK_RE = re.compile(r"<tool_call>(.*?)</tool_call>", re.DOTALL)
+_TOOL_FUNC_RE = re.compile(r"<function=([^>]+)>(.*?)</function>", re.DOTALL)
+_TOOL_PARAM_RE = re.compile(r"<parameter=([^>]+)>(.*?)</parameter>", re.DOTALL)
+
+
+def parse_native_tool_calls(text: str) -> List[Dict[str, Any]]:
+    """从模型正文里解析 Qwen 原生 <tool_call> 块。
+
+    为什么需要：llama-cpp-python 0.3.35 的 chat handler 不认 Qwen 的
+    <tool_call> 格式，tool_calls 字段恒为空，导致 Agent 永远以为模型没调工具。
+    """
+    calls: List[Dict[str, Any]] = []
+    if not text:
+        return calls
+
+    for block in _TOOL_CALL_BLOCK_RE.findall(text):
+        for name, body in _TOOL_FUNC_RE.findall(block):
+            args: Dict[str, Any] = {}
+            for key, raw in _TOOL_PARAM_RE.findall(body):
+                value: Any = raw.strip()
+                try:  # 参数值可能是 JSON 数组/对象，也可能是纯字符串
+                    value = json.loads(value)
+                except Exception:
+                    pass
+                args[key.strip()] = value
+            calls.append({"name": name.strip(), "arguments": args})
+
+    if not calls:
+        # 退化格式：没有 <tool_call> 包裹，只有 <function=...>
+        for name, body in _TOOL_FUNC_RE.findall(text):
+            args = {}
+            for key, raw in _TOOL_PARAM_RE.findall(body):
+                try:
+                    args[key.strip()] = json.loads(raw.strip())
+                except Exception:
+                    args[key.strip()] = raw.strip()
+            calls.append({"name": name.strip(), "arguments": args})
+    return calls
+
+
 def _normalize_quotes(text: str) -> str:
     """中文引号 → 英文引号（模型在中文语境下高频错误）。"""
     return (
@@ -138,7 +186,7 @@ def _normalize_quotes(text: str) -> str:
 class OpenAICompatClient:
     """OpenAI Chat Completions 兼容客户端。
 
-    适配范围：OpenAI / DeepSeek / 通义千问 / 月之暗面 / 本地 Ollama / vLLM。
+    适配范围：OpenAI / DeepSeek / 通义千问 / 月之暗面 / vLLM 等自建服务。
 
     依赖 openai 包；未安装时抛 ImportError 并给出安装提示，
     而不是在 import 阶段就炸掉整个 agent 包。
@@ -263,13 +311,15 @@ class MockClient:
 # 嵌入式 llama.cpp 客户端（进程内推理，零 HTTP）
 # --------------------------------------------------------------------------
 
+# 注意：不接受 Ollama 的 blob 文件（qwen35.rope.dimension_sections 只有 3 个值，
+# llama.cpp 要求 4 个），必须用 unsloth 等官方发布的 GGUF。
 DEFAULT_GGUF = os.getenv(
     "GEOAGENT_GGUF",
     str(
         Path(__file__).resolve().parents[3]
         / "models"
         / "llm"
-        / "qwen3.5-4b-q4km.gguf"
+        / "Qwen3.5-4B-Q4_K_M.gguf"
     ),
 )
 
@@ -280,15 +330,16 @@ class EmbeddedLlamaClient:
     与 OpenAICompatClient 实现同一个 `chat()` 接口，但直接在 Python 进程内
     通过 ctypes 调用 libllama，没有服务进程、没有端口、没有 JSON 网络往返。
 
-    为什么要有它（完整论证见 `IMPROVEMENT_PLAN.md` 3.5.2）：
-      - **GBNF 文法约束解码**：可在解码阶段强制输出合法 JSON，
-        这是提升 tool-calling「JSON 合法率」的杀手锏（Ollama 的 format 做不到）
-      - 部署 turnkey：不要求用户先装并启动 Ollama
-      - 模型常驻可控：不受 Ollama「空闲 5 分钟卸载」策略影响
-      - 批量评测可用 llama.cpp 的 batch 解码，吞吐显著高于串行 HTTP
+    为什么用它作为默认后端：
+      - **GBNF 文法约束解码**：解码阶段强制输出合法 JSON，
+        这是提升 tool-calling「JSON 合法率」的杀手锏（云端 API 的 format 做不到）
+      - 部署 turnkey：不要求用户先装并启动任何外部服务
+      - 模型常驻可控，空闲不会被卸载
+      - 批量评测可用 batch 解码，吞吐显著高于串行 HTTP
 
-    ⚠️ 诚实说明：它**不会**让单次生成变快。生成耗时由 GPU 算力决定，
-    两条路径调用的是同一个 llama.cpp。HTTP 开销仅占总耗时 0.05%–0.2%。
+    实测（2026-09-08，RTX 2060，Qwen3.5-4B Q4_K_M）：**51.3 tok/s**，
+    TTFT 125 ms，显存 4.5 GB —— 比原 Ollama 方案（~40 tok/s）快 28%，
+    故 Ollama 已于当日卸载。详见 `IMPROVEMENT_PLAN.md`。
 
     环境变量：
         GEOAGENT_GGUF          模型文件路径
@@ -298,7 +349,7 @@ class EmbeddedLlamaClient:
     """
 
     # 模型单例：按 (model_path, n_ctx, n_gpu_layers) 缓存，
-    # 避免重复把 3.4 GB 权重读进显存。
+    # 避免重复把 2.55 GB 权重读进显存。
     _models: Dict[tuple, Any] = {}
 
     def __init__(
@@ -388,6 +439,12 @@ class EmbeddedLlamaClient:
 
         tool_calls = []
         raw_calls = msg.get("tool_calls") or []
+        if not raw_calls and msg.get("content"):
+            # 兜底：Qwen 原生 <tool_call> 格式不被 llama-cpp-python 解析
+            raw_calls = [
+                {"function": {"name": c["name"], "arguments": c["arguments"]}}
+                for c in parse_native_tool_calls(msg["content"])
+            ]
         for tc in raw_calls:
             fn = tc.get("function", {})
             args = fn.get("arguments", {})
