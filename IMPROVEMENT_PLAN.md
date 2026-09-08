@@ -708,10 +708,22 @@ RTX 2060 6 GB 可支撑 **2B/4B 级别**的 QLoRA（batch=1 + 梯度累积）；
 |---|---|
 | llama.cpp 源码 | ✅ `D:\llama_build\llama.cpp`（ggml 0.23.0 / commit e71b805） |
 | 编译工具链 | ✅ MSVC 19.38 + Ninja + Windows SDK 10.0.22621 已验证可用 |
-| **llama-cpp-python** | ✅ **0.3.35 源码编译安装成功**（Python 3.14，CPU 后端，wheel 7.2 MB） |
+| **llama-cpp-python** | ✅ **0.3.35 源码编译成功**：先 CPU 后端，后 CUDA 后端（sm_75） |
 | GGUF 权重 | ✅ `models/llm/Qwen3.5-4B-Q4_K_M.gguf` **2.55 GiB**（metadata 校验：sections len=4 ✅） |
 | **冒烟测试** | ✅ **通过**（`bench/smoke_embedded.py`）—— 见下方实测 |
-| CUDA Toolkit | ❌ **winget 失败**（exit 2148270085，需管理员授权）→ 见 3.5.7 |
+| CUDA Toolkit | ✅ **13.3 已装**（管理员运行 `D:\llama_build\install_cuda_admin.bat`） |
+
+**GPU 基准实测（2026-09-08，嵌入式 + CUDA sm_75）**：
+
+| 后端 | gen_tps | ttft | 备注 |
+|---|---|---|---|
+| 嵌入式 + CUDA（全部层上 GPU） | **51.33 tok/s** | 125 ms | VRAM 4.5 GB，load 5.5s |
+| Ollama（GPU，走 HTTP） | ~40 tok/s | — | 预热后 |
+| 嵌入式 CPU | 6.01 tok/s | — | 供对比 |
+
+**结论：嵌入式已反超 Ollama 28%，Ollama 可卸载。** CUDA 运行时 DLL
+（cudart/cublas×3，共 ~570 MB）已复制进 `llama_cpp/lib/`，venv 自包含、可 turnkey。
+坑：MSBuild 找不到 Toolkit → 需在编译环境设 `CUDA_PATH`；运行时 DLL 在 `bin/x64/` 不在 `bin/`。
 
 #### 冒烟测试实测（2026-09-07 23:51，CPU 后端）
 
