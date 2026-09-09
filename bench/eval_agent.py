@@ -186,7 +186,9 @@ def main() -> int:
 
     todo = [c for c in cases if str(c["id"]) not in done]
     if not todo:
-        print("[eval] 全部已完成，无事可做")
+        # 仍然汇总一遍，否则续跑完成时看不到分数
+        agg = aggregate([d["score"] for d in done.values()])
+        print(json.dumps({"cases": len(done), "metrics": agg}, ensure_ascii=False, indent=2))
         return 0
 
     client = EmbeddedLlamaClient(
