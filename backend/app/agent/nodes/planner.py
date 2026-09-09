@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ..gazetteer import get_gazetteer
 from ..llm import LLMClient, extract_json
 from ..state import (
     AgentState,
@@ -242,6 +243,16 @@ def plan_node(state: AgentState, llm: LLMClient) -> Dict[str, Any]:
     bbox = state.get("bbox")
     max_retries = state.get("max_retries", 3)
     trace = list(state.get("trace") or [])
+
+    # 用户没给 bbox 时先查地名词典。
+    # 4B 模型的权重里装不下精确的地理坐标，让它"从地名推断"只能猜
+    # （实测 param_bbox 仅 0.35）；查表是确定性的，且对下面的
+    # heuristic_plan 兜底路径同样生效。
+    if bbox is None:
+        resolved = get_gazetteer().resolve_bbox(query)
+        if resolved:
+            bbox = resolved
+            trace.append(f"地名词典命中：bbox={list(bbox)}")
 
     history = ""
     msgs = state.get("messages") or []

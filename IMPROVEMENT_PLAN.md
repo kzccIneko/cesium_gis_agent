@@ -712,6 +712,7 @@ RTX 2060 6 GB 可支撑 **2B/4B 级别**的 QLoRA（batch=1 + 梯度累积）；
 | GGUF 权重 | ✅ `models/llm/Qwen3.5-4B-Q4_K_M.gguf` **2.55 GiB**（metadata 校验：sections len=4 ✅） |
 | **冒烟测试** | ✅ **通过**（`bench/smoke_embedded.py`）—— 见下方实测 |
 | CUDA Toolkit | ✅ **13.3 已装**（管理员运行 `D:\llama_build\install_cuda_admin.bat`） |
+| Ollama | ✅ **已卸载**（2026-09-09），释放 D 盘 6 GB |
 
 **GPU 基准实测（2026-09-08，嵌入式 + CUDA sm_75）**：
 
@@ -720,6 +721,19 @@ RTX 2060 6 GB 可支撑 **2B/4B 级别**的 QLoRA（batch=1 + 梯度累积）；
 | 嵌入式 + CUDA（全部层上 GPU） | **51.33 tok/s** | 125 ms | VRAM 4.5 GB，load 5.5s |
 | Ollama（GPU，走 HTTP） | ~40 tok/s | — | 预热后 |
 | 嵌入式 CPU | 6.01 tok/s | — | 供对比 |
+
+**工具调用评测（2026-09-09，100 条）**：完整数据见 `bench/eval_agent_report.md`。
+
+| 指标 | 无词典 | 有词典 |
+|---|---|---|
+| `param_bbox` | 0.18 | **0.99** |
+| `tool_exact` | 0.35 | 0.51 |
+| `completed` | 0.31 | 0.58 |
+
+关键诊断：**32 条显式坐标样本两组都是满分 1.00**，68 条含地名样本基线仅 0.031。
+→ 坐标能力本来就没问题，`param_bbox` 低是**纯知识缺口**，不是推理缺陷。
+无泄漏验证（12 个评测集未出现的地名）：bbox **0/12 → 12/12**。
+`multi_tool` 工具链仍只有 0.025 —— 那是**多步规划**问题，需接 LangGraph 编排。
 
 **结论：嵌入式已反超 Ollama 28%，Ollama 可卸载。** CUDA 运行时 DLL
 （cudart/cublas×3，共 ~570 MB）已复制进 `llama_cpp/lib/`，venv 自包含、可 turnkey。

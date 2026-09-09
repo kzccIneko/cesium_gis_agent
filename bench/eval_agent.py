@@ -147,6 +147,11 @@ def main() -> int:
     )
     ap.add_argument("--mode", choices=["tool_calling", "json"], default="tool_calling")
     ap.add_argument("--grammar", action="store_true", help="JSON 模式下启用 GBNF 约束")
+    ap.add_argument(
+        "--gazetteer",
+        action="store_true",
+        help="启用地名词典：把 query 里的地名换成精确 bbox（测 param_bbox 的增益）",
+    )
     ap.add_argument("--n-ctx", type=int, default=8192)
     ap.add_argument("--n-gpu-layers", type=int, default=-1)
     ap.add_argument("--n-batch", type=int, default=512)
@@ -217,7 +222,9 @@ def main() -> int:
         client=client,
         mode=args.mode,
         model_label=f"embedded-Qwen3.5-4B-Q4_K_M/{args.mode}"
-        + ("+GBNF" if args.grammar else ""),
+        + ("+GBNF" if args.grammar else "")
+        + ("+gazetteer" if args.gazetteer else ""),
+        use_gazetteer=args.gazetteer,
     )
 
     # 预热：显存被其他程序占用时 CUDA 初始化会偶发失败，重试即可

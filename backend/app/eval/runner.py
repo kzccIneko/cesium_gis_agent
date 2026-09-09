@@ -21,6 +21,7 @@ import json
 import time
 from typing import Any, Dict, List, Optional
 
+from ..agent.gazetteer import get_gazetteer
 from ..agent.llm import LLMClient, extract_json
 from ..tools.registry import get_openai_tools
 from .metrics import aggregate, score_case
@@ -58,6 +59,7 @@ class EvalRunner:
         mode: str = "tool_calling",
         tools: Optional[List[Dict[str, Any]]] = None,
         model_label: str = "unknown",
+        use_gazetteer: bool = False,
     ):
         """
         Args:
@@ -65,6 +67,9 @@ class EvalRunner:
             mode:   "tool_calling" | "json"
             tools:  OpenAI 格式工具定义；None 表示全部工具
             model_label: 模型标识，写入结果文件便于对比
+            use_gazetteer: 是否用地名词典把 query 里的地名换成精确 bbox。
+                           关掉它是为了做 A/B —— 词典的增益必须实测，
+                           不能因为"听起来有用"就默认打开。
         """
         if mode not in ("tool_calling", "json"):
             raise ValueError(f"未知 mode: {mode!r}")
@@ -72,13 +77,18 @@ class EvalRunner:
         self.mode = mode
         self.tools = tools if tools is not None else get_openai_tools()
         self.model_label = model_label
+        self.use_gazetteer = use_gazetteer
+        self.gazetteer = get_gazetteer() if use_gazetteer else None
 
     # ------------------------------------------------------------------
     def _build_messages(self, query: str) -> List[Dict[str, Any]]:
         system = TOOL_MODE_SYSTEM if self.mode == "tool_calling" else JSON_MODE_SYSTEM
+        # 提示追加在 user 侧：前缀复用缓存的是 system+tools，
+        # 放这里缓存才不会失效。
+        content = self.gazetteer.annotate(query) if self.gazetteer else query
         return [
             {"role": "system", "content": system},
-            {"role": "user", "content": query},
+            {"role": "user", "content": content},
         ]
 
     def _parse_prediction(self, resp: Any) -> Dict[str, Any]:

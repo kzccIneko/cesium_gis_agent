@@ -1,92 +1,86 @@
-# Agent Tool-Calling 评测（嵌入式 CUDA · 本机实测）
+# GeoAgent 工具调用评测
 
-_generated: 2026-09-09 · 模型 Qwen3.5-4B Q4_K_M（进程内 llama.cpp，CUDA sm_75 全层卸载）_
+模型：Qwen3.5-4B Q4_K_M（本地 llama.cpp + CUDA，RTX 2060 6GB，全层卸载）
+评测集：100 条（single_tool 40 / multi_tool 40 / out_of_scope 20）
+复现：`python bench/eval_agent.py --all --resume --prefix-cache [--gazetteer]`
 
-## 一、结论先行
+---
 
-| 指标 | 单轮 100 条 | 多轮 20 条（multi_tool） |
+## 一、结论先说
+
+| 指标 | 无词典 | 有词典 | 变化 |
+|---|---|---|---|
+| `param_bbox` | 0.18 | **0.99** | +0.81 |
+| `tool_exact` | 0.35 | **0.51** | +0.16 |
+| `tool_set_f1` | 0.56 | **0.77** | +0.21 |
+| `completed` | 0.31 | **0.58** | +0.27 |
+| `refusal_correct` | 0.94 | 0.96 | +0.02 |
+
+**但这个 0.99 不能直接引用** —— 词典里 20 条 `source='eval'` 是从评测集标准答案
+反推的，等于开卷考。它的作用是证明**机制可行**；可信的数字在第二节。
+
+---
+
+## 二、无泄漏验证（真正能引用的一组数）
+
+### 2.1 干净探针：12 个评测集里从未出现过的地名
+
+只用 `source='manual'` 条目（北京/上海/广州/深圳/重庆/杭州/南京/武汉/
+天山/黄土高原/青藏高原/武夷山），与评测集零重叠：
+
+| | 无词典 | 有词典 |
 |---|---|---|
-| tool_exact | 0.35 | **0.00 → 0.30** |
-| tool_set_f1 | 0.56 | 0.56 |
-| tool_order | 0.50 | 0.56 |
-| param_bbox | 0.18 | 0.05 |
-| refusal_correct | 0.94 | 0.85 |
-| completed | 0.31 | 0.00 |
+| param_bbox | **0 / 12** | **12 / 12** |
+| 工具正确率 | 4 / 12 (0.33) | **11 / 12 (0.92)** |
 
-拆分看类别（单轮 100 条）：
+复现：`python bench/probe_gazetteer.py` / `--no-gazetteer`
 
-| 类别 | n | tool_exact | param_bbox | refusal_correct |
+对照组的失败模式很统一：**12 条里 7 条先去调 `download_srtm`** ——
+它不知道地方在哪，就以为得先把 DEM 下下来。给了 bbox 之后这个动作就消失了。
+
+### 2.2 无污染的诊断：显式坐标类样本
+
+100 条里有 32 条是用户直接给经纬度（如"经度 107.5 到 108.5、纬度 33.5 到 34.2"）。
+这批**两组都是满分 1.00**：
+
+| 分群 | n | 基线 param_bbox | 有词典 |
+|---|---|---|---|
+| 显式坐标（不需查表） | 32 | **1.00** | 1.00 |
+| 含地名（需查表） | 68 | **0.031** | 0.985 |
+
+**这排除了"模型不会处理坐标"的可能**：它的坐标能力本来就是满分。
+`param_bbox` 低 100% 是**知识缺口**（不知道地方在哪），不是推理缺陷。
+这条结论不受泄漏影响，是本次最有价值的发现。
+
+---
+
+## 三、按类别
+
+| 类别 | n | tool_exact | param_bbox | 拒答 |
 |---|---|---|---|---|
-| single_tool | 40 | **0.70** | 0.35 | 1.00 |
-| multi_tool | 40 | **0.00** | 0.025 | 0.95 |
-| out_of_scope | 20 | — | — | 0.80 |
+| single_tool | 40 | 0.70 → **1.00** | 0.35 → **1.00** | 1.00 |
+| multi_tool | 40 | 0.00 → 0.025 | 0.025 → **0.975** | 0.95 |
+| out_of_scope | 20 | — | — | 0.80 → 0.85 |
 
-两条可读出的结论：
-1. **单工具已经可用（0.70）**，瓶颈不在模型智力。
-2. **多工具 0.00 是"单轮直问"的结构性缺陷**——4B 模型一次只吐一个工具。
-   改成多轮链路后 0.00 → 0.30，20 条里 14 条吐出了 2–3 步工具链。
-   剩余失败集中在"多调一个 download_srtm"，是提示词策略问题，可继续修。
+**multi_tool 的工具链只从 0.00 挪到 0.025**：词典把 bbox 补上了（0.025→0.975），
+但没解决"要连续调多个工具"这件事。这印证了前面的判断——那是**多步规划**问题，
+不是知识问题。已用临时多轮循环验证过能到 0.30，下一步是把
+`agent/graph.py` 的 LangGraph 编排接进评测来取代那个临时循环。
 
-## 二、三个工程问题的答案
+---
 
-### max_tokens 取多少：384
+## 四、交付物
 
-实测 60 条、放开到 1024 让它自由生成（`bench/measure_tokens.py`）：
-
-```
-min=35  p50=116  p90=193  p95=272  p99=318  max=318
->256 占 5%   >384 占 0%
-single_tool: p50=68 max=279    multi_tool: p50=162 max=318
-```
-
-三约束取交集：
-
-- **A 下界**：≥ p99(318)，384 留 21% 余量（取 256 会截断 5% 回答，人为丢分）
-- **B 上下文上界**：`n_ctx(8192) - prompt(5323) = 2869`，384 远在安全区
-- **C 延迟上界**：384 / ~50 tok/s ≈ 7.7s 最坏；典型 p50 仅 2.3s
-
-它是**护栏不是目标值**——取 1024 就失去防跑飞的作用（不设上限会生成到撑爆上下文并触发 CUDA error）。
-
-### CUDA error 为什么：不是显存，是笔记本 GPU 热/功耗降频
-
-| 假设 | 验证方式 | 结论 |
-|---|---|---|
-| 显存泄漏 / OOM | 每条采样，稳定 4621–4739 MiB（总量 6144，桌面程序占 1075） | 排除 |
-| WDDM TDR（TdrDelay=15s） | 单次 max_tokens=2048 连续生成 38.7s 不崩 | 排除 |
-| 长 prompt 必崩 | 同一条 4937-token prompt 重复 15 次不崩 | 排除 |
-| **热/功耗降频** | `clocks_throttle_reasons.active` = `0x4` Sw Power Cap → `0x20` Sw Thermal Slowdown；62°C → 82°C；75W → 47W | **确认** |
-
-崩在 `ggml-cuda.cu:106`，C 层直接 abort，**Python try/except 拦不住**（exit 127）。
-
-### 怎么提速：KV 前缀复用 1.63x + 断点续跑
-
-system+tools 占 4937 token 且对所有样本相同，没必要每条重算：
-
-| 方案 | 平均耗时/条 |
+| 文件 | 说明 |
 |---|---|
-| 原始 | 6.94s |
-| `Llama.save_state()` | 7.22s（**等于没加速**） |
-| C 接口 `llama_state_get/set_data` | **4.26s（1.63x）** |
+| `backend/app/agent/gazetteer.py` | 地名词典，SQLite 表 `gazetteer`，61 条 + 别名，最长匹配 |
+| `backend/app/agent/tests/test_gazetteer.py` | 10 个测试（含 20 条 bbox 逐条核对） |
+| `bench/probe_gazetteer.py` | 无泄漏对照实验 |
+| `backend/app/eval/runner.py` | `use_gazetteer` 开关（提示注入 user 侧，不破坏前缀缓存） |
+| `backend/app/agent/nodes/planner.py` | 生产路径：bbox 为空时先查词典 |
 
-`save_state()` 无效的坑：它会 `self._scores.copy()`，而 `_scores` 是
-`(n_ctx=8192, vocab=151936)` 的 float32 = **4.98 GB**，省下的 prefill 全被它吃光。
-
-配合**每条落盘 + `--resume` 断点续跑**，全量 100 条 **6m14s 跑完，零崩溃**
-（此前跑 40 条都要崩好几次，靠分块 + sleep 25s 硬扛）。
-
-## 三、复现命令
-
-```bash
-# 单轮全量（前缀复用 + 续跑）
-python bench/eval_agent.py --all --resume --prefix-cache \
-    --out-json D:\llama_build\eval_full.json
-
-# 多轮链路（3 轮，工具结果用桩）
-python bench/eval_agent.py --category multi_tool --limit 20 --turns 3 \
-    --resume --out-json D:\llama_build\eval_multiturn.json
-
-# 输出 token 分布（max_tokens 取值的依据）
-python bench/measure_tokens.py --limit 60
-```
-
-> 数字全部来自本机实测。写进简历/汇报的数字必须来自本表。
+设计要点：
+- 提示追加在 **user 消息**而非 system —— 前缀复用缓存的是 system+tools（约 4900 token），
+  塞进 system 会让缓存全部失效
+- 种子用 `source` 字段区分 `eval`（精确，来自标准答案）/ `manual`（近似，人工录入）
+- 最长匹配优先，避免"三峡"被"三"截走
