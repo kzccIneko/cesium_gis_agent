@@ -359,6 +359,8 @@ class EmbeddedLlamaClient:
         n_gpu_layers: Optional[int] = None,
         use_grammar: Optional[bool] = None,
         verbose: bool = False,
+        n_batch: Optional[int] = None,
+        prefix_cache: bool = False,
     ):
         self.model_path = model_path or DEFAULT_GGUF
         self.n_ctx = int(n_ctx or os.getenv("GEOAGENT_N_CTX", "8192"))
@@ -373,6 +375,14 @@ class EmbeddedLlamaClient:
             else os.getenv("GEOAGENT_GRAMMAR", "0") == "1"
         )
         self.verbose = verbose
+        self.n_batch = int(n_batch or os.getenv("GEOAGENT_N_BATCH", "512"))
+
+        # KV 前缀复用：批量评测时 system+tools 完全相同，只算一次
+        self.prefix_cache = prefix_cache
+        self._shell: Optional[tuple] = None      # (prefix, suffix) 提示词外壳
+        self._prefix_state = None                # KV cache 快照
+        self._prefix_len = 0
+        self._stop_tokens: Optional[set] = None
 
     def _ensure_model(self):
         key = (self.model_path, self.n_ctx, self.n_gpu_layers)
@@ -394,9 +404,133 @@ class EmbeddedLlamaClient:
             model_path=self.model_path,
             n_ctx=self.n_ctx,
             n_gpu_layers=self.n_gpu_layers,
+            n_batch=self.n_batch,
             verbose=self.verbose,
         )
         return self._models[key]
+
+    # ------------------------------------------------------------------
+    # KV 前缀复用
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _last_user_text(messages) -> str:
+        for m in reversed(messages):
+            if m.get("role") == "user":
+                return m.get("content") or ""
+        return ""
+
+    def _capture_shell(self, llm, messages, tools) -> bool:
+        """截获一次真实调用的底層 prompt token，拆出 (不变前缀, 不变后缀)。
+
+        工具 Schema 约占 4900 token，而 system+tools 对同一批样本完全相同，
+        只有用户 query 在变。拿到这个"外壳"后前缀只需 prefill 一次，
+        每条样本只算 query 那几十个 token —— prefill 开销降一个数量级。
+
+        Qwen 的 chat handler 传给 create_completion 的是 **token 列表**（不是
+        字符串），所以这里直接拿到精确 token，不存在分词边界误差。
+        """
+        captured: Dict[str, Any] = {}
+        original = llm.create_completion
+
+        def spy(*a, **kw):
+            if "prompt" not in captured:
+                captured["prompt"] = kw.get("prompt", a[0] if a else None)
+            return original(*a, **kw)
+
+        llm.create_completion = spy
+        try:
+            llm.create_chat_completion(
+                messages=messages, tools=tools, max_tokens=1, temperature=0.0
+            )
+        except Exception:
+            return False
+        finally:
+            llm.create_completion = original
+
+        full = captured.get("prompt")
+        if not isinstance(full, list) or not full:
+            return False
+
+        query = self._last_user_text(messages)
+        q_tok = llm.tokenize(query.encode("utf-8"), add_bos=False, special=True)
+        i = self._find_sublist(full, q_tok)
+        if i < 0:
+            return False
+        prefix_tok, suffix_tok = full[:i], full[i + len(q_tok) :]
+
+        # 自检：重建出来的 token 序列必须和原始完全一致，否则放弃优化
+        if prefix_tok + q_tok + suffix_tok != full:
+            return False
+        self._shell = (prefix_tok, suffix_tok)
+        return True
+
+    @staticmethod
+    def _find_sublist(hay: List[int], needle: List[int]) -> int:
+        """在 hay 中找 needle 首次出现的位置（从后往前找，query 靠近末尾）。"""
+        if not needle:
+            return -1
+        n, m = len(hay), len(needle)
+        for i in range(n - m, -1, -1):
+            if hay[i : i + m] == needle:
+                return i
+        return -1
+
+    def _chat_with_prefix_cache(
+        self, llm, messages, tools, max_tokens: int, temperature: float
+    ) -> str:
+        """复用 KV 前缀的生成路径。任何异常都退回普通路径。"""
+        import ctypes
+
+        import llama_cpp as _lc
+
+        prefix_tok, suffix_tok = self._shell  # type: ignore[misc]
+        query = self._last_user_text(messages)
+        q_tok = llm.tokenize(query.encode("utf-8"), add_bos=False, special=True)
+        full = prefix_tok + q_tok + suffix_tok
+
+        if self._prefix_state is None:
+            llm.reset()
+            llm.eval(prefix_tok)
+
+            # 直接用 C 接口搬 KV cache —— 不用 Llama.save_state()：
+            # 后者会 self._scores.copy()，而 _scores 是 (n_ctx, vocab) 的
+            # float32 数组（8192 x 151936 x 4B ≈ 5 GB），每次 save/load 各拷
+            # 一次，省下的 prefill 时间全被它吃光（实测加速比 0.99x）。
+            size = int(_lc.llama_state_get_size(llm._ctx.ctx))
+            buf = (ctypes.c_uint8 * size)()
+            n = int(_lc.llama_state_get_data(llm._ctx.ctx, buf, size))
+            self._prefix_state = (buf, n)
+            self._prefix_len = len(prefix_tok)
+
+            stops = {llm.token_eos()}
+            for s in ("<|im_end|>", "<|endoftext|>"):
+                try:
+                    stops.update(
+                        llm.tokenize(s.encode("utf-8"), add_bos=False, special=True)
+                    )
+                except Exception:
+                    pass
+            self._stop_tokens = stops
+
+        buf, n = self._prefix_state
+        _lc.llama_state_set_data(llm._ctx.ctx, buf, n)
+        llm.n_tokens = self._prefix_len
+        llm.eval(full[self._prefix_len :])
+
+        out: List[int] = []
+        for _ in range(max_tokens):
+            tok = llm.sample(
+                temp=temperature,
+                top_k=1 if temperature == 0 else 40,
+                top_p=1.0,
+                min_p=0.0,
+                penalize_nl=False,
+            )
+            if tok in (self._stop_tokens or set()):
+                break
+            out.append(tok)
+            llm.eval([tok])
+        return llm.detokenize(out).decode("utf-8", errors="replace")
 
     def chat(
         self,
@@ -414,15 +548,27 @@ class EmbeddedLlamaClient:
             temperature: 采样温度
             response_schema: 若提供，用 GBNF 文法强制输出符合该 JSON Schema
                             的内容（优先级高于 tools）
-            max_tokens: 生成上限。不设的话模型可能一直生成到撑爆上下文
-                       （实测会触发 CUDA error 并终止进程），故默认 512
+            max_tokens: 生成上限。不设的话模型会一直生成到撑爆上下文
+                       （实测触发 CUDA error 并直接 abort 进程）。
+
+                       默认 384 的依据（bench/measure_tokens.py 实测 60 条，
+                       放开到 1024 让它自由生成后的分布）：
+                         min=35 p50=116 p90=193 p95=272 p99=318 max=318
+                       三个约束取交集：
+                         A 下界：≥ p99(318)，384 留 21% 余量
+                         B 上界·上下文：n_ctx(8192) - prompt(5323) = 2869，
+                           384 远在安全区内
+                         C 上界·延迟：384 / ~50 tok/s ≈ 7.7s 最坏情况；
+                           典型 p50=116 约 2.3s
+                       取 256 会截断 5% 的回答（人为丢分），取 1024 则失去
+                       "防跑飞"的作用——它是护栏，不是目标值。
         """
         llm = self._ensure_model()
         kwargs: Dict[str, Any] = {
             "messages": messages,
             "temperature": temperature,
             "max_tokens": int(
-                max_tokens or os.getenv("GEOAGENT_MAX_TOKENS", "512")
+                max_tokens or os.getenv("GEOAGENT_MAX_TOKENS", "384")
             ),
         }
 
@@ -440,8 +586,34 @@ class EmbeddedLlamaClient:
         elif tools:
             kwargs["tools"] = tools
 
-        resp = llm.create_chat_completion(**kwargs)
-        msg = resp["choices"][0]["message"]
+        cached_text: Optional[str] = None
+        if (
+            self.prefix_cache
+            and tools
+            and response_schema is None
+            and not self.use_grammar
+            # 只对 [system, user] 这种首轮结构生效：多轮时消息里带了
+            # assistant/tool 历史，前缀不再是"一条不变的公共前缀"
+            and len(messages) == 2
+        ):
+            try:
+                if self._shell is None and not self._capture_shell(llm, messages, tools):
+                    self.prefix_cache = False  # 永久退回，别反复重试
+                else:
+                    cached_text = self._chat_with_prefix_cache(
+                        llm, messages, tools, kwargs["max_tokens"], temperature
+                    )
+            except Exception:
+                # 前缀复用只是优化，绝不能因此让 Agent 不可用
+                self.prefix_cache = False
+                cached_text = None
+
+        resp = None
+        if cached_text is not None:
+            msg = {"content": cached_text, "tool_calls": []}
+        else:
+            resp = llm.create_chat_completion(**kwargs)
+            msg = resp["choices"][0]["message"]
 
         tool_calls = []
         raw_calls = msg.get("tool_calls") or []
