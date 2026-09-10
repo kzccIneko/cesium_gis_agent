@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "name": "GeoAgent 领域问答评测集（domain_qa）",
+    "version": 1,
+    "created": "2026-09-10",
+    "corpus": "literature/ — 9 个文档，切分为 293 块",
+    "grounding_rule": "每条 required_keywords 均为语料原文中出现的字面串；expected_source 为该知识点所在文档。全量经 bench/eval_retrieval.py 验证，recall@5 必须达到 1.00 才予以保留。",
+    "metrics": {
+      "recall_at_k": "Top-k 中至少一块同时包含全部 required_keywords 的比例",
+      "source_hit_at_k": "Top-k 中出现 expected_source 的比例",
+      "mrr": "首个命中块排名的倒数均值"
+    }
+  },
+  "cases": [
+    {
+      "id": "qa_001",
+      "query": "坡度是怎么从 DEM 里提取出来的",
+      "required_keywords": ["3×3高程窗口", "一阶偏导数"],
+      "expected_source": "4.7组会汇报_越野通行能力_地形建模关键技术v3.pptx",
+      "answer_hint": "在 3×3 高程窗口上求一阶偏导数分量，再合成坡度角"
+    },
+    {
+      "id": "qa_002",
+      "query": "曲率对车辆越野通行有什么影响",
+      "required_keywords": ["失去附着", "托底"],
+      "expected_source": "4.7组会汇报_越野通行能力_地形建模关键技术v3.pptx",
+      "answer_hint": "凸转折时车辆前部悬空失去附着，凹转折时底盘触地托底"
+    },
+    {
+      "id": "qa_003",
+      "query": "A* 算法的启发函数是怎么估计的",
+      "required_keywords": ["评估函数", "启发式估计代价"],
+      "expected_source": "代价函数一致性和可纳性证明报告.md",
+      "answer_hint": "评估函数 f(n)=g(n)+h(n)，h(n) 是当前节点到目标点的启发式估计代价"
+    },
+    {
+      "id": "qa_004",
+      "query": "综合单步代价函数由哪些惩罚因子相乘构成",
+      "required_keywords": ["P_curv", "P_flow"],
+      "expected_source": "terrain_cost_directional_algorithm.md",
+      "answer_hint": "P_curv = 1 + norm(curvature)，P_flow = 1 + norm(flowline_intensity)"
+    },
+    {
+      "id": "qa_005",
+      "query": "最佳优先搜索相比 Dijkstra 有什么缺点",
+      "required_keywords": ["局部最优解", "最小代价"],
+      "expected_source": "复杂环境下无人车辆全局路径规划研究_袁志豪.pdf",
+      "answer_hint": "每次只扩展代价最小的节点，可能陷入局部最优解"
+    },
+    {
+      "id": "qa_006",
+      "query": "DEM 分辨率是不是越高越好",
+      "required_keywords": ["呈正比关系", "实时性"],
+      "expected_source": "复杂环境下无人车辆全局路径规划研究_袁志豪.pdf",
+      "answer_hint": "分辨率与详实程度呈正比，但过大会降低算法实时性"
+    },
+    {
+      "id": "qa_007",
+      "query": "为什么方向离散取 8 方向而不是更多",
+      "required_keywords": ["8 方向", "计算量线性增大"],
+      "expected_source": "terrain_cost_directional_algorithm.md",
+      "answer_hint": "8 方向是工程效率与方向精度的折中，扩到 16/32 方向计算量线性增大"
+    },
+    {
+      "id": "qa_008",
+      "query": "A* 的代价函数需要满足哪些条件",
+      "required_keywords": ["非负性", "高效性"],
+      "expected_source": "复杂环境下无人车辆全局路径规划研究_袁志豪.pdf",
+      "answer_hint": "非负性、准确性、高效性"
+    },
+    {
+      "id": "qa_009",
+      "query": "验证启发函数一致性要看什么不等式",
+      "required_keywords": ["三角不等式", "一致性验证"],
+      "expected_source": "代价函数一致性和可纳性证明报告.md",
+      "answer_hint": "三角不等式 h(n) ≤ c(n,n') + h(n')"
+    },
+    {
+      "id": "qa_010",
+      "query": "最大爬坡度在越野路径规划中代表什么",
+      "required_keywords": ["最大爬坡度", "动力性评价指标"],
+      "expected_source": "复杂环境下无人车辆全局路径规划研究_袁志豪.pdf",
+      "answer_hint": "车辆重要的动力性评价指标，坡度过大车辆无法通过"
+    },
+    {
+      "id": "qa_011",
+      "query": "通行代价建模里的脊谷强度指什么",
+      "required_keywords": ["山脊-山谷线系强度", "flow-organization intensity"],
+      "expected_source": "研究流程dem-dem.md",
+      "answer_hint": "构造单元边权的五个因子之一"
+    },
+    {
+      "id": "qa_012",
+      "query": "等高线密度在代价建模里代表什么",
+      "required_keywords": ["等高线", "起伏复杂度"],
+      "expected_source": "研究流程dem-dem.md",
+      "answer_hint": "单位路径穿越等高线的频率可作为起伏复杂度的客观指标"
+    },
+    {
+      "id": "qa_013",
+      "query": "起点终点方向约束是怎么施加的",
+      "required_keywords": ["半平面", "目标方向"],
+      "expected_source": "DEM方向性通行能力建模与实验方案.md",
+      "answer_hint": "候选方向需与目标方向点积为正，即落在朝向终点的半平面内"
+    },
+    {
+      "id": "qa_014",
+      "query": "栅格过细或过粗分别会带来什么问题",
+      "required_keywords": ["对噪声越敏感", "微地形被平滑"],
+      "expected_source": "terrain_cost_directional_algorithm.md",
+      "answer_hint": "栅格越细导数对噪声越敏感，越粗则微地形被平滑"
+    },
+    {
+      "id": "qa_015",
+      "query": "这套代价建模框架不依赖什么参数",
+      "required_keywords": ["不依赖车辆主体参数", "DEM 地形机理"],
+      "expected_source": "DEM方向性通行能力建模与实验方案.md",
+      "answer_hint": "不依赖车辆主体参数，仅由 DEM 地形机理驱动"
+    }
+  ]
+}

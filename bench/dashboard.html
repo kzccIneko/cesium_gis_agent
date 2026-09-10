@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoAgent 进度看板</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --line: #e6e8eb;
+    --text: #1f242c; --muted: #6b747f; --accent: #2f6feb; --warn: #d9534f; --ok: #2e9e5b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei",
+                 "PingFang SC", "Hiragino Sans GB", sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 22px 56px; }
+  header { margin-bottom: 22px; }
+  h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: .3px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .sub code {
+    background: #eef1f4; padding: 1px 6px; border-radius: 4px;
+    font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+  }
+  section {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px 20px; margin-bottom: 18px;
+  }
+  h2 {
+    margin: 0 0 14px; font-size: 15px; font-weight: 600;
+    padding-left: 10px; border-left: 3px solid var(--accent);
+  }
+  .cards {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px;
+  }
+  .card {
+    background: #fbfcfd; border: 1px solid var(--line);
+    border-radius: 8px; padding: 12px 14px;
+  }
+  .card-label { font-size: 12px; color: var(--muted); }
+  .card-value { font-size: 25px; font-weight: 650; margin: 2px 0 4px; letter-spacing: -.5px; }
+  .card-note { font-size: 11px; color: var(--muted); line-height: 1.45; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.strong { font-weight: 650; }
+  tr:last-child td { border-bottom: none; }
+  .phases { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .phase { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: #fbfcfd; }
+  .phase-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .phase-code {
+    font-family: ui-monospace, Consolas, monospace; font-size: 11px;
+    background: #eef1f4; padding: 1px 6px; border-radius: 4px; color: var(--muted);
+  }
+  .phase-name { font-weight: 600; font-size: 14px; }
+  .badge { margin-left: auto; font-size: 11px; padding: 1px 8px; border-radius: 10px; }
+  .badge.done { background: #e6f4ec; color: var(--ok); }
+  .badge.doing { background: #e7effd; color: var(--accent); }
+  .badge.todo { background: #f0f1f3; color: var(--muted); }
+  .phase.doing { border-color: #b8cdfb; background: #fbfdff; }
+  .phase-goal { font-size: 12px; color: var(--text); margin-bottom: 3px; }
+  .phase-deliver { font-size: 11px; color: var(--muted); }
+  .note {
+    background: #fff8e6; border: 1px solid #f0dfae; border-radius: 8px;
+    padding: 12px 14px; font-size: 12.5px; color: #6b5320;
+  }
+  .note b { color: #4a3a12; }
+  ul { margin: 6px 0 0; padding-left: 18px; }
+  li { margin-bottom: 3px; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 26px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>GeoAgent · 地理空间分析智能体 · 进度看板</h1>
+  <div class="sub">
+    数据源 <code>bench/eval_results/v8_*.json</code>（100 条全量实测）·
+    更新于 2026-09-10 15:58 ·
+    详细归因见 <code>GEOAGENT_PROGRESS.md</code>、<code>bench/EVAL_REPORT.md</code>
+  </div>
+</header>
+
+<section>
+  <h2>核心指标</h2>
+  <div class="cards"><div class="card"><div class="card-label">总体工具链精确率</div><div class="card-value">80.0%</div><div class="card-note">100 条全量逐项同序完全一致<br>最严口径：错一步即判错</div></div><div class="card"><div class="card-label">多工具类</div><div class="card-value">85.0%</div><div class="card-note">接入 LangGraph 前 0.00 → 现 0.85<br>最能说明「Agent 会编排」的一项</div></div><div class="card"><div class="card-label">单工具类</div><div class="card-value">75.0%</div><div class="card-note">历史最高 0.825<br>曾因链路模板硬编码跌到 0.375</div></div><div class="card"><div class="card-label">越界拒答</div><div class="card-value">20/20</div><div class="card-note">越界问题全数正确拒绝<br>且工具类零误拒</div></div><div class="card"><div class="card-label">工具集合 F1</div><div class="card-value">91.5%</div><div class="card-note">高于精确率 → 说明工具基本选对<br>丢分在「多一步/少一步」而非选错</div></div><div class="card"><div class="card-label">每样本 LLM 调用</div><div class="card-value">1.05</div><div class="card-note">接入前 2.17 次（含重试）<br>现在 1 次规划即成型</div></div><div class="card"><div class="card-label">单样本延迟 p50</div><div class="card-value">9.8s</div><div class="card-note">p90 16.0s<br>RTX 2060 / Qwen3.5-4B Q4_K_M</div></div><div class="card"><div class="card-label">领域问答 recall@5</div><div class="card-value">1.00</div><div class="card-note">15 条自建问答评测集<br>命中正确文档率同为 1.00</div></div><div class="card"><div class="card-label">推理吞吐</div><div class="card-value">51.3 tok/s</div><div class="card-note">嵌入式 llama.cpp + CUDA sm_75<br>较 Ollama HTTP 快 28%</div></div></div>
+</section>
+
+<section>
+  <h2>分类结果</h2>
+  <table>
+    <thead><tr>
+      <th>类别</th><th>样本</th><th style="text-align:right">工具链精确率</th>
+      <th style="text-align:right">集合 F1</th><th style="text-align:right">顺序正确</th>
+      <th style="text-align:right">拒答正确</th>
+      <th style="text-align:right">延迟 p50</th><th style="text-align:right">LLM 调用/条</th>
+    </tr></thead>
+    <tbody><tr><td><b>单工具调用</b></td><td>40</td><td class='num strong'>75.0%</td><td class='num'>90.0%</td><td class='num'>97.5%</td><td class='num'>100.0%</td><td class='num'>8.1s</td><td class='num'>1.00</td></tr><tr><td><b>多工具串联</b></td><td>40</td><td class='num strong'>85.0%</td><td class='num'>93.1%</td><td class='num'>92.5%</td><td class='num'>100.0%</td><td class='num'>14.1s</td><td class='num'>1.12</td></tr><tr><td><b>越界拒答</b></td><td>20</td><td class='num strong'>—</td><td class='num'>—</td><td class='num'>—</td><td class='num'>100.0%</td><td class='num'>4.7s</td><td class='num'>1.00</td></tr></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>多工具类版本演进（同一批 40 条）</h2>
+  <svg viewBox="0 0 860 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="多工具类工具链精确率版本演进"><rect x="0" y="0" width="860" height="260" fill="#ffffff"/><line x1="46" y1="18.0" x2="844" y2="18.0" stroke="#e6e8eb" stroke-width="1"/><text x="38" y="22.0" font-size="11" fill="#8b939c" text-anchor="end">100%</text><line x1="46" y1="63.0" x2="844" y2="63.0" stroke="#e6e8eb" stroke-width="1"/><text x="38" y="67.0" font-size="11" fill="#8b939c" text-anchor="end">75%</text><line x1="46" y1="108.0" x2="844" y2="108.0" stroke="#e6e8eb" stroke-width="1"/><text x="38" y="112.0" font-size="11" fill="#8b939c" text-anchor="end">50%</text><line x1="46" y1="153.0" x2="844" y2="153.0" stroke="#e6e8eb" stroke-width="1"/><text x="38" y="157.0" font-size="11" fill="#8b939c" text-anchor="end">25%</text><line x1="46" y1="198.0" x2="844" y2="198.0" stroke="#e6e8eb" stroke-width="1"/><text x="38" y="202.0" font-size="11" fill="#8b939c" text-anchor="end">0%</text><rect x="65.5" y="198.0" width="49.7" height="0.0" fill="#2f6feb" rx="3"/><text x="90.3" y="192.0" font-size="12" font-weight="600" fill="#2f6feb" text-anchor="middle">0%</text><text x="90.3" y="216.0" font-size="11" font-weight="600" fill="#3d4450" text-anchor="middle">v0</text><text x="90.3" y="232.0" font-size="10" fill="#8b939c" text-anchor="middle">单轮直问（无编排）</text><rect x="154.2" y="144.0" width="49.7" height="54.0" fill="#2f6feb" rx="3"/><text x="179.0" y="138.0" font-size="12" font-weight="600" fill="#2f6feb" text-anchor="middle">30%</text><text x="179.0" y="216.0" font-size="11" font-weight="600" fill="#3d4450" text-anchor="middle">v1</text><text x="179.0" y="232.0" font-size="10" fill="#8b939c" text-anchor="middle">临时多轮循环</text><rect x="242.8" y="144.0" width="49.7" height="54.0" fill="#2f6feb" rx="3"/><text x="267.7" y="138.0" font-size="12" font-weight="600" fill="#2f6feb" text-anchor="middle">30%</text><text x="267.7" y="216.0" font-size="11" font-weight="600" fill="#3d4450" text-anchor="middle">v2</text><text x="267.7" y="232.0" font-size="10" fill="#8b939c" text-anchor="middle">LangGraph 接入</text><rect x="331.5" y="64.6" width="49.7" height="133.4" fill="#2f6feb" rx="3"/><text x="356.3" y="58.6" font-size="12" font-weight="600" fill="#2f6feb" text-anchor="middle">74%</text><text x="356.3" y="216.0" font-size="11" font-weight="600" fill="#3d4450" text-anchor="middle">v3</text><text x="356.3" y="232.0" font-size="10" fill="#8b939c" text-anchor="middle">修 max_tokens</text><rect x="420.2" y="72.0" width="49.7" height="126.0" fill="#2f6feb" rx="3"/><text x="445.0" y="66.0" font-size="12" font-weight="600" fill="#2f6feb" text-anchor="middle">70%</text><text x="445.0" y="216.0" font-size="11" font-weight="600" fill="#3d4450" text-anchor="middle">v4</text><text x="445.0" y="232.0" font-size="10" fill="#8b939c" text-anchor="middle">加负向清单</text><rect x="508.8" y="49.5" width="49.7" height="148.5" fill="#2f6feb" rx="3"/><text x="533.7" y="43.5" font-size="12" font-weight="600" fill="#2f6feb" text-anchor="middle">82%</text><text x="533.7" y="216.0" font-size="11" font-weight="600" fill="#3d4450" text-anchor="middle">v5</text><text x="533.7" y="232.0" font-size="10" fill="#8b939c" text-anchor="middle">必须触发+修标注</text><rect x="597.5" y="49.5" width="49.7" height="148.5" fill="#2f6feb" rx="3"/><text x="622.3" y="43.5" font-size="12" font-weight="600" fill="#2f6feb" text-anchor="middle">82%</text><text x="622.3" y="216.0" font-size="11" font-weight="600" fill="#3d4450" text-anchor="middle">v6</text><text x="622.3" y="232.0" font-size="10" fill="#8b939c" text-anchor="middle">决策表重写</text><rect x="686.2" y="58.5" width="49.7" height="139.5" fill="#2f6feb" rx="3"/><text x="711.0" y="52.5" font-size="12" font-weight="600" fill="#2f6feb" text-anchor="middle">78%</text><text x="711.0" y="216.0" font-size="11" font-weight="600" fill="#3d4450" text-anchor="middle">v7</text><text x="711.0" y="232.0" font-size="10" fill="#8b939c" text-anchor="middle">收紧下载触发</text><rect x="774.8" y="45.0" width="49.7" height="153.0" fill="#d9534f" rx="3"/><text x="799.7" y="39.0" font-size="12" font-weight="600" fill="#d9534f" text-anchor="middle">85%</text><text x="799.7" y="216.0" font-size="11" font-weight="600" fill="#3d4450" text-anchor="middle">v8</text><text x="799.7" y="232.0" font-size="10" fill="#8b939c" text-anchor="middle">定稿</text></svg>
+  <div class="sub" style="margin-top:8px">
+    柱体从淡蓝到红色：前 8 版是迭代过程，<b>红色为 v8 定稿</b>。
+    0.00 → 0.85 的跃迁并非模型变强，而是逐层排除了四种非模型能力问题。
+  </div>
+</section>
+
+<section>
+  <h2>阶段进度</h2>
+  <div class="phases"><div class="phase done"><div class="phase-head"><span class="phase-code">Week 0</span><span class="phase-name">基线量化</span><span class="badge done">已完成</span></div><div class="phase-goal">建立评测口径与性能基线</div><div class="phase-deliver">11 工具 JSON Schema；100 条评测集；嵌入式 llama.cpp 基准 51.3 tok/s</div></div><div class="phase done"><div class="phase-head"><span class="phase-code">Week 1</span><span class="phase-name">工具层</span><span class="badge done">已完成</span></div><div class="phase-goal">把 GIS 能力封装为大模型可调用工具</div><div class="phase-deliver">DEM 读取 / 地形因子 / 代价栅格 / 路径规划 / 三种地貌分类 / 分区统计 / 导出，共 11 个</div></div><div class="phase done"><div class="phase-head"><span class="phase-code">Week 2</span><span class="phase-name">编排层</span><span class="badge done">已完成</span></div><div class="phase-goal">LangGraph 计划-执行-反思状态图 + 持久化</div><div class="phase-deliver">plan→execute→reflect→summarize；SQLite Checkpointer；领域规则反射器</div></div><div class="phase done"><div class="phase-head"><span class="phase-code">Week 3</span><span class="phase-name">MCP 协议层</span><span class="badge done">已完成</span></div><div class="phase-goal">以 MCP 对外暴露工具集</div><div class="phase-deliver">mcp/custom/geo_mcp_server；任意 MCP 客户端可直接调用本地分析能力</div></div><div class="phase done"><div class="phase-head"><span class="phase-code">Week 4</span><span class="phase-name">RAG 知识层</span><span class="badge done">已完成</span></div><div class="phase-goal">领域知识入库 + 检索增强，支撑术语/算法原理问答</div><div class="phase-deliver">9 份文献 → 290 块；bge-small-zh GGUF 48MB（llama.cpp/CPU）；15 条问答评测 recall@5 1.00</div></div><div class="phase todo"><div class="phase-head"><span class="phase-code">Week 5</span><span class="phase-name">评测与消融</span><span class="badge todo">未开始</span></div><div class="phase-goal">锁定上限归因，做可解释的消融实验</div><div class="phase-deliver">前提：先清 ~15 条标注噪声，否则 20% 误差上界压住所有真实收益</div></div><div class="phase todo"><div class="phase-head"><span class="phase-code">Week 6</span><span class="phase-name">前端与部署</span><span class="badge todo">未开始</span></div><div class="phase-goal">让 Agent 在网页端真正可用</div><div class="phase-deliver">缺 HTTP 端点（/api/v1/agent/chat）+ 前端对话面板；Docker Compose 一键部署</div></div></div>
+</section>
+
+<section>
+  <h2>读数据前必须知道的三件事</h2>
+  <div class="note">
+    <ul>
+      <li><b>精确率 ≠ F1</b>：总体精确率 80.0% 但集合 F1 有 91.5%——
+          说明模型工具基本选对了，丢分在「多一步／少一步」，不是选错工具。
+          精确率是最严口径，错一步即判整条错。</li>
+      <li><b>bbox 参数准确率未列入 CUED Card</b>：本次 100 条用到的 16 个地名全部来自
+          <code>source='eval'</code>（词典直抄自标准答案），属开卷。
+          无泄漏对照（12 个评测集外地名）的真值是 12/12。</li>
+      <li><b>80.0% 是天花板不是上限</b>：v6／v7／v8 三次独立改版合计都恰好停在 80.0%，
+          每次改动在两个类别上符号相反。根因是存在语义等价却标注相反的样本对。
+          再调提示词只是在类别间搬运误差，必须<strong>先清约 15 条标注噪声</strong>
+          才可能看到真实收益。</li>
+    </ul>
+  </div>
+</section>
+
+<footer>本页所有数字均可由仓库内评测产物复核 · 生成脚本 <code>bench/make_dashboard.py</code></footer>
+
+</div>
+</body>
+</html>

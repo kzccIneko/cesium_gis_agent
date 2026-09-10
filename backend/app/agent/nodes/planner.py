@@ -14,11 +14,17 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..gazetteer import get_gazetteer
-from ..llm import LLMClient, extract_json
+from ...rag.context import retrieve_for_query
+from ..llm import (
+    LLMClient,
+    PLANNER_MAX_TOKENS,
+    extract_json,
+)
 from ..state import (
     AgentState,
     STATUS_FAILED,
@@ -57,6 +63,7 @@ def render_planner_prompt(
     bbox: Optional[List[float]] = None,
     history: str = "",
     tools_section: Optional[str] = None,
+    rag_context: Optional[str] = None,
 ) -> str:
     """渲染 planner 提示词。
 
@@ -75,6 +82,7 @@ def render_planner_prompt(
         template.replace("{{TOOLS}}", tools_section or render_tools_section())
         .replace("{{QUERY}}", query)
         .replace("{{BBOX_HINT}}", bbox_hint)
+        .replace("{{RAG_CONTEXT}}", rag_context or "")
         .replace("{{HISTORY}}", history or "")
     )
 
@@ -82,8 +90,20 @@ def render_planner_prompt(
 def validate_plan(
     plan_obj: Dict[str, Any], bbox: Optional[List[float]]
 ) -> Optional[str]:
-    """校验 LLM 产出的计划，返回错误描述；合法返回 None。"""
+    """校验 LLM 产出的计划，返回错误描述；合法返回 None。
+
+    唯一的例外是**显式拒答**：planner 判定问题越界时输出
+    `{"steps": [], "refused": true}`，这是合法计划（"什么都不做"也是
+    一种决策），不能当成格式错误去重试 —— 否则模型会被反复逼着
+    为一个无法回答的问题编造工具调用。
+    """
     steps = plan_obj.get("steps")
+
+    if plan_obj.get("refused") is True:
+        if steps:
+            return "声明 refused 时 steps 必须为空"
+        return None
+
     if not isinstance(steps, list) or not steps:
         return "计划中没有 steps 或 steps 为空"
 
@@ -244,6 +264,13 @@ def plan_node(state: AgentState, llm: LLMClient) -> Dict[str, Any]:
     max_retries = state.get("max_retries", 3)
     trace = list(state.get("trace") or [])
 
+    # RAG 知识增强。**默认关闭**，因为：
+    #   ① 评测要做 ±RAG 消融对比，开关必须在外部可控；
+    #   ② 注入上下文会让 prompt 变长，进而抬高延迟，
+    #      只有在知识真正影响工具选择时才值得付这个代价。
+    # 由环境变量 GEOAGENT_RAG=1 开启，缺失索引时静默降级。
+    use_rag = os.environ.get("GEOAGENT_RAG", "0").strip().lower() in {"1", "true", "yes", "on"}
+
     # 用户没给 bbox 时先查地名词典。
     # 4B 模型的权重里装不下精确的地理坐标，让它"从地名推断"只能猜
     # （实测 param_bbox 仅 0.35）；查表是确定性的，且对下面的
@@ -272,12 +299,21 @@ def plan_node(state: AgentState, llm: LLMClient) -> Dict[str, Any]:
         trace.append("未配置 LLM，直接使用关键词启发式规划")
         return _finalize_plan(state, plan_obj, used_fallback, trace, errors)
 
-    prompt = render_planner_prompt(query, bbox, history)
+    rag_ctx = retrieve_for_query(query) if use_rag else None
+    if rag_ctx:
+        trace.append("已注入领域知识上下文（RAG）")
+    prompt = render_planner_prompt(query, bbox, history, rag_context=rag_ctx)
     plan_obj = None
 
     for attempt in range(1, max_retries + 1):
         try:
-            resp = llm.chat([{"role": "user", "content": prompt}], temperature=0.0)
+            resp = llm.chat(
+                [{"role": "user", "content": prompt}],
+                temperature=0.0,
+                # 必须显式给足：默认值是 tool_calling 场景标定的 384，
+                # 而完整计划 JSON 的 p95 是 827 token，用 384 会截断 65%。
+                max_tokens=PLANNER_MAX_TOKENS,
+            )
         except Exception as exc:
             errors.append(f"LLM 调用失败：{exc}")
             break
@@ -316,7 +352,7 @@ def _finalize_plan(
     """归一化计划参数并生成 patch —— LLM 路径与兜底路径共用。"""
     # 归一化每一步的参数
     steps: List[Dict[str, Any]] = []
-    for step in plan_obj["steps"]:
+    for step in plan_obj.get("steps") or []:
         step = dict(step)
         step["arguments"] = _normalize_arguments(step["tool"], step.get("arguments", {}))
         # bbox 缺省时回填计划级 bbox
@@ -327,22 +363,32 @@ def _finalize_plan(
         steps.append(step)
 
     plan_bbox = state.get("bbox") or plan_obj.get("bbox")
-    trace.append(
-        "计划步骤：" + " → ".join(s["tool"] for s in steps)
-    )
+
+    # 空计划 = 规划器主动拒答。这是一个**有效结论**，不是失败：
+    # 走 route_after_plan → summarize，由总结节点向用户说明为什么答不了。
+    refused = bool(plan_obj.get("refused")) or not steps
+    if refused:
+        trace.append("计划为空 —— 判定超出能力范围，进入拒答说明")
+        plan_desc = (
+            "该请求超出地理空间分析能力范围："
+            + str(plan_obj.get("understanding") or "无法规划出有效步骤")
+        )
+    else:
+        trace.append("计划步骤：" + " → ".join(s["tool"] for s in steps))
+        plan_desc = (
+            f"已制定计划（{'兜底规则' if used_fallback else 'LLM'}）："
+            + "；".join(f"{i + 1}. {s['intent']}" for i, s in enumerate(steps))
+        )
 
     patch: Dict[str, Any] = {
         "plan": steps,
         "step_index": 0,
         "bbox": list(plan_bbox) if plan_bbox else None,
         "retry_count": 0,
+        "refused": refused,
         "status": STATUS_PLANNING,
         "trace": trace,
-        "messages": append_message(
-            state, "assistant",
-            f"已制定计划（{'兜底规则' if used_fallback else 'LLM'}）："
-            + "；".join(f"{i + 1}. {s['intent']}" for i, s in enumerate(steps)),
-        ),
+        "messages": append_message(state, "assistant", plan_desc),
     }
     if plan_obj.get("final_answer_hint"):
         patch["final_answer_hint"] = plan_obj["final_answer_hint"]
