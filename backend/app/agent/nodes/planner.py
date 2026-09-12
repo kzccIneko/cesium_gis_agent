@@ -202,6 +202,28 @@ _ALIEN_PATTERNS = (
 )
 
 
+# 跟地理/地形沾边的词。用于一个**很窄**的兜底场景：
+# 意图分类没给出结论时，如果这句话连一个地理相关词都没有，就别硬当分析任务处理。
+# 实测「这首歌叫什么名字」在分类失败后被规划成了 compute_slope，纯属帮倒忙。
+_GEO_SIGNAL = (
+    "坡度", "坡向", "朝向", "阴坡", "阳坡", "曲率", "山脊", "沟谷", "起伏",
+    "地形", "地貌", "高程", "海拔", "dem", "DEM", "栅格", "srtm", "SRTM",
+    "路径", "路线", "通行", "代价", "越野", "穿越", "徒步", "导航",
+    "分区统计", "统计", "分类", "占比", "面积",
+    "区域", "范围", "这片", "这一片", "这块", "这里", "视野", "坐标",
+    "经度", "纬度", "经纬度", "地图", "地名", "地方",
+    "山", "峰", "谷", "河", "江", "湖", "平原", "盆地", "高原", "沙漠",
+    "草原", "森林", "丘陵", "峡谷", "悬崖", "陡崖",
+    "省", "市", "县", "区", "镇", "村", "岛", "半岛", "群岛",
+)
+
+
+def _has_geo_signal(query: str) -> bool:
+    """句子里有没有任何跟地理/地形沾边的词。"""
+    q = str(query or "")
+    return any(k in q for k in _GEO_SIGNAL)
+
+
 def _force_analysis(query: str) -> bool:
     """判断这句话是否**词面上明显是分析任务**。
 
@@ -261,16 +283,23 @@ def classify_intent(state: AgentState, llm: LLMClient) -> Optional[Dict[str, Any
             prompt += "\n\n" + annotated
     except Exception:  # noqa: BLE001
         pass
-    try:
-        resp = llm.chat(
-            [{"role": "user", "content": prompt}],
-            temperature=0.0,
-            max_tokens=INTENT_MAX_TOKENS,
-        )
-    except Exception:  # noqa: BLE001 —— 分类失败不该让整轮对话挂掉
-        return None
+    # 重试一次：本机 RTX 2060 在持续负载后会热降频，C 层直接 abort，
+    # 表现为这里偶发抛异常。实测「这首歌叫什么名字」就撞上一次 —— 分类失败后
+    # 默认走分析，结果被规划成了 compute_slope。
+    obj = None
+    for _attempt in range(2):
+        try:
+            resp = llm.chat(
+                [{"role": "user", "content": prompt}],
+                temperature=0.0,
+                max_tokens=INTENT_MAX_TOKENS,
+            )
+        except Exception:  # noqa: BLE001 —— 分类失败不该让整轮对话挂掉
+            continue
+        obj = extract_json(resp.content or "")
+        if isinstance(obj, dict):
+            break
 
-    obj = extract_json(resp.content or "")
     if not isinstance(obj, dict):
         return None
     intent = str(obj.get("intent") or "").strip().lower()
@@ -565,7 +594,12 @@ def plan_node(state: AgentState, llm: LLMClient) -> Dict[str, Any]:
         cls = classify_intent(state, llm)
 
     if cls is None:
-        trace.append("按分析任务继续")
+        # 分类器没给出结论。若这句话连一个地理相关词都没有，就别硬当分析任务 ——
+        # 实测「这首歌叫什么名字」在这种情况下被规划成了 compute_slope。
+        if not _has_geo_signal(query):
+            trace.append("意图分类无结论且句子不含地理相关表述 —— 按越界处理")
+            return finish_non_analysis(state, {"intent": "refuse", "reply": ""}, trace)
+        trace.append("意图分类无结论，按分析任务继续")
     elif cls.get("intent") != "analysis":
         return finish_non_analysis(state, cls, trace)
     else:

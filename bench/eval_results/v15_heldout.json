@@ -1,0 +1,1176 @@
+{
+ "details": [
+  {
+   "id": "h01",
+   "category": "single_tool",
+   "query": "成都平原坡度平缓的面积有多少",
+   "expected_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.5,
+     30.2,
+     104.5,
+     31.0
+    ],
+    "metric": "slope",
+    "resolution": 128,
+    "dem_path": null,
+    "breaks": [
+     0,
+     5,
+     10,
+     15,
+     20,
+     25,
+     30,
+     45,
+     90
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 12.672,
+   "score": {
+    "id": "h01",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "h02",
+   "category": "single_tool",
+   "query": "秦岭的越野通行性怎么样",
+   "expected_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     107.5,
+     33.5,
+     108.5,
+     34.2
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.718,
+   "score": {
+    "id": "h02",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "h03",
+   "category": "single_tool",
+   "query": "雅安属于什么地貌",
+   "expected_tools": [
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "classify_geomorphons"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.8,
+     29.8,
+     103.2,
+     30.2
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 11.009,
+   "score": {
+    "id": "h03",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "h04",
+   "category": "single_tool",
+   "query": "用卷积神经网络对秦岭做地貌分类",
+   "expected_tools": [
+    "classify_terrain_onnx"
+   ],
+   "predicted_tools": [
+    "classify_terrain_onnx"
+   ],
+   "predicted_params": {
+    "bbox": [
+     107.5,
+     33.5,
+     108.5,
+     34.2
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.653,
+   "score": {
+    "id": "h04",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "h05",
+   "category": "single_tool",
+   "query": "青海湖周边的坡度是多少",
+   "expected_tools": [
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     89.35,
+     31.6,
+     103.07,
+     39.21
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.586,
+   "score": {
+    "id": "h05",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "h06",
+   "category": "single_tool",
+   "query": "张家界的坡向分布",
+   "expected_tools": [
+    "compute_aspect"
+   ],
+   "predicted_tools": [
+    "compute_aspect"
+   ],
+   "predicted_params": {
+    "bbox": [
+     110.3,
+     29.2,
+     110.6,
+     29.5
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.384,
+   "score": {
+    "id": "h06",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "h07",
+   "category": "single_tool",
+   "query": "统计可可西里可通行面积的占比",
+   "expected_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     90.0,
+     32.0,
+     100.0,
+     36.0
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geojson",
+    "start_point": null,
+    "end_point": null
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 12.36,
+   "score": {
+    "id": "h07",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.0,
+    "tool_order": 0.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "h08",
+   "category": "single_tool",
+   "query": "大范围快速筛查横断山区的地貌",
+   "expected_tools": [
+    "classify_terrain_rules"
+   ],
+   "predicted_tools": [
+    "classify_terrain_rules"
+   ],
+   "predicted_params": {
+    "bbox": [
+     99.0,
+     28.0,
+     100.5,
+     29.5
+    ],
+    "resolution": 64,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 13.954,
+   "score": {
+    "id": "h08",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "h09",
+   "category": "single_tool",
+   "query": "查看已有 DEM 文件的元信息",
+   "expected_tools": [
+    "get_dem_metadata"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.9,
+     30.0,
+     104.9,
+     31.5
+    ],
+    "resolution": 256
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 22.835,
+   "score": {
+    "id": "h09",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.0,
+    "tool_order": 0.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   },
+   "n_llm_calls": 4,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "h10",
+   "category": "single_tool",
+   "query": "太行山的通行代价栅格",
+   "expected_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     112.5,
+     35.0,
+     115.5,
+     40.0
+    ],
+    "resolution": 256,
+    "dem_path": null,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 12.609,
+   "score": {
+    "id": "h10",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "h11",
+   "category": "multi_tool",
+   "query": "下载大兴安岭的高程数据并统计坡度分级",
+   "expected_tools": [
+    "download_srtm",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "download_srtm",
+    "zonal_statistics"
+   ],
+   "predicted_params": {
+    "bbox": [
+     120.0,
+     46.0,
+     126.0,
+     53.0
+    ],
+    "metric": "slope",
+    "resolution": 128,
+    "breaks": [
+     0,
+     5,
+     10,
+     15,
+     20,
+     25,
+     30,
+     45,
+     90
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 13.143,
+   "score": {
+    "id": "h11",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 2
+  },
+  {
+   "id": "h12",
+   "category": "multi_tool",
+   "query": "先获取祁连山 SRTM 数据，再算坡度",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "download_srtm",
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     96.0,
+     37.0,
+     103.0,
+     39.5
+    ],
+    "resolution": 128,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 13.818,
+   "score": {
+    "id": "h12",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 2
+  },
+  {
+   "id": "h13",
+   "category": "multi_tool",
+   "query": "先算岷山的坡度再做地貌分类",
+   "expected_tools": [
+    "compute_slope",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "compute_slope",
+    "classify_geomorphons"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.5,
+     31.5,
+     103.5,
+     32.5
+    ],
+    "resolution": 128,
+    "dem_path": null
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 12.192,
+   "score": {
+    "id": "h13",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 2
+  },
+  {
+   "id": "h14",
+   "category": "multi_tool",
+   "query": "规划一条从康定到泸定的越野路线",
+   "expected_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_params": {
+    "bbox": [
+     100.5,
+     29.0,
+     102.5,
+     30.5
+    ],
+    "resolution": 128,
+    "start_point": [
+     101.0,
+     29.5
+    ],
+    "end_point": [
+     101.5,
+     30.0
+    ],
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 17.117,
+   "score": {
+    "id": "h14",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 3
+  },
+  {
+   "id": "h15",
+   "category": "multi_tool",
+   "query": "下载太行山真实 DEM 后做地貌分类",
+   "expected_tools": [
+    "download_srtm",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "download_srtm",
+    "classify_geomorphons"
+   ],
+   "predicted_params": {
+    "bbox": [
+     112.5,
+     35.0,
+     115.5,
+     40.0
+    ],
+    "resolution": 256,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 13.988,
+   "score": {
+    "id": "h15",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 2
+  },
+  {
+   "id": "h16",
+   "category": "multi_tool",
+   "query": "找一条穿越塔克拉玛干的好走路线",
+   "expected_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_params": {
+    "bbox": [
+     83.0,
+     38.5,
+     85.0,
+     40.0
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 14.834,
+   "score": {
+    "id": "h16",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 3
+  },
+  {
+   "id": "h17",
+   "category": "multi_tool",
+   "query": "获取武夷山的高程数据然后统计可通行面积",
+   "expected_tools": [
+    "download_srtm",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "download_srtm",
+    "zonal_statistics"
+   ],
+   "predicted_params": {
+    "bbox": [
+     117.5,
+     26.5,
+     118.3,
+     28.0
+    ],
+    "metric": "slope",
+    "resolution": 128,
+    "breaks": [
+     15
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 14.37,
+   "score": {
+    "id": "h17",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 2
+  },
+  {
+   "id": "h18",
+   "category": "multi_tool",
+   "query": "下载天山的 DEM 并统计坡度分级",
+   "expected_tools": [
+    "download_srtm",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "download_srtm",
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_params": {
+    "bbox": [
+     80.0,
+     42.0,
+     88.0,
+     44.5
+    ],
+    "resolution": 256,
+    "output_format": "geojson",
+    "metric": "slope",
+    "breaks": [
+     0,
+     5,
+     10,
+     15,
+     20,
+     25,
+     30,
+     45,
+     90
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 18.183,
+   "score": {
+    "id": "h18",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.8,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 3
+  },
+  {
+   "id": "h19",
+   "category": "multi_tool",
+   "query": "用真实数据分析呼伦贝尔的通行难度",
+   "expected_tools": [
+    "download_srtm",
+    "compute_cost_surface"
+   ],
+   "predicted_tools": [
+    "download_srtm",
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     106.5,
+     47.0,
+     120.0,
+     52.0
+    ],
+    "resolution": 256,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 12.867,
+   "score": {
+    "id": "h19",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 2
+  },
+  {
+   "id": "h20",
+   "category": "multi_tool",
+   "query": "分析横断山坡度并做地貌分类",
+   "expected_tools": [
+    "compute_slope",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "compute_slope",
+    "classify_geomorphons"
+   ],
+   "predicted_params": {
+    "bbox": [
+     99.0,
+     28.0,
+     100.5,
+     29.5
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 13.859,
+   "score": {
+    "id": "h20",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 2
+  },
+  {
+   "id": "h21",
+   "category": "multi_tool",
+   "query": "拿到昆仑山的 SRTM 数据后做地形形态分类",
+   "expected_tools": [
+    "download_srtm",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "download_srtm",
+    "classify_geomorphons"
+   ],
+   "predicted_params": {
+    "bbox": [
+     76.0,
+     35.0,
+     92.0,
+     38.5
+    ],
+    "resolution": 256,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 13.646,
+   "score": {
+    "id": "h21",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 2
+  },
+  {
+   "id": "h22",
+   "category": "multi_tool",
+   "query": "用深度学习模型对神农架做地貌识别",
+   "expected_tools": [
+    "classify_terrain_onnx"
+   ],
+   "predicted_tools": [
+    "classify_terrain_onnx"
+   ],
+   "predicted_params": {
+    "bbox": [
+     109.5,
+     31.0,
+     111.0,
+     32.5
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 14.009,
+   "score": {
+    "id": "h22",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 2,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "h23",
+   "category": "out_of_scope",
+   "query": "明天北京会下雨吗",
+   "expected_tools": [],
+   "predicted_tools": [],
+   "predicted_params": {},
+   "refused": true,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 2.478,
+   "score": {
+    "id": "h23",
+    "category": "out_of_scope",
+    "parsed": 1.0,
+    "refusal_correct": 1.0,
+    "tool_exact": null,
+    "tool_set_f1": null,
+    "tool_order": null,
+    "param_bbox": null,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 0
+  },
+  {
+   "id": "h24",
+   "category": "out_of_scope",
+   "query": "帮我分析一下火星表面的地形",
+   "expected_tools": [],
+   "predicted_tools": [],
+   "predicted_params": {},
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 3.041,
+   "score": {
+    "id": "h24",
+    "category": "out_of_scope",
+    "parsed": 1.0,
+    "refusal_correct": 0.0,
+    "tool_exact": null,
+    "tool_set_f1": null,
+    "tool_order": null,
+    "param_bbox": null,
+    "completed": 0.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 0
+  },
+  {
+   "id": "h25",
+   "category": "out_of_scope",
+   "query": "推荐几只值得买的股票",
+   "expected_tools": [],
+   "predicted_tools": [],
+   "predicted_params": {},
+   "refused": true,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 2.149,
+   "score": {
+    "id": "h25",
+    "category": "out_of_scope",
+    "parsed": 1.0,
+    "refusal_correct": 1.0,
+    "tool_exact": null,
+    "tool_set_f1": null,
+    "tool_order": null,
+    "param_bbox": null,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 0
+  },
+  {
+   "id": "h26",
+   "category": "out_of_scope",
+   "query": "这首诗是谁写的",
+   "expected_tools": [],
+   "predicted_tools": [],
+   "predicted_params": {},
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 2.013,
+   "score": {
+    "id": "h26",
+    "category": "out_of_scope",
+    "parsed": 1.0,
+    "refusal_correct": 0.0,
+    "tool_exact": null,
+    "tool_set_f1": null,
+    "tool_order": null,
+    "param_bbox": null,
+    "completed": 0.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 0
+  },
+  {
+   "id": "h27",
+   "category": "out_of_scope",
+   "query": "我感冒了应该吃什么药",
+   "expected_tools": [],
+   "predicted_tools": [],
+   "predicted_params": {},
+   "refused": true,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 2.25,
+   "score": {
+    "id": "h27",
+    "category": "out_of_scope",
+    "parsed": 1.0,
+    "refusal_correct": 1.0,
+    "tool_exact": null,
+    "tool_set_f1": null,
+    "tool_order": null,
+    "param_bbox": null,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 0
+  },
+  {
+   "id": "h28",
+   "category": "out_of_scope",
+   "query": "月球上的环形山有多深",
+   "expected_tools": [],
+   "predicted_tools": [],
+   "predicted_params": {},
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 2.592,
+   "score": {
+    "id": "h28",
+    "category": "out_of_scope",
+    "parsed": 1.0,
+    "refusal_correct": 0.0,
+    "tool_exact": null,
+    "tool_set_f1": null,
+    "tool_order": null,
+    "param_bbox": null,
+    "completed": 0.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 0
+  },
+  {
+   "id": "h29",
+   "category": "out_of_scope",
+   "query": "帮我写一段 Python 代码",
+   "expected_tools": [],
+   "predicted_tools": [],
+   "predicted_params": {},
+   "refused": true,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 2.462,
+   "score": {
+    "id": "h29",
+    "category": "out_of_scope",
+    "parsed": 1.0,
+    "refusal_correct": 1.0,
+    "tool_exact": null,
+    "tool_set_f1": null,
+    "tool_order": null,
+    "param_bbox": null,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 0
+  },
+  {
+   "id": "h30",
+   "category": "out_of_scope",
+   "query": "这句话用英语怎么说",
+   "expected_tools": [],
+   "predicted_tools": [],
+   "predicted_params": {},
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 1.813,
+   "score": {
+    "id": "h30",
+    "category": "out_of_scope",
+    "parsed": 1.0,
+    "refusal_correct": 0.0,
+    "tool_exact": null,
+    "tool_set_f1": null,
+    "tool_order": null,
+    "param_bbox": null,
+    "completed": 0.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 0
+  }
+ ]
+}
