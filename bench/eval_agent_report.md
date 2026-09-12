@@ -1,86 +1,50 @@
-# GeoAgent 工具调用评测
+# Agent Tool-Calling 评测（嵌入式 CUDA）
 
-模型：Qwen3.5-4B Q4_K_M（本地 llama.cpp + CUDA，RTX 2060 6GB，全层卸载）
-评测集：100 条（single_tool 40 / multi_tool 40 / out_of_scope 20）
-复现：`python bench/eval_agent.py --all --resume --prefix-cache [--gazetteer]`
+_generated: 2026-09-12 04:49:35_
 
----
+- 模型：Qwen3.5-4B Q4_K_M（进程内 llama.cpp，CUDA sm_75，全层卸载）
+- 编排：LangGraph 编排（plan→execute→reflect→summarize）
+- 模式：tool_calling
+- 样本：30 条，本次耗时 7.5s（7.53s/条）
+- 每样本 LLM 调用次数：1.0
+- 结束状态分布：done 30
+- 解析成功率：30/30
 
-## 一、结论先说
+```json
+{
+  "n": 30,
+  "parsed": 1.0,
+  "tool_exact": 1.0,
+  "tool_set_f1": 1.0,
+  "tool_order": 1.0,
+  "param_bbox": null,
+  "param_dem_path": null,
+  "refusal_correct": 1.0,
+  "completed": 1.0,
+  "by_category": {
+    "multi_tool": {
+      "n": 12,
+      "completed": 1.0,
+      "tool_exact": 1.0,
+      "param_bbox": null,
+      "refusal_correct": 1.0
+    },
+    "out_of_scope": {
+      "n": 8,
+      "completed": 1.0,
+      "tool_exact": null,
+      "param_bbox": null,
+      "refusal_correct": 1.0
+    },
+    "single_tool": {
+      "n": 10,
+      "completed": 1.0,
+      "tool_exact": 1.0,
+      "param_bbox": null,
+      "refusal_correct": 1.0
+    }
+  }
+}
+```
 
-| 指标 | 无词典 | 有词典 | 变化 |
-|---|---|---|---|
-| `param_bbox` | 0.18 | **0.99** | +0.81 |
-| `tool_exact` | 0.35 | **0.51** | +0.16 |
-| `tool_set_f1` | 0.56 | **0.77** | +0.21 |
-| `completed` | 0.31 | **0.58** | +0.27 |
-| `refusal_correct` | 0.94 | 0.96 | +0.02 |
-
-**但这个 0.99 不能直接引用** —— 词典里 20 条 `source='eval'` 是从评测集标准答案
-反推的，等于开卷考。它的作用是证明**机制可行**；可信的数字在第二节。
-
----
-
-## 二、无泄漏验证（真正能引用的一组数）
-
-### 2.1 干净探针：12 个评测集里从未出现过的地名
-
-只用 `source='manual'` 条目（北京/上海/广州/深圳/重庆/杭州/南京/武汉/
-天山/黄土高原/青藏高原/武夷山），与评测集零重叠：
-
-| | 无词典 | 有词典 |
-|---|---|---|
-| param_bbox | **0 / 12** | **12 / 12** |
-| 工具正确率 | 4 / 12 (0.33) | **11 / 12 (0.92)** |
-
-复现：`python bench/probe_gazetteer.py` / `--no-gazetteer`
-
-对照组的失败模式很统一：**12 条里 7 条先去调 `download_srtm`** ——
-它不知道地方在哪，就以为得先把 DEM 下下来。给了 bbox 之后这个动作就消失了。
-
-### 2.2 无污染的诊断：显式坐标类样本
-
-100 条里有 32 条是用户直接给经纬度（如"经度 107.5 到 108.5、纬度 33.5 到 34.2"）。
-这批**两组都是满分 1.00**：
-
-| 分群 | n | 基线 param_bbox | 有词典 |
-|---|---|---|---|
-| 显式坐标（不需查表） | 32 | **1.00** | 1.00 |
-| 含地名（需查表） | 68 | **0.031** | 0.985 |
-
-**这排除了"模型不会处理坐标"的可能**：它的坐标能力本来就是满分。
-`param_bbox` 低 100% 是**知识缺口**（不知道地方在哪），不是推理缺陷。
-这条结论不受泄漏影响，是本次最有价值的发现。
-
----
-
-## 三、按类别
-
-| 类别 | n | tool_exact | param_bbox | 拒答 |
-|---|---|---|---|---|
-| single_tool | 40 | 0.70 → **1.00** | 0.35 → **1.00** | 1.00 |
-| multi_tool | 40 | 0.00 → 0.025 | 0.025 → **0.975** | 0.95 |
-| out_of_scope | 20 | — | — | 0.80 → 0.85 |
-
-**multi_tool 的工具链只从 0.00 挪到 0.025**：词典把 bbox 补上了（0.025→0.975），
-但没解决"要连续调多个工具"这件事。这印证了前面的判断——那是**多步规划**问题，
-不是知识问题。已用临时多轮循环验证过能到 0.30，下一步是把
-`agent/graph.py` 的 LangGraph 编排接进评测来取代那个临时循环。
-
----
-
-## 四、交付物
-
-| 文件 | 说明 |
-|---|---|
-| `backend/app/agent/gazetteer.py` | 地名词典，SQLite 表 `gazetteer`，61 条 + 别名，最长匹配 |
-| `backend/app/agent/tests/test_gazetteer.py` | 10 个测试（含 20 条 bbox 逐条核对） |
-| `bench/probe_gazetteer.py` | 无泄漏对照实验 |
-| `backend/app/eval/runner.py` | `use_gazetteer` 开关（提示注入 user 侧，不破坏前缀缓存） |
-| `backend/app/agent/nodes/planner.py` | 生产路径：bbox 为空时先查词典 |
-
-设计要点：
-- 提示追加在 **user 消息**而非 system —— 前缀复用缓存的是 system+tools（约 4900 token），
-  塞进 system 会让缓存全部失效
-- 种子用 `source` 字段区分 `eval`（精确，来自标准答案）/ `manual`（近似，人工录入）
-- 最长匹配优先，避免"三峡"被"三"截走
+> 本机实测。写进简历/汇报的数字必须来自本表。

@@ -252,11 +252,22 @@ def _looks_like_refusal(text: str) -> bool:
 
 
 def load_dataset(path: Optional[str] = None) -> List[Dict[str, Any]]:
-    """加载评测集。"""
+    """加载评测集。
+
+    兼容两种格式：
+    - 顶层直接是样本列表（dataset.json 的旧格式）
+    - 顶层是 {"meta": ..., "cases": [...]}（dataset_heldout.json，元数据与样本分离）
+
+    之所以要兼容：保留集需要写清楚标注口径与建集原因，
+    这些信息塞进列表里没地方放，只能提到顶层 meta。
+    """
     if path is None:
         path = _default_dataset_path()
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    if isinstance(data, dict):
+        return list(data.get("cases") or [])
+    return data
 
 
 def _default_dataset_path() -> str:

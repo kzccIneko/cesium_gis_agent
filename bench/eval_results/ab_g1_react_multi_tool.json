@@ -1,0 +1,1479 @@
+{
+ "details": [
+  {
+   "id": "multi_001",
+   "category": "multi_tool",
+   "query": "下载四姑娘山的真实高程数据并计算坡度",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.5,
+     30.2,
+     103.0,
+     30.5
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.557,
+   "score": {
+    "id": "multi_001",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_002",
+   "category": "multi_tool",
+   "query": "我没有秦岭的 DEM 文件，先下数据再算坡度",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     104,
+     33,
+     108,
+     35
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 7.848,
+   "score": {
+    "id": "multi_002",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_003",
+   "category": "multi_tool",
+   "query": "获取贡嘎山的 SRTM 数据然后算坡度",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     99.0,
+     29.0,
+     100.0,
+     30.0
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 6.253,
+   "score": {
+    "id": "multi_003",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_004",
+   "category": "multi_tool",
+   "query": "横断山的坡度，用真实 DEM 数据算",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     98.0,
+     25.0,
+     102.0,
+     30.0
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.548,
+   "score": {
+    "id": "multi_004",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_005",
+   "category": "multi_tool",
+   "query": "先下载三峡高程数据，再分析那里的坡度",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     109.5,
+     29.5,
+     111.5,
+     31.5
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 6.396,
+   "score": {
+    "id": "multi_005",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_006",
+   "category": "multi_tool",
+   "query": "算张家界的坡度，然后统计有多少面积车辆能走",
+   "expected_tools": [
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     110.3,
+     29.0,
+     110.6,
+     29.3
+    ],
+    "resolution": 256
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.284,
+   "score": {
+    "id": "multi_006",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_007",
+   "category": "multi_tool",
+   "query": "峨眉山的坡度分布如何，能通行的面积占多少",
+   "expected_tools": [
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.1,
+     29.4,
+     103.4,
+     29.6
+    ],
+    "resolution": 256,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.674,
+   "score": {
+    "id": "multi_007",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_008",
+   "category": "multi_tool",
+   "query": "计算玉龙雪山坡度并做分区统计",
+   "expected_tools": [
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     100.2,
+     27.1,
+     100.4,
+     27.3
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.494,
+   "score": {
+    "id": "multi_008",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.0,
+    "tool_order": 0.0,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_009",
+   "category": "multi_tool",
+   "query": "计算黄山的坡度，然后统计有多少地方在15度以下",
+   "expected_tools": [
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     118.0,
+     30.0,
+     118.8,
+     30.3
+    ],
+    "resolution": 256
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.322,
+   "score": {
+    "id": "multi_009",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_010",
+   "category": "multi_tool",
+   "query": "分析泰山的坡度，给出可通行面积比例",
+   "expected_tools": [
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     117.0,
+     36.2,
+     117.5,
+     36.5
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 6.068,
+   "score": {
+    "id": "multi_010",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.0,
+    "tool_order": 0.0,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_011",
+   "category": "multi_tool",
+   "query": "先算雅安的坡度，再统计分级占比",
+   "expected_tools": [
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.5,
+     30.0,
+     103.5,
+     30.5
+    ],
+    "resolution": 256
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.121,
+   "score": {
+    "id": "multi_011",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_012",
+   "category": "multi_tool",
+   "query": "从 A 到 B 规划一条坡度小于15度的路线，范围是都江堰",
+   "expected_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.5,
+     30.3,
+     104.0,
+     30.6
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 7.125,
+   "score": {
+    "id": "multi_012",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.0,
+    "tool_order": 0.0,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_013",
+   "category": "multi_tool",
+   "query": "成都周边内帮我找一条越野路线，要避开陡坡",
+   "expected_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [],
+   "predicted_params": {},
+   "refused": true,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.526,
+   "score": {
+    "id": "multi_013",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.0,
+    "tool_order": 0.0,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 0.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_014",
+   "category": "multi_tool",
+   "query": "规划拉萨内的通行路径，尽量走缓坡",
+   "expected_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     91.0,
+     29.5,
+     91.5,
+     29.7
+    ],
+    "resolution": 256,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.744,
+   "score": {
+    "id": "multi_014",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.5,
+    "tool_order": 0.3333333333333333,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_015",
+   "category": "multi_tool",
+   "query": "珠峰从西边到东边怎么走最省力",
+   "expected_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     86.9,
+     27.9,
+     87.1,
+     28.1
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.237,
+   "score": {
+    "id": "multi_015",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.0,
+    "tool_order": 0.0,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_016",
+   "category": "multi_tool",
+   "query": "在西安找一条适合车辆通行的路线",
+   "expected_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     108.5,
+     34.0,
+     109.5,
+     34.5
+    ],
+    "resolution": 256,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.714,
+   "score": {
+    "id": "multi_016",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.5,
+    "tool_order": 0.3333333333333333,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_017",
+   "category": "multi_tool",
+   "query": "兰州内两点之间的最优越野路径",
+   "expected_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [],
+   "predicted_params": {},
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 7.086,
+   "score": {
+    "id": "multi_017",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.0,
+    "tool_order": 0.0,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_018",
+   "category": "multi_tool",
+   "query": "帮我规划昆明的穿越路线，考虑坡度代价",
+   "expected_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.7,
+     25.0,
+     103.6,
+     25.9
+    ],
+    "resolution": 256,
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.259,
+   "score": {
+    "id": "multi_018",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.5,
+    "tool_order": 0.3333333333333333,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_019",
+   "category": "multi_tool",
+   "query": "锡林郭勒草原里从山脚到山顶怎么走",
+   "expected_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     115.0,
+     42.0,
+     116.0,
+     43.0
+    ],
+    "start_point": [
+     115.5,
+     42.5
+    ],
+    "end_point": [
+     115.8,
+     42.8
+    ],
+    "resolution": 256
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 11.659,
+   "score": {
+    "id": "multi_019",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.5,
+    "tool_order": 0.3333333333333333,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_020",
+   "category": "multi_tool",
+   "query": "设计一条塔克拉玛干的徒步路线，绕开陡崖",
+   "expected_tools": [
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     75,
+     35,
+     85,
+     45
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.129,
+   "score": {
+    "id": "multi_020",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.0,
+    "tool_order": 0.0,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_021",
+   "category": "multi_tool",
+   "query": "下载四姑娘山的 DEM，算坡度，再做地貌分类",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.5,
+     30.0,
+     103.0,
+     30.5
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.202,
+   "score": {
+    "id": "multi_021",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.5,
+    "tool_order": 0.3333333333333333,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_022",
+   "category": "multi_tool",
+   "query": "秦岭没数据，先下高程再用地貌分类",
+   "expected_tools": [
+    "download_srtm",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     104.0,
+     32.0,
+     110.0,
+     36.0
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 7.525,
+   "score": {
+    "id": "multi_022",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_023",
+   "category": "multi_tool",
+   "query": "获取贡嘎山真实地形数据并分类地貌类型",
+   "expected_tools": [
+    "download_srtm",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     101.5,
+     29.5,
+     102.5,
+     30.5
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.077,
+   "score": {
+    "id": "multi_023",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_024",
+   "category": "multi_tool",
+   "query": "横断山的地貌分析，用真实 DEM 数据",
+   "expected_tools": [
+    "download_srtm",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     98.0,
+     26.0,
+     102.0,
+     32.0
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 7.964,
+   "score": {
+    "id": "multi_024",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_025",
+   "category": "multi_tool",
+   "query": "下载三峡高程数据，分析坡度并分类地貌",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     110.5,
+     30.5,
+     111.5,
+     31.5
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.408,
+   "score": {
+    "id": "multi_025",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.5,
+    "tool_order": 0.3333333333333333,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_026",
+   "category": "multi_tool",
+   "query": "下载张家界高程数据并规划一条越野路线",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     110.3,
+     29.0,
+     110.8,
+     29.3
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.056,
+   "score": {
+    "id": "multi_026",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.4,
+    "tool_order": 0.25,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_027",
+   "category": "multi_tool",
+   "query": "峨眉山没有 DEM，先下数据再规划路径",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.1,
+     29.3,
+     103.4,
+     29.5
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 7.994,
+   "score": {
+    "id": "multi_027",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.4,
+    "tool_order": 0.25,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_028",
+   "category": "multi_tool",
+   "query": "获取玉龙雪山的地形数据，然后找一条好走的路",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     100.2,
+     27.1,
+     100.4,
+     27.3
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.015,
+   "score": {
+    "id": "multi_028",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.4,
+    "tool_order": 0.25,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_029",
+   "category": "multi_tool",
+   "query": "黄山的通行路线规划，需要真实高程",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     118.1,
+     30.0,
+     118.3,
+     30.3
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 7.8,
+   "score": {
+    "id": "multi_029",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.4,
+    "tool_order": 0.25,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_030",
+   "category": "multi_tool",
+   "query": "下载泰山数据，构建代价场并规划路径",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "compute_cost_surface",
+    "plan_route"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     117.0,
+     35.6,
+     117.2,
+     36.3
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.181,
+   "score": {
+    "id": "multi_030",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.4,
+    "tool_order": 0.25,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_031",
+   "category": "multi_tool",
+   "query": "算雅安的坡度，然后用地貌规则分类",
+   "expected_tools": [
+    "compute_slope",
+    "classify_terrain_rules"
+   ],
+   "predicted_tools": [
+    "compute_slope",
+    "classify_terrain_rules"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.5,
+     30.0,
+     103.5,
+     30.5
+    ],
+    "resolution": 256
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.559,
+   "score": {
+    "id": "multi_031",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_032",
+   "category": "multi_tool",
+   "query": "都江堰先算坡度再判断地貌类型",
+   "expected_tools": [
+    "compute_slope",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.5,
+     30.5,
+     103.8,
+     30.8
+    ],
+    "resolution": 256
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.086,
+   "score": {
+    "id": "multi_032",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_033",
+   "category": "multi_tool",
+   "query": "分析成都周边坡度并做地貌分类",
+   "expected_tools": [
+    "compute_slope",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.5,
+     30.2,
+     104.5,
+     31.0
+    ],
+    "resolution": 256
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.603,
+   "score": {
+    "id": "multi_033",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_034",
+   "category": "multi_tool",
+   "query": "拉萨的坡度算出来后分类地形",
+   "expected_tools": [
+    "compute_slope",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     91.0,
+     29.0,
+     92.0,
+     30.0
+    ],
+    "resolution": 256
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.204,
+   "score": {
+    "id": "multi_034",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.6666666666666666,
+    "tool_order": 0.5,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_035",
+   "category": "multi_tool",
+   "query": "计算珠峰坡度，再做地形形态分类",
+   "expected_tools": [
+    "compute_slope",
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "compute_slope",
+    "classify_geomorphons"
+   ],
+   "predicted_params": {
+    "bbox": [
+     86.9,
+     27.9,
+     87.0,
+     28.0
+    ],
+    "resolution": 256
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.547,
+   "score": {
+    "id": "multi_035",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_036",
+   "category": "multi_tool",
+   "query": "下载西安的高程数据，算坡度，再统计可通行面积",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     107.8,
+     34.1,
+     109.0,
+     34.4
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.716,
+   "score": {
+    "id": "multi_036",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.5,
+    "tool_order": 0.3333333333333333,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_037",
+   "category": "multi_tool",
+   "query": "兰州没有 DEM，先下数据算坡度再统计通行比例",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.5,
+     35.0,
+     104.5,
+     36.0
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.84,
+   "score": {
+    "id": "multi_037",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.5,
+    "tool_order": 0.3333333333333333,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_038",
+   "category": "multi_tool",
+   "query": "获取昆明真实地形，计算坡度并统计有多少能走",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.5,
+     24.5,
+     103.5,
+     25.5
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.175,
+   "score": {
+    "id": "multi_038",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.5,
+    "tool_order": 0.3333333333333333,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_039",
+   "category": "multi_tool",
+   "query": "锡林郭勒草原的坡度统计，需要真实 DEM 数据",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     112,
+     42,
+     118,
+     45
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.178,
+   "score": {
+    "id": "multi_039",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.5,
+    "tool_order": 0.3333333333333333,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  },
+  {
+   "id": "multi_040",
+   "category": "multi_tool",
+   "query": "下载塔克拉玛干数据，算坡度并给出车辆可通行面积占比",
+   "expected_tools": [
+    "download_srtm",
+    "compute_slope",
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "download_srtm"
+   ],
+   "predicted_params": {
+    "bbox": [
+     75,
+     35,
+     90,
+     42
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.768,
+   "score": {
+    "id": "multi_040",
+    "category": "multi_tool",
+    "parsed": 1.0,
+    "tool_exact": 0.0,
+    "tool_set_f1": 0.5,
+    "tool_order": 0.3333333333333333,
+    "param_bbox": false,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 0.0
+   }
+  }
+ ]
+}

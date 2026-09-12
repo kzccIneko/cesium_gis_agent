@@ -1,0 +1,182 @@
+{
+  "overall_accuracy": 0.7648,
+  "macro_f1": 0.7584,
+  "weighted_f1": 0.7556,
+  "cohens_kappa": 0.7312,
+  "mean_precision": 0.7534,
+  "mean_recall": 0.7679,
+  "total_samples": 4000,
+  "per_class": [
+    {
+      "class_id": 0,
+      "name": "flat",
+      "label_cn": "平地",
+      "precision": 0.7203,
+      "recall": 0.8534,
+      "f1": 0.7812,
+      "support": 498
+    },
+    {
+      "class_id": 1,
+      "name": "peak",
+      "label_cn": "山顶",
+      "precision": 0.9599,
+      "recall": 1.0,
+      "f1": 0.9796,
+      "support": 479
+    },
+    {
+      "class_id": 2,
+      "name": "ridge",
+      "label_cn": "山脊",
+      "precision": 0.5,
+      "recall": 0.4872,
+      "f1": 0.4935,
+      "support": 507
+    },
+    {
+      "class_id": 3,
+      "name": "steep_slope",
+      "label_cn": "陡坡",
+      "precision": 0.9556,
+      "recall": 1.0,
+      "f1": 0.9773,
+      "support": 495
+    },
+    {
+      "class_id": 4,
+      "name": "gentle_slope",
+      "label_cn": "缓坡",
+      "precision": 0.4825,
+      "recall": 0.351,
+      "f1": 0.4064,
+      "support": 510
+    },
+    {
+      "class_id": 5,
+      "name": "valley",
+      "label_cn": "山谷",
+      "precision": 0.4615,
+      "recall": 0.4515,
+      "f1": 0.4565,
+      "support": 505
+    },
+    {
+      "class_id": 6,
+      "name": "depression",
+      "label_cn": "洼地",
+      "precision": 0.9475,
+      "recall": 1.0,
+      "f1": 0.973,
+      "support": 505
+    },
+    {
+      "class_id": 7,
+      "name": "cliff",
+      "label_cn": "陡崖",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 501
+    }
+  ],
+  "confusion_matrix": [
+    [
+      425,
+      2,
+      23,
+      0,
+      12,
+      30,
+      6,
+      0
+    ],
+    [
+      0,
+      479,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      52,
+      12,
+      247,
+      7,
+      84,
+      98,
+      7,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      495,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      47,
+      2,
+      126,
+      13,
+      179,
+      138,
+      5,
+      0
+    ],
+    [
+      66,
+      4,
+      98,
+      3,
+      96,
+      228,
+      10,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      505,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      501
+    ]
+  ],
+  "top2_accuracy": 0.868,
+  "pytorch_infer_ms_per_sample": 3.577,
+  "saved_best_val_acc": 76.0,
+  "patch_size": 64,
+  "n_classes": 8,
+  "onnx_infer_ms_per_sample": 1.53,
+  "onnx_vs_pytorch_speedup": 2.34,
+  "onnx_pytorch_agreement": 1.0,
+  "onnx_pytorch_max_logit_diff": 6.1e-05,
+  "onnx_accuracy": 0.7648,
+  "baseline_256x256": {
+    "grid": "256x256 (65536 cells)",
+    "geomorphons_ms": 3260.8,
+    "rules_ms": 170.2,
+    "onnx_ms_estimate": 24.5,
+    "geomorphons_vs_onnx_speedup": 133.2
+  }
+}

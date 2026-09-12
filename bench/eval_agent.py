@@ -34,11 +34,13 @@ from typing import Any, Dict, List, Tuple
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "backend"))
+sys.path.insert(0, str(REPO / "bench"))  # graph_eval 与本脚本同目录
 
 from app.agent.llm import EmbeddedLlamaClient  # noqa: E402
 from app.eval.metrics import aggregate  # noqa: E402
 from app.eval.metrics import score_case  # noqa: E402
 from app.eval.runner import EvalRunner, load_dataset  # noqa: E402
+from graph_eval import run_case_graph  # noqa: E402
 
 # JSON 模式下的输出结构 —— 同时作为 GBNF 文法的约束源
 RESPONSE_SCHEMA = {
@@ -162,15 +164,55 @@ def main() -> int:
     )
     ap.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS)
     ap.add_argument(
+        "--orchestrator",
+        choices=["langgraph", "loop"],
+        default="langgraph",
+        help=(
+            "编排方式。langgraph = 真实 plan→execute→reflect→summarize 状态图"
+            "（默认）；loop = 临时多轮试探（调工具→喂结果→再问），用于对照"
+        ),
+    )
+    ap.add_argument(
+        "--reflect-llm",
+        action="store_true",
+        help="反思节点启用 LLM 语义复核（默认只跑代码规则，省调用开销）",
+    )
+    ap.add_argument(
+        "--summarize-llm",
+        action="store_true",
+        help="总结节点用 LLM 写回答（默认用模板回答）",
+    )
+    ap.add_argument(
+        "--no-gazetteer",
+        action="store_true",
+        help="关闭地名词典（langgraph 编排下的对照实验）",
+    )
+    ap.add_argument(
+        "--no-reflector",
+        action="store_true",
+        help=(
+            "关闭反思节点（GEOAGENT_REFLECTOR=0）：结果不做任何校验直接采纳。"
+            "用于消融实验对比「有自我校验」与「无自我校验」的差异"
+        ),
+    )
+    ap.add_argument(
         "--turns",
         type=int,
         default=1,
-        help="每条样本最多几轮 tool-calling（>1 即多轮链路评测）",
+        help="每条样本最多几轮 tool-calling（仅 loop 编排下生效）",
     )
     ap.add_argument("--report", default=str(REPO / "bench" / "eval_agent_report.md"))
+    ap.add_argument(
+        "--dataset",
+        default="",
+        help="指定评测集路径（默认 backend/app/eval/dataset.json）。"
+        "传入 dataset_heldout.json 可跑未参与调参的保留集，检验修改是否真的泛化。",
+    )
     args = ap.parse_args()
 
-    cases = load_dataset()
+    cases = load_dataset(args.dataset or None)
+    if args.dataset:
+        print(f"[eval] 使用指定评测集：{args.dataset}（{len(cases)} 条）")
     if args.category:
         cases = [c for c in cases if c["category"] == args.category]
     if not args.all:
@@ -218,12 +260,23 @@ def main() -> int:
 
         client.chat = chat_with_grammar  # type: ignore[method-assign]
 
+    if args.no_reflector:
+        os.environ["GEOAGENT_REFLECTOR"] = "0"
+
+    orchestrator_desc = (
+        "LangGraph 编排（plan→execute→reflect→summarize）"
+        if args.orchestrator == "langgraph"
+        else f"多轮试探循环（最多 {args.turns} 轮）"
+    )
+    if args.no_reflector:
+        orchestrator_desc += "，反思已关闭"
     runner = EvalRunner(
         client=client,
         mode=args.mode,
-        model_label=f"embedded-Qwen3.5-4B-Q4_K_M/{args.mode}"
+        model_label=f"embedded-Qwen3.5-4B-Q4_K_M/{args.orchestrator}"
         + ("+GBNF" if args.grammar else "")
-        + ("+gazetteer" if args.gazetteer else ""),
+        + ("+gazetteer" if args.gazetteer else "")
+        + ("+no-reflector" if args.no_reflector else ""),
         use_gazetteer=args.gazetteer,
     )
 
@@ -245,18 +298,40 @@ def main() -> int:
     t0 = time.perf_counter()
     for i, case in enumerate(todo, 1):
         t_case = time.perf_counter()
-        if args.turns > 1:
+        extra: Dict[str, Any] = {}
+        if args.orchestrator == "langgraph":
+            g = run_case_graph(
+                case,
+                client,
+                use_gazetteer=not args.no_gazetteer,
+                reflect_llm=args.reflect_llm,
+                summarize_llm=args.summarize_llm,
+            )
+            elapsed_case = g["elapsed"]
+            r = {
+                "score": score_case(case, g["prediction"]),
+                "prediction": g["prediction"],
+                "elapsed": elapsed_case,
+            }
+            extra = {
+                "n_llm_calls": g["n_llm_calls"],
+                "status": g["status"],
+                "n_steps_planned": g["n_steps_planned"],
+            }
+        elif args.turns > 1:
             prediction, n_calls = run_case_multiturn(
                 runner, case, args.turns, args.max_tokens
             )
-            elapsed = time.perf_counter() - t_case
+            elapsed_case = time.perf_counter() - t_case
             r = {
                 "score": score_case(case, prediction),
                 "prediction": prediction,
-                "elapsed": elapsed,
+                "elapsed": elapsed_case,
             }
+            extra = {"n_llm_calls": n_calls}
         else:
             r = runner.run_case(case)
+            extra = {}
         rec = {
             "id": case["id"],
             "category": case["category"],
@@ -269,6 +344,7 @@ def main() -> int:
             "parse_error": r["prediction"].get("parse_error"),
             "elapsed": round(r["elapsed"], 3),
             "score": r["score"],
+            **extra,
         }
         done[str(case["id"])] = rec
         print(
@@ -287,12 +363,23 @@ def main() -> int:
     elapsed = time.perf_counter() - t0
 
     details = list(done.values())
+    n_calls = [d.get("n_llm_calls") for d in details if d.get("n_llm_calls") is not None]
+    avg_calls = round(sum(n_calls) / len(n_calls), 2) if n_calls else None
+    statuses: Dict[str, int] = {}
+    for d in details:
+        s = d.get("status")
+        if s:
+            statuses[s] = statuses.get(s, 0) + 1
+
     agg = aggregate([d["score"] for d in details])
     summary = {
         "model": runner.model_label,
+        "orchestrator": args.orchestrator,
         "cases": len(details),
         "elapsed_s": round(elapsed, 1),
         "avg_case_s": round(elapsed / max(len(todo), 1), 2),
+        "avg_llm_calls_per_case": avg_calls,
+        "end_status": statuses,
         "metrics": agg,
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
@@ -308,9 +395,19 @@ def main() -> int:
         f"_generated: {time.strftime('%Y-%m-%d %H:%M:%S')}_",
         "",
         "- 模型：Qwen3.5-4B Q4_K_M（进程内 llama.cpp，CUDA sm_75，全层卸载）",
+        f"- 编排：{orchestrator_desc}",
         f"- 模式：{args.mode}" + (" + GBNF 约束解码" if args.grammar else ""),
         f"- 样本：{len(details)} 条，本次耗时 {elapsed:.1f}s"
         f"（{elapsed/max(len(todo),1):.2f}s/条）",
+    ]
+    if avg_calls is not None:
+        lines.append(f"- 每样本 LLM 调用次数：{avg_calls}")
+    if statuses:
+        lines.append(
+            "- 结束状态分布："
+            + "，".join(f"{k} {v}" for k, v in sorted(statuses.items()))
+        )
+    lines += [
         f"- 解析成功率：{parsed}/{len(details)}",
         "",
         "```json",

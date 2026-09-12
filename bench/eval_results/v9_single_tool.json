@@ -1,0 +1,1680 @@
+{
+ "details": [
+  {
+   "id": "single_001",
+   "category": "single_tool",
+   "query": "计算成都周边的坡度",
+   "expected_tools": [
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.5,
+     30.2,
+     104.5,
+     31.0
+    ],
+    "resolution": 128,
+    "dem_path": "local_cache",
+    "output_format": "geotiff"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.178,
+   "score": {
+    "id": "single_001",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_002",
+   "category": "single_tool",
+   "query": "四姑娘山这一带的坡度是多少",
+   "expected_tools": [
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.8,
+     30.9,
+     103.2,
+     31.2
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "raster"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.719,
+   "score": {
+    "id": "single_002",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_003",
+   "category": "single_tool",
+   "query": "帮我算一下经度 107.5 到 108.5、纬度 33.5 到 34.2范围内每个位置的坡度",
+   "expected_tools": [
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     107.5,
+     33.5,
+     108.5,
+     34.2
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "raster"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.637,
+   "score": {
+    "id": "single_003",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_004",
+   "category": "single_tool",
+   "query": "贡嘎山哪里比较陡",
+   "expected_tools": [
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     101.6,
+     29.4,
+     102.0,
+     29.8
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "raster"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.83,
+   "score": {
+    "id": "single_004",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_005",
+   "category": "single_tool",
+   "query": "分析张家界的坡度分布",
+   "expected_tools": [
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     110.3,
+     29.2,
+     110.6,
+     29.5
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "raster"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.611,
+   "score": {
+    "id": "single_005",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_006",
+   "category": "single_tool",
+   "query": "我想知道经度 118.1 到 118.3、纬度 30.1 到 30.3的地形陡不陡，给个坡度图",
+   "expected_tools": [
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     118.1,
+     30.1,
+     118.3,
+     30.3
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "raster"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.888,
+   "score": {
+    "id": "single_006",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_007",
+   "category": "single_tool",
+   "query": "泰山的坡度情况怎么样",
+   "expected_tools": [
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     117.0,
+     36.2,
+     117.3,
+     36.4
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "raster"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.474,
+   "score": {
+    "id": "single_007",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_008",
+   "category": "single_tool",
+   "query": "算雅安的坡度栅格",
+   "expected_tools": [
+    "compute_slope"
+   ],
+   "predicted_tools": [
+    "compute_slope"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.8,
+     29.8,
+     103.2,
+     30.2
+    ],
+    "resolution": 128,
+    "dem_path": "local_cache",
+    "output_format": "raster"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.465,
+   "score": {
+    "id": "single_008",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_009",
+   "category": "single_tool",
+   "query": "计算经度 103.2 到 103.5、纬度 29.4 到 29.7的坡向",
+   "expected_tools": [
+    "compute_aspect"
+   ],
+   "predicted_tools": [
+    "compute_aspect"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.2,
+     29.4,
+     103.5,
+     29.7
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "GeoTIFF"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.396,
+   "score": {
+    "id": "single_009",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_010",
+   "category": "single_tool",
+   "query": "都江堰的山坡主要朝向哪边",
+   "expected_tools": [
+    "compute_aspect"
+   ],
+   "predicted_tools": [
+    "compute_aspect"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.4,
+     30.9,
+     103.8,
+     31.2
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "raster"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.207,
+   "score": {
+    "id": "single_010",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_011",
+   "category": "single_tool",
+   "query": "三峡哪些是阴坡哪些是阳坡",
+   "expected_tools": [
+    "compute_aspect"
+   ],
+   "predicted_tools": [
+    "compute_aspect"
+   ],
+   "predicted_params": {
+    "bbox": [
+     110.0,
+     30.8,
+     111.0,
+     31.2
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "raster"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 11.139,
+   "score": {
+    "id": "single_011",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_012",
+   "category": "single_tool",
+   "query": "分析经度 99.0 到 100.5、纬度 28.0 到 29.5的坡向分布",
+   "expected_tools": [
+    "compute_aspect"
+   ],
+   "predicted_tools": [
+    "compute_aspect"
+   ],
+   "predicted_params": {
+    "bbox": [
+     99.0,
+     28.0,
+     100.5,
+     29.5
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "raster"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.849,
+   "score": {
+    "id": "single_012",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_013",
+   "category": "single_tool",
+   "query": "玉龙雪山的朝向情况如何",
+   "expected_tools": [
+    "compute_aspect"
+   ],
+   "predicted_tools": [
+    "compute_aspect"
+   ],
+   "predicted_params": {
+    "bbox": [
+     100.1,
+     27.0,
+     100.3,
+     27.2
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "raster"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.325,
+   "score": {
+    "id": "single_013",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_014",
+   "category": "single_tool",
+   "query": "计算拉萨的曲率",
+   "expected_tools": [
+    "compute_curvature"
+   ],
+   "predicted_tools": [
+    "compute_curvature"
+   ],
+   "predicted_params": {
+    "bbox": [
+     90.8,
+     29.5,
+     91.3,
+     30.0
+    ],
+    "resolution": 128,
+    "dem_path": "local_cache/lasa_dem.tif",
+    "output_format": "tif"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.671,
+   "score": {
+    "id": "single_014",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_015",
+   "category": "single_tool",
+   "query": "经度 86.8 到 87.0、纬度 27.9 到 28.1哪里是山脊",
+   "expected_tools": [
+    "compute_curvature"
+   ],
+   "predicted_tools": [
+    "compute_curvature"
+   ],
+   "predicted_params": {
+    "bbox": [
+     86.8,
+     27.9,
+     87.0,
+     28.1
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geotiff"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.064,
+   "score": {
+    "id": "single_015",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_016",
+   "category": "single_tool",
+   "query": "西安哪里是沟谷",
+   "expected_tools": [
+    "compute_curvature"
+   ],
+   "predicted_tools": [
+    "compute_curvature"
+   ],
+   "predicted_params": {
+    "bbox": [
+     108.7,
+     34.0,
+     109.2,
+     34.5
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geotiff"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.572,
+   "score": {
+    "id": "single_016",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_017",
+   "category": "single_tool",
+   "query": "分析兰州的曲率，区分山脊和沟谷",
+   "expected_tools": [
+    "compute_curvature"
+   ],
+   "predicted_tools": [
+    "compute_curvature"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.5,
+     35.9,
+     104.0,
+     36.3
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geotiff"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.121,
+   "score": {
+    "id": "single_017",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_018",
+   "category": "single_tool",
+   "query": "计算经度 102.4 到 102.9、纬度 24.8 到 25.3的通行代价",
+   "expected_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.4,
+     24.8,
+     102.9,
+     25.3
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geotiff"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.53,
+   "score": {
+    "id": "single_018",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_019",
+   "category": "single_tool",
+   "query": "锡林郭勒草原哪里好走",
+   "expected_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     116.0,
+     43.0,
+     117.5,
+     44.0
+    ],
+    "resolution": 128,
+    "output_format": "geotiff"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.749,
+   "score": {
+    "id": "single_019",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_020",
+   "category": "single_tool",
+   "query": "分析塔克拉玛干的通行难度",
+   "expected_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     83.0,
+     38.5,
+     85.0,
+     40.0
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geotiff"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 11.806,
+   "score": {
+    "id": "single_020",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_021",
+   "category": "single_tool",
+   "query": "经度 103.5 到 104.5、纬度 30.2 到 31.0的越野通行性怎么样",
+   "expected_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.5,
+     30.2,
+     104.5,
+     31.0
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geotiff"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.622,
+   "score": {
+    "id": "single_021",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_022",
+   "category": "single_tool",
+   "query": "生成四姑娘山的通行代价栅格",
+   "expected_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_tools": [
+    "compute_cost_surface"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.8,
+     30.9,
+     103.2,
+     31.2
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "geotiff"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.669,
+   "score": {
+    "id": "single_022",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_023",
+   "category": "single_tool",
+   "query": "用规则法对秦岭做地貌分类",
+   "expected_tools": [
+    "classify_terrain_rules"
+   ],
+   "predicted_tools": [
+    "classify_terrain_rules"
+   ],
+   "predicted_params": {
+    "bbox": [
+     107.5,
+     33.5,
+     108.5,
+     34.2
+    ],
+    "resolution": 64,
+    "dem_path": null,
+    "output_format": "json"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.4,
+   "score": {
+    "id": "single_023",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_024",
+   "category": "single_tool",
+   "query": "经度 101.6 到 102.0、纬度 29.4 到 29.8的地貌类型有哪些，快速筛查一下",
+   "expected_tools": [
+    "classify_terrain_rules"
+   ],
+   "predicted_tools": [
+    "classify_terrain_rules"
+   ],
+   "predicted_params": {
+    "bbox": [
+     101.6,
+     29.4,
+     102.0,
+     29.8
+    ],
+    "resolution": 64,
+    "dem_path": "local_cache_dem",
+    "output_format": "json"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 12.183,
+   "score": {
+    "id": "single_024",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_025",
+   "category": "single_tool",
+   "query": "对张家界用地形规则做地貌分类",
+   "expected_tools": [
+    "classify_terrain_rules"
+   ],
+   "predicted_tools": [
+    "classify_terrain_rules"
+   ],
+   "predicted_params": {
+    "bbox": [
+     110.3,
+     29.2,
+     110.6,
+     29.5
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "json"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.601,
+   "score": {
+    "id": "single_025",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_026",
+   "category": "single_tool",
+   "query": "用 Geomorphons 算法对黄山做地貌分类",
+   "expected_tools": [
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "classify_geomorphons"
+   ],
+   "predicted_params": {
+    "bbox": [
+     118.1,
+     30.1,
+     118.3,
+     30.3
+    ],
+    "resolution": 256,
+    "dem_path": null,
+    "output_format": "json"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.58,
+   "score": {
+    "id": "single_026",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_027",
+   "category": "single_tool",
+   "query": "经度 117.0 到 117.3、纬度 36.2 到 36.4的地貌怎么分类",
+   "expected_tools": [
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "classify_geomorphons"
+   ],
+   "predicted_params": {
+    "bbox": [
+     117.0,
+     36.2,
+     117.3,
+     36.4
+    ],
+    "resolution": 256,
+    "dem_path": null,
+    "output_format": "GeoTIFF"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.14,
+   "score": {
+    "id": "single_027",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_028",
+   "category": "single_tool",
+   "query": "对雅安做地貌分类，用精度高一点的方法",
+   "expected_tools": [
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "classify_geomorphons"
+   ],
+   "predicted_params": {
+    "bbox": [
+     102.8,
+     29.8,
+     103.2,
+     30.2
+    ],
+    "resolution": 256,
+    "dem_path": "local_dem_cache",
+    "output_format": "geojson"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 11.153,
+   "score": {
+    "id": "single_028",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_029",
+   "category": "single_tool",
+   "query": "峨眉山属于什么地貌类型",
+   "expected_tools": [
+    "classify_geomorphons"
+   ],
+   "predicted_tools": [
+    "classify_geomorphons"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.2,
+     29.4,
+     103.5,
+     29.7
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "json"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.783,
+   "score": {
+    "id": "single_029",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_030",
+   "category": "single_tool",
+   "query": "用 ONNX 模型对经度 103.4 到 103.8、纬度 30.9 到 31.2做地貌分类",
+   "expected_tools": [
+    "classify_terrain_onnx"
+   ],
+   "predicted_tools": [
+    "classify_terrain_onnx"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.4,
+     30.9,
+     103.8,
+     31.2
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "json"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.822,
+   "score": {
+    "id": "single_030",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_031",
+   "category": "single_tool",
+   "query": "三峡用深度学习模型分类地貌",
+   "expected_tools": [
+    "classify_terrain_onnx"
+   ],
+   "predicted_tools": [
+    "classify_terrain_onnx"
+   ],
+   "predicted_params": {
+    "bbox": [
+     110.0,
+     30.8,
+     111.0,
+     31.2
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "GeoTIFF"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 9.626,
+   "score": {
+    "id": "single_031",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_032",
+   "category": "single_tool",
+   "query": "调用 CNN 模型对横断山做地貌分类",
+   "expected_tools": [
+    "classify_terrain_onnx"
+   ],
+   "predicted_tools": [
+    "classify_terrain_onnx"
+   ],
+   "predicted_params": {
+    "bbox": [
+     99.0,
+     28.0,
+     100.5,
+     29.5
+    ],
+    "resolution": 128,
+    "dem_path": null,
+    "output_format": "GeoTIFF"
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.241,
+   "score": {
+    "id": "single_032",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_033",
+   "category": "single_tool",
+   "query": "统计经度 100.1 到 100.3、纬度 27.0 到 27.2的坡度分级情况",
+   "expected_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_params": {
+    "bbox": [
+     100.1,
+     27.0,
+     100.3,
+     27.2
+    ],
+    "metric": "slope",
+    "resolution": 128,
+    "dem_path": null,
+    "breaks": [
+     0,
+     5,
+     10,
+     15,
+     20,
+     25,
+     30,
+     45,
+     90
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 11.041,
+   "score": {
+    "id": "single_033",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_034",
+   "category": "single_tool",
+   "query": "拉萨有多少面积可以通行",
+   "expected_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_params": {
+    "bbox": [
+     90.8,
+     29.5,
+     91.3,
+     30.0
+    ],
+    "metric": "slope",
+    "resolution": 128,
+    "dem_path": null,
+    "breaks": [
+     0,
+     15
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.8,
+   "score": {
+    "id": "single_034",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_035",
+   "category": "single_tool",
+   "query": "统计珠峰多少比例的坡度在15度以下",
+   "expected_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_params": {
+    "bbox": [
+     86.8,
+     27.9,
+     87.0,
+     28.1
+    ],
+    "metric": "slope",
+    "resolution": 128,
+    "dem_path": null,
+    "breaks": [
+     15
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.804,
+   "score": {
+    "id": "single_035",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_036",
+   "category": "single_tool",
+   "query": "经度 108.7 到 109.2、纬度 34.0 到 34.5的高程分布怎么统计",
+   "expected_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_params": {
+    "bbox": [
+     108.7,
+     34.0,
+     109.2,
+     34.5
+    ],
+    "metric": "elevation",
+    "resolution": 128,
+    "dem_path": null,
+    "breaks": [
+     0,
+     500,
+     1000,
+     2000,
+     3000,
+     4000,
+     5000,
+     6000,
+     7000,
+     8000,
+     9000,
+     10000
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.561,
+   "score": {
+    "id": "single_036",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_037",
+   "category": "single_tool",
+   "query": "对兰州的坡度做分区统计",
+   "expected_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_tools": [
+    "zonal_statistics"
+   ],
+   "predicted_params": {
+    "bbox": [
+     103.5,
+     35.9,
+     104.0,
+     36.3
+    ],
+    "metric": "slope",
+    "resolution": 128,
+    "dem_path": null,
+    "breaks": [
+     0,
+     5,
+     10,
+     15,
+     20,
+     25,
+     30,
+     45,
+     90
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 10.234,
+   "score": {
+    "id": "single_037",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": true,
+    "param_dem_path": null,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_038",
+   "category": "single_tool",
+   "query": "检查一下这个 DEM 文件能不能用：data/dem/gdem_kunming.tif",
+   "expected_tools": [
+    "get_dem_metadata"
+   ],
+   "predicted_tools": [
+    "get_dem_metadata"
+   ],
+   "predicted_params": {
+    "dem_path": "data/dem/gdem_kunming.tif",
+    "bbox": [
+     102.9,
+     24.8,
+     104.9,
+     26.3
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 7.44,
+   "score": {
+    "id": "single_038",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": 1.0,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_039",
+   "category": "single_tool",
+   "query": "读取 DEM 元信息：data/dem/srtm_chengdu.tif",
+   "expected_tools": [
+    "get_dem_metadata"
+   ],
+   "predicted_tools": [
+    "get_dem_metadata"
+   ],
+   "predicted_params": {
+    "dem_path": "data/dem/srtm_chengdu.tif",
+    "bbox": [
+     102.9,
+     30.0,
+     104.9,
+     31.5
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 8.057,
+   "score": {
+    "id": "single_039",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": 1.0,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  },
+  {
+   "id": "single_040",
+   "category": "single_tool",
+   "query": "看看 data/dem/srtm_qinling.tif 这个 DEM 的坐标系和分辨率",
+   "expected_tools": [
+    "get_dem_metadata"
+   ],
+   "predicted_tools": [
+    "get_dem_metadata"
+   ],
+   "predicted_params": {
+    "dem_path": "data/dem/srtm_qinling.tif",
+    "bbox": [
+     102.9,
+     30.0,
+     104.9,
+     31.5
+    ]
+   },
+   "refused": false,
+   "parsed": true,
+   "parse_error": null,
+   "elapsed": 7.978,
+   "score": {
+    "id": "single_040",
+    "category": "single_tool",
+    "parsed": 1.0,
+    "tool_exact": 1.0,
+    "tool_set_f1": 1.0,
+    "tool_order": 1.0,
+    "param_bbox": null,
+    "param_dem_path": 1.0,
+    "refusal_correct": 1.0,
+    "completed": 1.0
+   },
+   "n_llm_calls": 1,
+   "status": "done",
+   "n_steps_planned": 1
+  }
+ ]
+}

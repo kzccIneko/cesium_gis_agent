@@ -859,7 +859,7 @@
   {
     "id": "multi_009",
     "category": "multi_tool",
-    "query": "黄山有多少地方坡度在15度以下",
+    "query": "计算黄山的坡度，然后统计有多少地方在15度以下",
     "expected_tools": [
       "compute_slope",
       "zonal_statistics"
@@ -897,7 +897,7 @@
   {
     "id": "multi_011",
     "category": "multi_tool",
-    "query": "统计雅安的坡度分级占比",
+    "query": "先算雅安的坡度，再统计分级占比",
     "expected_tools": [
       "compute_slope",
       "zonal_statistics"
@@ -1119,7 +1119,6 @@
     "query": "秦岭没数据，先下高程再用地貌分类",
     "expected_tools": [
       "download_srtm",
-      "compute_slope",
       "classify_geomorphons"
     ],
     "expected_params": {
@@ -1139,7 +1138,6 @@
     "query": "获取贡嘎山真实地形数据并分类地貌类型",
     "expected_tools": [
       "download_srtm",
-      "compute_slope",
       "classify_geomorphons"
     ],
     "expected_params": {
@@ -1159,7 +1157,6 @@
     "query": "横断山的地貌分析，用真实 DEM 数据",
     "expected_tools": [
       "download_srtm",
-      "compute_slope",
       "classify_geomorphons"
     ],
     "expected_params": {
@@ -1199,6 +1196,7 @@
     "query": "下载张家界高程数据并规划一条越野路线",
     "expected_tools": [
       "download_srtm",
+      "compute_slope",
       "compute_cost_surface",
       "plan_route"
     ],
@@ -1219,6 +1217,7 @@
     "query": "峨眉山没有 DEM，先下数据再规划路径",
     "expected_tools": [
       "download_srtm",
+      "compute_slope",
       "compute_cost_surface",
       "plan_route"
     ],
@@ -1239,6 +1238,7 @@
     "query": "获取玉龙雪山的地形数据，然后找一条好走的路",
     "expected_tools": [
       "download_srtm",
+      "compute_slope",
       "compute_cost_surface",
       "plan_route"
     ],
@@ -1259,6 +1259,7 @@
     "query": "黄山的通行路线规划，需要真实高程",
     "expected_tools": [
       "download_srtm",
+      "compute_slope",
       "compute_cost_surface",
       "plan_route"
     ],
@@ -1279,6 +1280,7 @@
     "query": "下载泰山数据，构建代价场并规划路径",
     "expected_tools": [
       "download_srtm",
+      "compute_slope",
       "compute_cost_surface",
       "plan_route"
     ],
@@ -1318,7 +1320,7 @@
     "query": "都江堰先算坡度再判断地貌类型",
     "expected_tools": [
       "compute_slope",
-      "classify_terrain_rules"
+      "classify_geomorphons"
     ],
     "expected_params": {
       "bbox": [
@@ -1337,7 +1339,7 @@
     "query": "分析成都周边坡度并做地貌分类",
     "expected_tools": [
       "compute_slope",
-      "classify_terrain_rules"
+      "classify_geomorphons"
     ],
     "expected_params": {
       "bbox": [
@@ -1356,7 +1358,7 @@
     "query": "拉萨的坡度算出来后分类地形",
     "expected_tools": [
       "compute_slope",
-      "classify_terrain_rules"
+      "classify_geomorphons"
     ],
     "expected_params": {
       "bbox": [
@@ -1375,7 +1377,7 @@
     "query": "计算珠峰坡度，再做地形形态分类",
     "expected_tools": [
       "compute_slope",
-      "classify_terrain_rules"
+      "classify_geomorphons"
     ],
     "expected_params": {
       "bbox": [

@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "name": "GeoAgent 工具链评测集 · 未参与调参的保留集（heldout）",
+    "version": 1,
+    "created": "2026-09-11",
+    "why": "主评测集 dataset.json 的 100 条已被用于定位失败模式并据此修改 planner 提示词，相当于在测试集上调参，得分偏乐观。本集为事后新建、措辞与地名尽量不与主集重复，用于检验修改是否真的泛化，还是只记住了那 100 条。",
+    "labeling_rules": "与主集完全一致的口径：① 统计/占比/分级 → zonal_statistics 单步，即使问句提到坡度（该工具内部自取坡度）② 通行性/代价 → compute_cost_surface 单步 ③ 地貌分类未指明方法 → classify_geomorphons；点名深度学习 → onnx；点名快速筛查 → rules ④ 用户把「算坡度」说成独立动作（先…再…／…后）→ 允许多一步 compute_slope ⑤ 出现「下载/获取…数据」→ 前置 download_srtm ⑥ 非地球表面或非地理空间分析 → 空链路 + 拒答",
+    "note": "本集不设 bbox 标准答案，param_bbox 不参与评分，只考工具链。"
+  },
+  "cases": [
+    {"id": "h01", "category": "single_tool", "query": "成都平原坡度平缓的面积有多少", "expected_tools": ["zonal_statistics"], "expected_params": {}, "must_refuse": false},
+    {"id": "h02", "category": "single_tool", "query": "秦岭的越野通行性怎么样", "expected_tools": ["compute_cost_surface"], "expected_params": {}, "must_refuse": false},
+    {"id": "h03", "category": "single_tool", "query": "雅安属于什么地貌", "expected_tools": ["classify_geomorphons"], "expected_params": {}, "must_refuse": false},
+    {"id": "h04", "category": "single_tool", "query": "用卷积神经网络对秦岭做地貌分类", "expected_tools": ["classify_terrain_onnx"], "expected_params": {}, "must_refuse": false},
+    {"id": "h05", "category": "single_tool", "query": "青海湖周边的坡度是多少", "expected_tools": ["compute_slope"], "expected_params": {}, "must_refuse": false},
+    {"id": "h06", "category": "single_tool", "query": "张家界的坡向分布", "expected_tools": ["compute_aspect"], "expected_params": {}, "must_refuse": false},
+    {"id": "h07", "category": "single_tool", "query": "统计可可西里可通行面积的占比", "expected_tools": ["zonal_statistics"], "expected_params": {}, "must_refuse": false},
+    {"id": "h08", "category": "single_tool", "query": "大范围快速筛查横断山区的地貌", "expected_tools": ["classify_terrain_rules"], "expected_params": {}, "must_refuse": false},
+    {"id": "h09", "category": "single_tool", "query": "查看已有 DEM 文件的元信息", "expected_tools": ["get_dem_metadata"], "expected_params": {}, "must_refuse": false},
+    {"id": "h10", "category": "single_tool", "query": "太行山的通行代价栅格", "expected_tools": ["compute_cost_surface"], "expected_params": {}, "must_refuse": false},
+
+    {"id": "h11", "category": "multi_tool", "query": "下载大兴安岭的高程数据并统计坡度分级", "expected_tools": ["download_srtm", "zonal_statistics"], "expected_params": {}, "must_refuse": false},
+    {"id": "h12", "category": "multi_tool", "query": "先获取祁连山 SRTM 数据，再算坡度", "expected_tools": ["download_srtm", "compute_slope"], "expected_params": {}, "must_refuse": false},
+    {"id": "h13", "category": "multi_tool", "query": "先算岷山的坡度再做地貌分类", "expected_tools": ["compute_slope", "classify_geomorphons"], "expected_params": {}, "must_refuse": false},
+    {"id": "h14", "category": "multi_tool", "query": "规划一条从康定到泸定的越野路线", "expected_tools": ["compute_slope", "compute_cost_surface", "plan_route"], "expected_params": {}, "must_refuse": false},
+    {"id": "h15", "category": "multi_tool", "query": "下载太行山真实 DEM 后做地貌分类", "expected_tools": ["download_srtm", "classify_geomorphons"], "expected_params": {}, "must_refuse": false},
+    {"id": "h16", "category": "multi_tool", "query": "找一条穿越塔克拉玛干的好走路线", "expected_tools": ["compute_slope", "compute_cost_surface", "plan_route"], "expected_params": {}, "must_refuse": false},
+    {"id": "h17", "category": "multi_tool", "query": "获取武夷山的高程数据然后统计可通行面积", "expected_tools": ["download_srtm", "zonal_statistics"], "expected_params": {}, "must_refuse": false},
+    {"id": "h18", "category": "multi_tool", "query": "下载天山的 DEM 并统计坡度分级", "expected_tools": ["download_srtm", "zonal_statistics"], "expected_params": {}, "must_refuse": false},
+    {"id": "h19", "category": "multi_tool", "query": "用真实数据分析呼伦贝尔的通行难度", "expected_tools": ["download_srtm", "compute_cost_surface"], "expected_params": {}, "must_refuse": false},
+    {"id": "h20", "category": "multi_tool", "query": "分析横断山坡度并做地貌分类", "expected_tools": ["compute_slope", "classify_geomorphons"], "expected_params": {}, "must_refuse": false},
+    {"id": "h21", "category": "multi_tool", "query": "拿到昆仑山的 SRTM 数据后做地形形态分类", "expected_tools": ["download_srtm", "classify_geomorphons"], "expected_params": {}, "must_refuse": false},
+    {"id": "h22", "category": "multi_tool", "query": "用深度学习模型对神农架做地貌识别", "expected_tools": ["classify_terrain_onnx"], "expected_params": {}, "must_refuse": false},
+
+    {"id": "h23", "category": "out_of_scope", "query": "明天北京会下雨吗", "expected_tools": [], "expected_params": {}, "must_refuse": true},
+    {"id": "h24", "category": "out_of_scope", "query": "帮我分析一下火星表面的地形", "expected_tools": [], "expected_params": {}, "must_refuse": true},
+    {"id": "h25", "category": "out_of_scope", "query": "推荐几只值得买的股票", "expected_tools": [], "expected_params": {}, "must_refuse": true},
+    {"id": "h26", "category": "out_of_scope", "query": "这首诗是谁写的", "expected_tools": [], "expected_params": {}, "must_refuse": true},
+    {"id": "h27", "category": "out_of_scope", "query": "我感冒了应该吃什么药", "expected_tools": [], "expected_params": {}, "must_refuse": true},
+    {"id": "h28", "category": "out_of_scope", "query": "月球上的环形山有多深", "expected_tools": [], "expected_params": {}, "must_refuse": true},
+    {"id": "h29", "category": "out_of_scope", "query": "帮我写一段 Python 代码", "expected_tools": [], "expected_params": {}, "must_refuse": true},
+    {"id": "h30", "category": "out_of_scope", "query": "这句话用英语怎么说", "expected_tools": [], "expected_params": {}, "must_refuse": true}
+  ]
+}

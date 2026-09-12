@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 OutputFormat = Literal["geojson", "czml", "kml"]
 AnalysisType = Literal["slope", "aspect", "curvature", "cost", "comprehensive"]
+ClassificationMethod = Literal["geomorphons", "onnx", "rules"]
 
 
 class BBox(BaseModel):
@@ -88,6 +89,7 @@ class TerrainClassifyRequest(BaseModel):
     """地形分类请求参数。"""
     bbox: BBox
     resolution: int = Field(default=80, ge=8, le=1024)
+    classification_method: ClassificationMethod = "geomorphons"
     dem_path: Optional[str] = None
     dem_decode_mode: Literal["none", "single_band", "terrain_rgb"] = "none"
     dem_decode_band: int = Field(default=1, ge=1, le=16)

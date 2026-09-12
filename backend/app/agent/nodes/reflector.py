@@ -20,10 +20,11 @@ LLM 的"看起来没问题"不能推翻它们。反过来，代码查不出
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..llm import LLMClient, extract_json
+from ..llm import LLMClient, REFLECTOR_MAX_TOKENS, extract_json
 from ..rules import (
     LEVEL_ERROR,
     LEVEL_WARN,
@@ -129,6 +130,18 @@ def render_reflector_prompt(
     )
 
 
+def _reflection_enabled() -> bool:
+    """反思节点是否启用（默认启用）。
+
+    由环境变量 `GEOAGENT_REFLECTOR` 控制，设为 0/false/no/off 则关闭。
+    仅用于消融实验：对比「有自我校验」与「无自我校验」两种工作方式的表现差异。
+    生产路径不应关闭——关闭后 Agent 会把参数填错的工具结果直接当成正确答案。
+    """
+    return os.environ.get("GEOAGENT_REFLECTOR", "1").strip().lower() not in {
+        "0", "false", "no", "off",
+    }
+
+
 def reflect_node(state: AgentState, llm: Optional[LLMClient]) -> Dict[str, Any]:
     """反思节点。
 
@@ -149,6 +162,36 @@ def reflect_node(state: AgentState, llm: Optional[LLMClient]) -> Dict[str, Any]:
     # （max_retries=3 本该允许 1 次首次 + 3 次重试 = 4 次调用）。
     can_retry = retry_count < max_retries
     idx = state.get("step_index", 0)
+
+    # ── 反思开关（消融实验用）────────────────────────────────────────
+    # GEOAGENT_REFLECTOR=0 时本节点退化成透传：不执行任何校验、不调 LLM，
+    # 直接判 accept 并把步骤推进到下一条。
+    # 用途：计划里「Plan-Execute（无反思）」这一组消融配置需要关掉反思能力，
+    #       而 langgraph 图里 reflect 是硬编码节点，只能在节点内部短路。
+    # 为什么不用「删掉 reflect 边」的方式：step_index 的推进逻辑在反思节点里，
+    # 跳过整个节点会导致步骤永不前进、图死循环。
+    if not _reflection_enabled():
+        trace.append(
+            "反思节点已关闭（GEOAGENT_REFLECTOR=0）—— 跳过全部结果校验，直接放行"
+        )
+        return {
+            "reflection": {
+                "valid": True,
+                "action": ACTION_ACCEPT,
+                "rule": "reflector_disabled",
+                "reason": "反思节点已关闭，结果未经校验直接采纳",
+                "suggestion": None,
+                "source": "code",
+                "attempt": attempt,
+                "rule_report": None,
+                "warnings": [],
+                "code_warnings": [],
+            },
+            "step_index": idx + 1,
+            "retry_count": 0,
+            "status": STATUS_REFLECTING,
+            "trace": trace,
+        }
 
     if not result:
         trace.append("反思节点收到空结果 —— 判定放弃")
@@ -204,7 +247,11 @@ def reflect_node(state: AgentState, llm: Optional[LLMClient]) -> Dict[str, Any]:
             prompt = render_reflector_prompt(
                 tool, arguments, result, report_text, query, attempt, max_retries
             )
-            resp = llm.chat([{"role": "user", "content": prompt}], temperature=0.0)
+            resp = llm.chat(
+                [{"role": "user", "content": prompt}],
+                temperature=0.0,
+                max_tokens=REFLECTOR_MAX_TOKENS,
+            )
             obj = extract_json(resp.content)
             if isinstance(obj, dict) and obj.get("action") in (
                 ACTION_ACCEPT, ACTION_RETRY, ACTION_ABORT
@@ -229,7 +276,32 @@ def reflect_node(state: AgentState, llm: Optional[LLMClient]) -> Dict[str, Any]:
         source = "code"
         trace.append(f"代码规则判定失败（{rule_name}），决策：{action}")
     elif llm_verdict and llm_verdict.get("action") == ACTION_RETRY:
-        if can_retry:
+        # 兜底：LLM 用**同一个理由**连续要求重试，而工具本身是成功的，
+        # 说明这个理由靠改参数解决不了（典型是"数据是合成地形不是真实 DEM"）。
+        # 这种情况下继续重试只会耗光次数然后 abort，导致后续步骤根本没机会执行。
+        # 实测证据：跑「找一条穿越塔克拉玛干的好走路线」时，反思器连判 3 次 retry
+        # 都是同一个 dem_source_authenticity 理由，最后 abort，
+        # compute_cost_surface 与 plan_route 两步一次都没跑。
+        prev_rule = (state.get("reflection") or {}).get("rule")
+        stalled = (
+            success
+            and prev_rule is not None
+            and prev_rule == llm_verdict.get("rule")
+        )
+        if stalled:
+            action = ACTION_ACCEPT
+            suggestion = None
+            reason = (
+                f"工具执行成功，但 LLM 连续以同一理由（{prev_rule}）要求重试；"
+                f"该问题无法通过修改参数解决，放行并在回答中说明局限："
+                f"{str(llm_verdict.get('reason') or '')[:120]}"
+            )
+            rule_name = f"stalled:{prev_rule}"
+            source = "code"
+            trace.append(
+                f"检测到重试僵局（连续同一理由 {prev_rule} 且工具成功），强制放行"
+            )
+        elif can_retry:
             action = ACTION_RETRY
             suggestion = llm_verdict.get("suggestion") or None
             if isinstance(suggestion, dict):

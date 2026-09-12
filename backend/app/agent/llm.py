@@ -66,8 +66,29 @@ class LLMClient(Protocol):
         messages: List[Dict[str, Any]],
         tools: Optional[List[Dict[str, Any]]] = None,
         temperature: float = 0.0,
+        max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         ...
+
+
+# --------------------------------------------------------------------------
+# 按场景标定的生成上限
+# --------------------------------------------------------------------------
+# 这不是"拍脑袋设个安全值"，而是**每个节点单独实测**出来的：
+# 用大上限跑一批样本测出 token 分布，取 ≥ p95 且留余量的那个值。
+#
+# 教训（2026-09-09）：最初全链路统一用 384（那是 tool_calling 场景的标定值），
+# 结果 LangGraph 编排跑 40 条 multi_tool、`tool_exact` 只有 0.30。诊断后发现
+# **65% 的样本是被截断的** —— 输出停在 384 token，JSON 没闭合，
+# extract_json 拿不到对象，planner 重试 3 次后落到关键词兜底计划。
+# 也就是说那个 0.30 里的大半压根不是 LLM 的规划结果。
+#
+# planner 实测分布（`bench/diag_planner.py --measure`，20 条 multi_tool）：
+#   min=323  p50=407  p90=593  p95=827  max=827
+#   上限 384 → 截断 65%；512 → 20%；640 → 5%；1024 → 0%
+PLANNER_MAX_TOKENS = 1024     # ≥ max(827)，留 24% 余量
+SUMMARIZER_MAX_TOKENS = 768   # 提示词要求 300 字以内，实测约 400–600 token
+REFLECTOR_MAX_TOKENS = 384    # 只输出 action/reason 短 JSON
 
 
 # --------------------------------------------------------------------------
@@ -225,6 +246,8 @@ class OpenAICompatClient:
         messages: List[Dict[str, Any]],
         tools: Optional[List[Dict[str, Any]]] = None,
         temperature: float = 0.0,
+        max_tokens: Optional[int] = None,
+        timeout: Optional[float] = None,
     ) -> LLMResponse:
         client = self._ensure_client()
         kwargs: Dict[str, Any] = {
@@ -232,6 +255,10 @@ class OpenAICompatClient:
             "messages": messages,
             "temperature": temperature,
         }
+        if timeout is not None:
+            kwargs["timeout"] = timeout
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
@@ -291,12 +318,15 @@ class MockClient:
         messages: List[Dict[str, Any]],
         tools: Optional[List[Dict[str, Any]]] = None,
         temperature: float = 0.0,
+        max_tokens: Optional[int] = None,
+        **_: Any,
     ) -> LLMResponse:
         self.calls.append(
             {
                 "messages": messages,
                 "tools": tools,
                 "temperature": temperature,
+                "max_tokens": max_tokens,
             }
         )
         text = self._queue.pop(0) if self._queue else self.default_response
