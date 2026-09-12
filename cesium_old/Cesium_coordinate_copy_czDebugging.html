@@ -29,6 +29,7 @@
     <link rel="stylesheet" href="css/FileLoad.css" />
     <!--侧边栏样式-->
     <link rel="stylesheet" href="css/sidebar.css" />
+    <link rel="stylesheet" href="css/agent-panel.css" />
     <script src="features/router-tracker/DrawHelper.js"></script>
     
  
@@ -65,6 +66,13 @@
                 </div>
                 <!--无序列表  地理管理 三维模型 研究分析 其他-->
                 <ul class="nav navbar-nav navbar-right">
+                    <!--智能体助手：独立常驻入口，不隶属于任何功能分组 ——
+                        它不是"空间分析"里的一个工具，而是贯穿全系统的对话入口 -->
+                    <li id="agentChat" class="agent-nav-entry">
+                        <a href="#" title="GeoAgent 智能体分析助手">
+                            <span class="agent-nav-dot"></span>智能体助手
+                        </a>
+                    </li>
                     <!--地理管理-->
                     <li class="dropdown">
                         <a class="dropdown-toggle" data-toggle="dropdown" href="#" role="button" aria-haspopup="true"
@@ -124,6 +132,19 @@
 
 <!--*********************************************Cesium主界面**********************************************-->
 <div id="cesiumContainer"></div>
+
+<!-- GeoAgent 常驻悬浮入口：不隶属于任何菜单分组，切到哪个功能都在，
+     一键唤起对话式分析（风格遵循项目约定：纯图标、无附带文字） -->
+<button id="agentFloatBtn" type="button" title="GeoAgent 智能体分析助手" aria-label="打开智能体分析助手">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
+         fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="8" width="16" height="11" rx="3.2"></rect>
+        <circle cx="9.2" cy="13.4" r="1.25" fill="currentColor" stroke="none"></circle>
+        <circle cx="14.8" cy="13.4" r="1.25" fill="currentColor" stroke="none"></circle>
+        <path d="M12 8V5.2"></path>
+        <path d="M9.2 4h5.6"></path>
+    </svg>
+</button>
 
 <!--**********************************************仿谷歌地球侧边栏*********************************************-->
 <!-- 侧边栏折叠/展开按钮（始终可见） -->
@@ -442,7 +463,6 @@
             <div class="row">
                 <input id="clearAll" type="button" class="btn btn--primary" value="清除所有" />
                 <input id="openBackendFormatModal" type="button" class="btn btn--primary" value="后端DEM分析" />
-                <input id="runTerrainClassification" type="button" class="btn btn--primary" value="地形分类" />
                 <input id="clearBackendLayers" type="button" class="btn" value="清空后端图层" />
                 <label> &nbsp;&nbsp;保留起/终点？
                     <input type="checkbox" id="keepStartEnd" />
@@ -1200,6 +1220,20 @@
                     <button id="runBackendAnalysis" type="button" class="btn btn--primary">执行后端分析</button>
                     <button id="stopBackendAnalysis" type="button" class="btn btn--danger">终止分析</button>
                     <span id="backend-run-status" style="margin-left:8px; color:#b7d4ff; font-size:12px; display:inline-block; max-width: 95%; word-break: break-all; line-height: 1.35;">等待执行</span>
+                    <progress id="analysis-progress" value="0" max="100" style="width:120px; height:8px; margin-left:8px; vertical-align:middle; display:none;"></progress>
+                </div>
+                <div class="row" style="margin-top:6px; border-top:1px solid #2a4a6a; padding-top:8px;">
+                    <button id="runTerrainClassification" type="button" class="btn btn--primary" style="font-size:12px;">地貌分类</button>
+                    <span style="margin-left:6px; color:#8ab8d0; font-size:11px;">8 类形态分类</span>
+                    <select id="tc-method" style="margin-left:8px; color:#0a1f3a; background:#e9f1ff; border:1px solid #8aa9d6; font-size:11px;">
+                        <option value="geomorphons">Geomorphons（数学法）</option>
+                        <option value="onnx">ONNX（深度学习）</option>
+                        <option value="rules">规则法</option>
+                    </select>
+                    <label style="margin-left:8px; color:#8ab8d0; font-size:11px; cursor:pointer;">
+                        <input type="checkbox" id="tc-client-mode" style="vertical-align:middle;"> 浏览器端(废弃)
+                    </label>
+                    <progress id="classification-progress" value="0" max="100" style="width:100px; height:6px; margin-left:6px; vertical-align:middle; display:none;"></progress>
                 </div>
             </div>
 <!--********************************************************标绘功能******************************-->
@@ -1239,6 +1273,51 @@
                 <input id="editShape" type="button" class="btn btn--primary" value="编辑图形" />
                 <input id="deleteShape" type="button" class="btn btn--danger" value="删除图形" />
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- GeoAgent 分析助手 —— 主系统内的第 15 个功能窗口，结构与上面各窗口完全一致，
+     因此自动获得同一套拖拽 / 折叠 / 关闭 / 置顶行为 -->
+<div id="agentAssistantWin" class="functionWin">
+    <div class="head move">
+        <span class="title"> GeoAgent 分析助手 </span>
+        <span class="toggle_win headfun_win open">
+            <img src="img/modal/expand.png" />
+        </span>
+        <span class="close headfun_win">
+            <img src="img/modal/close.png" title="关闭" />
+        </span>
+    </div>
+
+    <div class="content">
+        <div class="agentp-root">
+            <!-- 分析范围：默认取当前视野 -->
+            <div class="agentp-ctx">
+                <span class="ctx-label">分析范围</span>
+                <span class="ctx-value" id="agentpCtxValue">—</span>
+                <span class="ctx-spacer"></span>
+                <button id="agentpUseViewBtn" title="用当前地图视野作为分析范围">当前视野</button>
+            </div>
+
+            <!-- 对话区 -->
+            <div class="agentp-chat" id="agentpChat"></div>
+
+            <!-- 输入区 -->
+            <div class="agentp-input">
+                <textarea id="agentpInput" placeholder="用中文说出你要做的分析，Enter 发送，Shift+Enter 换行"></textarea>
+                <button class="send" id="agentpSendBtn">发送</button>
+            </div>
+
+            <!-- 快捷问法 -->
+            <div class="agentp-quick" id="agentpQuick">
+                <button>算一下当前视野的坡度分布</button>
+                <button>判断这里属于什么地貌类型</button>
+                <button>多少比例的坡度在15度以下</button>
+                <button>你能做什么</button>
+            </div>
+
+            <div class="agentp-hint" id="agentpHealthTip">正在连接本地分析服务…</div>
         </div>
     </div>
 </div>
@@ -1350,7 +1429,13 @@
 <script src="./features/slope/TerrainProfileAnalysis.js" defer></script>
 <script src="./features/slope/Override_Draw_Load.js" defer></script>
 <script src="./features/slope/AHPanalysis.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js" defer></script>
 <script src="./features/slope/TerrainClassification.js" defer></script>
+
+<!-- GeoAgent 分析助手：依赖上面已加载的 Cesium / echarts / TerrainBackendIntegration，
+     放最后即可，不改变既有 script 顺序（AGENTS.md 约定） -->
+<script src="./features/agent/AgentResultView.js" defer></script>
+<script src="./features/agent/AgentPanel.js" defer></script>
 
 <!-- vue和element plus插件 -->
 <!-- 

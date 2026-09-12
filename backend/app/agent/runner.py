@@ -75,6 +75,7 @@ def run_agent(
     use_langgraph: bool = True,
     max_retries: int = 3,
     recursion_limit: int = DEFAULT_RECURSION_LIMIT,
+    session_dem_path: Optional[str] = None,
 ) -> AgentState:
     """运行一次完整的 Agent 分析流程。
 
@@ -87,6 +88,8 @@ def run_agent(
         use_langgraph: False 时强制使用内置循环
         max_retries: 单步最大重试次数
         recursion_limit: LangGraph 递归上限（防止死循环的第二道保险）
+        session_dem_path: 本次会话的默认 DEM（前端从 Cesium 地形采样得到的 GeoTIFF）。
+            工具参数里没给 dem_path 时用它，避免回退到合成地形。
 
     Returns:
         最终 AgentState（含 final_answer / tool_calls / trace / reflection）
@@ -97,7 +100,11 @@ def run_agent(
         >>> print(state["final_answer"])
     """
     initial = create_initial_state(
-        query=query, bbox=bbox, session_id=session_id, max_retries=max_retries
+        query=query,
+        bbox=bbox,
+        session_id=session_id,
+        max_retries=max_retries,
+        session_dem_path=session_dem_path,
     )
 
     if use_langgraph:

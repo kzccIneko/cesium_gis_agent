@@ -270,7 +270,13 @@ def plan_route(
                 cnt = export_path_as_czml(p, lonlat)
             else:
                 cnt = export_path_as_kml(p, lonlat)
-            artifact = {"format": fmt, "name": "path", "path": str(p), "feature_count": cnt}
+            artifact = {
+                "format": fmt,
+                "name": "path",
+                "path": str(p),
+                "url": f"/artifacts/{subdir.name}/{p.name}",
+                "feature_count": cnt,
+            }
 
         warnings: List[str] = []
         if not reachable:

@@ -3,10 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import gettempdir
 from time import perf_counter
-from typing import Dict, List, Optional, Literal, cast
+from typing import Any, AsyncGenerator, Dict, List, Optional, Literal, cast
 from uuid import uuid4
+import asyncio
 import hashlib
 import json
+import math
 import re
 import shutil
 import numpy as np
@@ -15,6 +17,7 @@ from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi import Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .schemas import (
@@ -30,7 +33,13 @@ from .schemas import (
     TerrainClassifyResponse,
 )
 from .services.analysis_service import analyze_terrain, get_dem_metadata, plan_path
-from .services.terrain_classifier import classify_terrain, get_terrain_class_legend
+from .services.terrain_classifier import (
+    ONNX_PATH,
+    ONNXTerrainClassifier,
+    GeomorphonsClassifier,
+    classify_terrain,
+    get_terrain_class_legend,
+)
 from .services.export_service import (
     export_grid_as_czml,
     export_grid_as_geojson,
@@ -49,6 +58,12 @@ OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 TILE_CACHE_ROOT = APP_ROOT.parent / "outputs" / "tiles"
 TILE_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
 
+# Agent 工具层的矢量产物目录（GeoJSON / CZML / KML / NPZ）
+# ⚠ 以前这里漏了挂载：工具把产物写进 geoagent_artifacts/，而前端只能通过 /outputs 访问
+#   cesiumjs_debug_outputs/，结果 Agent 的图层从来没被加载过 —— 这是"只有纯文字"的硬根因。
+AGENT_ARTIFACT_ROOT = Path(gettempdir()) / "geoagent_artifacts"
+AGENT_ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
+
 # 后端接口应用与跨域配置
 app = FastAPI(title="DEM Cesium Analysis API", version="1.0.0")
 app.add_middleware(
@@ -60,6 +75,7 @@ app.add_middleware(
 )
 app.mount("/outputs", StaticFiles(directory=str(OUTPUT_ROOT)), name="outputs")
 app.mount("/tile-cache", StaticFiles(directory=str(TILE_CACHE_ROOT)), name="tile-cache")
+app.mount("/artifacts", StaticFiles(directory=str(AGENT_ARTIFACT_ROOT)), name="artifacts")
 
 
 def _dir_size_bytes(path: Path) -> int:
@@ -454,13 +470,67 @@ def analyze_terrain_api(req: TerrainAnalysisRequest) -> TerrainAnalysisResponse:
     )
 
 
+def _download_srtm(west: float, south: float, east: float, north: float) -> str:
+    """Download Copernicus GLO-30 DEM for the given bounding box.
+
+    Uses dem-stitcher to fetch 30 m resolution tiles (AWS Open Data).
+    Returns path to a GeoTIFF saved in a local cache directory.
+    First call may take 10-30s to download; subsequent calls are instant (cached).
+    """
+    from dem_stitcher import stitch_dem
+    import rasterio
+    from rasterio.transform import from_bounds
+
+    cache_dir = Path(gettempdir()) / "cesiumjs_dem_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    out_path = str(cache_dir / f"dem_{west:.3f}_{south:.3f}_{east:.3f}_{north:.3f}.tif")
+
+    if Path(out_path).exists():
+        return out_path
+
+    X, p = stitch_dem(
+        bounds=(west, south, east, north),
+        dem_name="glo_30",
+    )
+    out_rows, out_cols = X.shape
+    transform = from_bounds(west, south, east, north, out_cols, out_rows)
+    with rasterio.open(
+        out_path, "w", driver="GTiff",
+        height=out_rows, width=out_cols,
+        count=1, dtype=np.float64,
+        crs="EPSG:4326",
+        transform=transform,
+        nodata=np.nan,
+    ) as dst:
+        dst.write(X, 1)
+    return out_path
+
+
 @app.post("/api/v1/analyze/classify", response_model=TerrainClassifyResponse)
 def classify_terrain_api(req: TerrainClassifyRequest) -> TerrainClassifyResponse:
-    """地貌语义分类接口。"""
+    """地貌语义分类接口。
+
+    自动下载 SRTM DEM 作为真实地形数据源，然后使用 Geomorphons
+    算法（Jasiewicz & Stepinski 2013）进行形态分类。
+    """
     t0 = perf_counter()
     request_id = uuid4().hex
     out_dir = OUTPUT_ROOT / request_id
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Auto-download SRTM DEM when no local file is provided
+    dem_path = req.dem_path
+    mode = req.dem_decode_mode
+    if not dem_path:
+        try:
+            dem_path = _download_srtm(
+                req.bbox.west, req.bbox.south,
+                req.bbox.east, req.bbox.north,
+            )
+            mode = "none"
+        except Exception as srtm_err:
+            print(f"[classify] SRTM download failed, fallback to synthetic: {srtm_err}")
+            # fall through with dem_path=None → analyze_terrain uses synthetic
 
     try:
         terrain = analyze_terrain(
@@ -469,8 +539,8 @@ def classify_terrain_api(req: TerrainClassifyRequest) -> TerrainClassifyResponse
             east=req.bbox.east,
             north=req.bbox.north,
             resolution=req.resolution,
-            dem_path=req.dem_path,
-            dem_decode_mode=req.dem_decode_mode,
+            dem_path=dem_path,
+            dem_decode_mode=mode,
             dem_decode_band=req.dem_decode_band,
             dem_decode_scale=req.dem_decode_scale,
             dem_decode_offset=req.dem_decode_offset,
@@ -487,12 +557,33 @@ def classify_terrain_api(req: TerrainClassifyRequest) -> TerrainClassifyResponse
     lat_m = lat_span * 110574.0 / max(1, req.resolution - 1)
     cell_size_m = (lon_m + lat_m) * 0.5
 
-    class_ids, cost_adjustment, confidence = classify_terrain(
-        dem=terrain.dem_grid,
-        slope_deg=terrain.slope_deg,
-        curvature=terrain.curvature,
-        cell_size_m=cell_size_m,
-    )
+    # User-selectable classification method
+    method = req.classification_method
+    if method == "geomorphons":
+        _geo_cls = GeomorphonsClassifier()
+        class_ids, cost_adjustment, confidence = _geo_cls.classify(
+            dem=terrain.dem_grid,
+            slope_deg=terrain.slope_deg,
+            curvature=terrain.curvature,
+            cell_size_m=cell_size_m,
+        )
+    elif method == "onnx":
+        if not ONNX_PATH.exists():
+            raise HTTPException(status_code=503, detail="ONNX model not found")
+        _ml_cls = ONNXTerrainClassifier()
+        print(f"[classify] ONNX inference on {terrain.dem_grid.shape[0]}×{terrain.dem_grid.shape[1]} grid...")
+        t1 = perf_counter()
+        class_ids, cost_adjustment, confidence = _ml_cls.classify(terrain.dem_grid)
+        print(f"[classify] ONNX done in {perf_counter()-t1:.1f}s")
+    elif method == "rules":
+        class_ids, cost_adjustment, confidence = classify_terrain(
+            dem=terrain.dem_grid,
+            slope_deg=terrain.slope_deg,
+            curvature=terrain.curvature,
+            cell_size_m=cell_size_m,
+        )
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown method: {method}")
 
     legend = get_terrain_class_legend()
     url_prefix = f"/outputs/{request_id}"
@@ -510,6 +601,7 @@ def classify_terrain_api(req: TerrainClassifyRequest) -> TerrainClassifyResponse
                     class_ids,
                     confidence,
                     legend,
+                    stride=1,
                 )
             artifacts.append(OutputArtifact(
                 format="geojson",
@@ -602,3 +694,398 @@ def analyze_path_api(req: PathPlanRequest) -> PathPlanResponse:
         node_count=len(path_result.path_lonlat),
         artifacts=artifacts,
     )
+
+
+# ── Streaming classify (with progress events) ──────────────────────
+
+def _emit(data: dict) -> str:
+    return json.dumps(data, ensure_ascii=False) + "\n"
+
+def _calc_cell_size(req, resolution: int) -> float:
+    lon_span = abs(float(req.bbox.east) - float(req.bbox.west))
+    lat_span = abs(float(req.bbox.north) - float(req.bbox.south))
+    mean_lat = math.radians((float(req.bbox.south) + float(req.bbox.north)) * 0.5)
+    lon_m = lon_span * 111320.0 * max(1e-6, math.cos(mean_lat)) / max(1, resolution - 1)
+    lat_m = lat_span * 110574.0 / max(1, resolution - 1)
+    return (lon_m + lat_m) * 0.5
+
+def _do_download_and_analyze(req: TerrainClassifyRequest):
+    """Synchronous helper: download DEM + analyze_terrain, returns (terrain, cell_size_m)."""
+    dem_path = req.dem_path
+    mode = req.dem_decode_mode
+    if not dem_path:
+        dem_path = _download_srtm(
+            req.bbox.west, req.bbox.south,
+            req.bbox.east, req.bbox.north,
+        )
+        mode = "none"
+    terrain = analyze_terrain(
+        west=req.bbox.west, south=req.bbox.south,
+        east=req.bbox.east, north=req.bbox.north,
+        resolution=req.resolution,
+        dem_path=dem_path, dem_decode_mode=mode,
+        dem_decode_band=req.dem_decode_band,
+        dem_decode_scale=req.dem_decode_scale,
+        dem_decode_offset=req.dem_decode_offset,
+        dem_decode_nodata=req.dem_decode_nodata,
+    )
+    cell_size_m = _calc_cell_size(req, req.resolution)
+    return terrain, cell_size_m, dem_path
+
+async def _classify_stream_events(req: TerrainClassifyRequest) -> AsyncGenerator[str, None]:
+    request_id = uuid4().hex
+    out_dir = OUTPUT_ROOT / request_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    loop = asyncio.get_event_loop()
+
+    # Phase 1: DEM download
+    yield _emit({"type": "phase", "phase": "dem", "label": "DEM 下载中…"})
+    try:
+        terrain, cell_size_m, dem_path = await loop.run_in_executor(
+            None, _do_download_and_analyze, req
+        )
+    except Exception as exc:
+        yield _emit({"type": "error", "message": str(exc)})
+        return
+
+    # Phase 2: ready
+    grid_h, grid_w = terrain.dem_grid.shape
+    yield _emit({"type": "phase", "phase": "classify",
+                 "label": f"分类中 ({grid_h}×{grid_w})…",
+                 "total_patches": grid_h * grid_w})
+
+    # Phase 3: classify
+    method = req.classification_method
+    try:
+        if method == "geomorphons":
+            yield _emit({"type": "progress", "current": 0, "total": 1, "phase": "geomorphons"})
+            _geo_cls = GeomorphonsClassifier()
+            class_ids, cost_adjustment, confidence = _geo_cls.classify(
+                dem=terrain.dem_grid, slope_deg=terrain.slope_deg,
+                curvature=terrain.curvature, cell_size_m=cell_size_m,
+            )
+            yield _emit({"type": "progress", "current": 1, "total": 1, "phase": "geomorphons"})
+
+        elif method == "onnx":
+            if not ONNX_PATH.exists():
+                yield _emit({"type": "error", "message": "ONNX model not found"})
+                return
+            _ml_cls = ONNXTerrainClassifier()
+            progress_queue: asyncio.Queue = asyncio.Queue()
+
+            def _progress_cb(current, total):
+                loop.call_soon_threadsafe(
+                    progress_queue.put_nowait,
+                    ("progress", current, total),
+                )
+
+            def _run_onnx():
+                return _ml_cls.classify(
+                    terrain.dem_grid,
+                    progress_callback=_progress_cb,
+                )
+
+            # Signal start
+            yield _emit({"type": "progress", "current": 0,
+                         "total": grid_h * grid_w, "phase": "onnx"})
+
+            # Run in thread pool, collect progress events concurrently
+            onnx_fut = loop.run_in_executor(None, _run_onnx)
+
+            # Drain progress queue while waiting
+            done = False
+            while not done:
+                try:
+                    msg = await asyncio.wait_for(
+                        asyncio.ensure_future(progress_queue.get()),
+                        timeout=0.5,
+                    )
+                    if msg[0] == "progress":
+                        yield _emit({
+                            "type": "progress",
+                            "current": msg[1],
+                            "total": msg[2],
+                            "phase": "onnx",
+                        })
+                except asyncio.TimeoutError:
+                    pass
+                # Check if ONNX done
+                if onnx_fut.done():
+                    done = True
+
+            class_ids, cost_adjustment, confidence = await onnx_fut
+
+        elif method == "rules":
+            yield _emit({"type": "progress", "current": 0, "total": 1, "phase": "rules"})
+            class_ids, cost_adjustment, confidence = classify_terrain(
+                dem=terrain.dem_grid, slope_deg=terrain.slope_deg,
+                curvature=terrain.curvature, cell_size_m=cell_size_m,
+            )
+            yield _emit({"type": "progress", "current": 1, "total": 1, "phase": "rules"})
+        else:
+            yield _emit({"type": "error", "message": f"Unknown method: {method}"})
+            return
+    except Exception as exc:
+        yield _emit({"type": "error", "message": str(exc)})
+        return
+
+    # Phase 4: export
+    yield _emit({"type": "phase", "phase": "export", "label": "导出 GeoJSON…"})
+    legend = get_terrain_class_legend()
+    url_prefix = f"/outputs/{request_id}"
+    artifacts = []
+    for fmt in req.output_formats:
+        if fmt == "geojson":
+            out_file = out_dir / "terrain_classification.geojson"
+            feature_count = None
+            if not out_file.exists():
+                feature_count = export_grid_classification_as_geojson(
+                    out_file, terrain.lon_grid, terrain.lat_grid,
+                    class_ids, confidence, legend, stride=1,
+                )
+            artifacts.append({
+                "format": "geojson",
+                "url": f"{url_prefix}/terrain_classification.geojson",
+                "feature_count": feature_count,
+            })
+        elif fmt == "czml":
+            out_file = out_dir / "terrain_classification.czml"
+            if not out_file.exists():
+                export_grid_as_czml(out_file, terrain.lon_grid, terrain.lat_grid,
+                                    class_ids.astype(np.float64), "terrain_classification")
+            artifacts.append({"format": "czml", "url": f"{url_prefix}/terrain_classification.czml"})
+        elif fmt == "kml":
+            out_file = out_dir / "terrain_classification.kml"
+            if not out_file.exists():
+                export_grid_as_kml(out_file, terrain.lon_grid, terrain.lat_grid,
+                                   class_ids.astype(np.float64), "terrain_classification")
+            artifacts.append({"format": "kml", "url": f"{url_prefix}/terrain_classification.kml"})
+
+    yield _emit({
+        "type": "result",
+        "request_id": request_id,
+        "resolution": req.resolution,
+        "dem_source": terrain.dem_source,
+        "artifacts": artifacts,
+        "legend": legend,
+    })
+
+
+@app.post("/api/v1/analyze/classify/stream")
+async def classify_terrain_api_stream(req: TerrainClassifyRequest):
+    return StreamingResponse(
+        _classify_stream_events(req),
+        media_type="application/x-ndjson",
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Agent 对话接口（Week 5 · W5-6）
+#
+# 这是「网页上能用 Agent」的最后一环：前端把一句中文发过来，
+# 后端跑完整的 计划 → 执行 → 反思 → 总结，把最终回答和调用链路一起回传。
+#
+# 注意：这条路径不经过 MCP。MCP 是给外部客户端（Claude Desktop 等）用的，
+# 网页走 HTTP 直接打到编排层。
+# ─────────────────────────────────────────────────────────────────────────
+
+from pydantic import BaseModel, Field  # noqa: E402
+import threading  # noqa: E402
+
+_AGENT_LLM = None
+_AGENT_LLM_LOCK = threading.Lock()
+
+
+def _get_agent_llm():
+    """惰性加载并全局复用 LLM 客户端。
+
+    模型 2.55 GB，加载一次约 10 秒且常驻显存。若每个请求都新建客户端，
+    会在显存里堆出多份拷贝 —— 本机 RTX 2060 只有 6 GB，很快就 OOM。
+    """
+    global _AGENT_LLM
+    if _AGENT_LLM is not None:
+        return _AGENT_LLM
+    with _AGENT_LLM_LOCK:
+        if _AGENT_LLM is None:
+            from .agent.llm import build_client
+
+            _AGENT_LLM = build_client()
+    return _AGENT_LLM
+
+
+class DemGridPayload(BaseModel):
+    """前端从 Cesium 自带地形（Cesium World Terrain）采样出的高程网格。
+
+    用户没有上传自己的 DEM 时用它 —— 拿真实地表算，而不是回退到合成地形。
+    heights 的行序是从北到南（第 0 行 = 最北边），无效点用 null。
+    """
+
+    bbox: List[float]
+    heights: List[List[Optional[float]]]
+
+
+class AgentChatRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=500)
+    bbox: Optional[List[float]] = None
+    session_id: str = "web"
+    dem_grid: Optional[DemGridPayload] = None
+
+
+class AgentChatStep(BaseModel):
+    tool: str
+    intent: str = ""
+    success: bool = True
+    duration_ms: float = 0.0
+    # 该步的结构化结果（统计分级 / 分类构成 / 路径指标 / 产物 URL）—— 前端据此渲染表格与图表
+    data: Dict[str, Any] = {}
+    # 单独抽出矢量产物，方便前端直接叠加到三维地球
+    artifact: Dict[str, Any] = {}
+
+
+class AgentChatResponse(BaseModel):
+    answer: str = ""
+    refused: bool = False
+    understanding: str = ""
+    steps: List[AgentChatStep] = []
+    bbox: Optional[List[float]] = None
+    artifacts: List[Dict[str, Any]] = []
+    # 本次分析用的地形来源：cesium（前端采样）/ real_dem（用户自带或下载）/ synthetic（兜底）
+    dem_source: str = ""
+    elapsed_ms: float = 0.0
+    trace: List[str] = []
+    error: str = ""
+
+
+@app.post("/api/v1/agent/chat", response_model=AgentChatResponse)
+def agent_chat(req: AgentChatRequest) -> AgentChatResponse:
+    """用自然语言问一个地理空间分析问题，返回答案与执行链路。"""
+    t0 = perf_counter()
+
+    def _fail(msg: str) -> AgentChatResponse:
+        return AgentChatResponse(
+            answer=f"分析失败：{msg}",
+            elapsed_ms=(perf_counter() - t0) * 1000,
+            error=msg,
+        )
+
+    try:
+        from .agent import run_agent
+        from .agent.chitchat import try_chitchat
+
+        # 寒暄 / 自我介绍 / 能力询问走规则直答，不进 Agent 图。
+        # 以前这类输入也要走一遍 LLM 规划（约 19 秒）才被拒答，既慢又答非所问。
+        quick = try_chitchat(req.query)
+        if quick:
+            return AgentChatResponse(
+                answer=quick,
+                bbox=req.bbox,
+                elapsed_ms=(perf_counter() - t0) * 1000,
+                trace=["命中寒暄/元问题，规则直答（未调用大模型）"],
+            )
+
+        llm = _get_agent_llm()
+    except Exception as exc:
+        # 模型加载失败不应让整个后端挂掉，前端仍可用其他分析接口
+        return _fail(f"无法加载本地大模型（{type(exc).__name__}）：{exc}")
+
+    # 用户没有自带 DEM 时，用前端从 Cesium 地形采样来的高程网格 ——
+    # 这样工具算的是真实地表，而不是合成地形那种"看着有起伏、其实与实地无关"的数字。
+    session_dem_path: Optional[str] = None
+    dem_note = ""
+    if req.dem_grid:
+        try:
+            from .services.grid_to_dem import write_heights_as_geotiff
+
+            info = write_heights_as_geotiff(req.dem_grid.bbox, req.dem_grid.heights)
+            session_dem_path = info["path"]
+            dem_note = (
+                f"已接入 Cesium 地形采样（{info['shape'][0]}×{info['shape'][1]} 网格，"
+                f"有效点 {info['valid_ratio']:.0%}）"
+            )
+        except Exception as exc:  # noqa: BLE001
+            dem_note = (
+                f"地形网格不可用（{type(exc).__name__}: {exc}），"
+                f"本次将使用默认数据源"
+            )
+
+    try:
+        state = run_agent(
+            query=req.query,
+            bbox=req.bbox,
+            llm=llm,
+            session_id=req.session_id,
+            session_dem_path=session_dem_path,
+        )
+    except Exception as exc:
+        return _fail(f"{type(exc).__name__}：{exc}")
+
+    # 优先用真实调用记录（含耗时与成败），没有则退回计划步骤
+    records = state.get("tool_calls") or []
+    steps: List[AgentChatStep] = []
+    if records:
+        for r in records:
+            view = r.get("result") or {}
+            art = view.get("artifact") or {}
+            steps.append(
+                AgentChatStep(
+                    tool=str(r.get("tool") or ""),
+                    intent=str(r.get("summary") or ""),
+                    success=bool(r.get("success", True)),
+                    duration_ms=float(r.get("duration_ms") or 0.0),
+                    data=view,
+                    artifact=art if isinstance(art, dict) else {},
+                )
+            )
+    else:
+        for s in state.get("plan") or []:
+            steps.append(
+                AgentChatStep(
+                    tool=str(s.get("tool") or ""),
+                    intent=str(s.get("intent") or ""),
+                    success=s.get("status") != "failed",
+                )
+            )
+
+    # 收集可加载的矢量产物（GeoJSON / CZML / KML），供前端叠加到三维地球。
+    # 以前这里遍历的是 r.get("artifacts")（复数），而工具返回的是 artifact（单数），
+    # 且要求 a.get("url")，而工具当时只返回本地 path —— 三个条件都对不上，
+    # 于是这个数组**恒为空**，矢量图层从来没有到达过前端。
+    from .agent.result_view import collect_artifacts
+
+    artifacts: List[Dict[str, Any]] = collect_artifacts(
+        [s.data for s in steps if s.data]
+    )
+
+    # 把这次用的地形来源也带回前端，界面上要如实标出"这份数据是哪来的"
+    dem_source = ""
+    for s in steps:
+        ds_name = (s.data or {}).get("dem_source")
+        if ds_name:
+            dem_source = str(ds_name)
+            break
+
+    trace_out = list(state.get("trace") or [])[-20:]
+    if dem_note:
+        trace_out = [dem_note] + trace_out
+
+    return AgentChatResponse(
+        answer=str(state.get("final_answer") or ""),
+        refused=bool(state.get("refused", False)),
+        understanding=str(state.get("understanding") or ""),
+        steps=steps,
+        bbox=state.get("bbox"),
+        artifacts=artifacts,
+        dem_source=dem_source,
+        elapsed_ms=(perf_counter() - t0) * 1000,
+        trace=trace_out,
+    )
+
+
+@app.get("/api/v1/agent/health")
+def agent_health():
+    """Agent 是否可用（前端首次进入时探一次，避免用户干等）。"""
+    try:
+        llm = _get_agent_llm()
+        return {"ready": True, "backend": type(llm).__name__}
+    except Exception as exc:
+        return {"ready": False, "backend": "", "error": str(exc)}

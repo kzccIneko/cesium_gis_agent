@@ -1,0 +1,373 @@
+/* ============================================================
+ * GeoAgent 分析助手面板
+ *
+ * 配色取自主系统 override.css 的既有视觉语言，不另起一套：
+ *   面板底色   rgba(12, 30, 58, .95)   —— 与 .functionWin .content 一致
+ *   标题栏     rgba(5, 16, 33, .85)    —— 与 .functionWin .head 一致
+ *   强调色     #8dbee0 / #195185       —— 窗口上下那条渐变线的两端
+ * 这样面板放进主页面后不会像"外挂的东西"。
+ * ============================================================ */
+
+/* ---------- 顶层菜单入口（独立常驻，不在任何分组里） ---------- */
+.agent-nav-entry > a {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+}
+/* 状态点：真实反映后端探活结果，不是装饰 —— 绿=模型就绪，橙=后端未启动，灰=未探测 */
+.agent-nav-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #7c8a99;
+    box-shadow: 0 0 6px rgba(124, 138, 153, 0.8);
+    flex: 0 0 auto;
+    transition: background .25s, box-shadow .25s;
+}
+.agent-nav-dot.is-ready {
+    background: #46d17f;
+    box-shadow: 0 0 8px rgba(70, 209, 127, 0.9);
+}
+.agent-nav-dot.is-down {
+    background: #f0a35f;
+    box-shadow: 0 0 8px rgba(240, 163, 95, 0.9);
+}
+
+/* ---------- 常驻悬浮入口按钮 ---------- */
+#agentFloatBtn {
+    position: fixed;
+    right: 20px;
+    bottom: 112px;            /* 让开右下角的比例尺 */
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1px solid rgba(141, 190, 224, 0.55);
+    background: rgba(12, 30, 58, 0.92);
+    color: #cfe6f7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 900;             /* 低于 functionWin(2000)，高于地图控件 */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+    transition: transform .16s, box-shadow .16s, background .16s, color .16s;
+}
+#agentFloatBtn:hover {
+    background: #195185;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(25, 81, 133, 0.7);
+}
+#agentFloatBtn:focus { outline: none; }
+/* 面板打开时保持高亮，形成"开/关"的明暗区分 */
+#agentFloatBtn.is-active {
+    background: #195185;
+    border-color: #8dbee0;
+    color: #fff;
+    box-shadow: 0 0 0 3px rgba(141, 190, 224, 0.25), 0 4px 14px rgba(25, 81, 133, 0.7);
+}
+
+#agentAssistantWin {
+    width: 460px;
+    max-width: 92vw;
+    left: 300px;
+    top: 90px;
+}
+
+/* 内容区 */
+.agentp-root {
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* ---------- 上下文条 ---------- */
+.agentp-ctx {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    background: rgba(25, 81, 133, 0.22);
+    border: 1px solid rgba(141, 190, 224, 0.25);
+    border-radius: 4px;
+    color: #a9c8e4;
+    font-size: 12px;
+}
+.agentp-ctx .ctx-label { opacity: .75; }
+.agentp-ctx .ctx-value { color: #cfe6f7; font-family: Consolas, monospace; }
+.agentp-ctx .ctx-spacer { flex: 1; }
+.agentp-ctx button {
+    background: rgba(141, 190, 224, 0.15);
+    border: 1px solid rgba(141, 190, 224, 0.35);
+    color: #cfe6f7;
+    border-radius: 3px;
+    padding: 1px 8px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.agentp-ctx button:hover { background: rgba(141, 190, 224, 0.3); }
+.agentp-ctx button.on {
+    background: #195185;
+    border-color: #8dbee0;
+    color: #fff;
+}
+
+/* ---------- 对话区 ---------- */
+.agentp-chat {
+    height: 320px;
+    overflow-y: auto;
+    padding: 8px;
+    background: rgba(3, 12, 26, 0.55);
+    border: 1px solid rgba(141, 190, 224, 0.15);
+    border-radius: 4px;
+}
+.agentp-chat::-webkit-scrollbar { width: 6px; }
+.agentp-chat::-webkit-scrollbar-thumb {
+    background: rgba(141, 190, 224, 0.3);
+    border-radius: 3px;
+}
+
+.agentp-msg { margin-bottom: 10px; }
+.agentp-msg-user {
+    text-align: right;
+    color: #d6e9f8;
+}
+.agentp-msg-user .bubble {
+    display: inline-block;
+    max-width: 88%;
+    text-align: left;
+    padding: 6px 10px;
+    background: #195185;
+    border-radius: 6px 6px 2px 6px;
+    word-break: break-word;
+}
+.agentp-msg-bot .who {
+    font-size: 11px;
+    color: #6f9dc4;
+    margin-bottom: 2px;
+}
+.agentp-msg-bot .bubble {
+    padding: 6px 10px;
+    background: rgba(25, 81, 133, 0.3);
+    border-left: 2px solid #8dbee0;
+    border-radius: 2px 6px 6px 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.agentp-msg-error .bubble {
+    background: rgba(160, 40, 40, 0.35);
+    border-left-color: #e88;
+}
+
+/* 等待指示 */
+.agentp-waiting {
+    color: #8dbee0;
+    font-size: 12px;
+    padding: 4px 0;
+}
+
+/* ---------- 执行链路 ---------- */
+.agentp-steps {
+    margin: 8px 0 6px;
+    border-top: 1px dashed rgba(141, 190, 224, 0.25);
+    padding-top: 6px;
+}
+.agentp-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #a9c8e4;
+    padding: 2px 0;
+}
+.agentp-step .icon { width: 14px; text-align: center; }
+.agentp-step.ok .icon { color: #5fd08a; }
+.agentp-step.fail .icon { color: #f08a8a; }
+.agentp-step .name { font-family: Consolas, monospace; color: #cfe6f7; }
+.agentp-step .ms { color: #6f9dc4; }
+
+/* ---------- 结果卡片 ---------- */
+.agentp-result {
+    margin: 8px 0;
+    border: 1px solid rgba(141, 190, 224, 0.3);
+    border-radius: 5px;
+    overflow: hidden;
+    background: rgba(6, 20, 40, 0.6);
+}
+.agentp-result > .r-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    background: rgba(25, 81, 133, 0.35);
+    font-size: 12px;
+    color: #cfe6f7;
+}
+.agentp-result > .r-head .r-title { flex: 1; }
+.agentp-result > .r-body { padding: 8px; }
+
+/* 小操作按钮 */
+.agentp-btn {
+    background: rgba(141, 190, 224, 0.15);
+    border: 1px solid rgba(141, 190, 224, 0.4);
+    color: #cfe6f7;
+    border-radius: 3px;
+    padding: 2px 9px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.agentp-btn:hover { background: rgba(141, 190, 224, 0.32); }
+.agentp-btn.primary {
+    background: #195185;
+    border-color: #8dbee0;
+    color: #fff;
+}
+.agentp-btn.primary:hover { background: #22679f; }
+.agentp-btn:disabled { opacity: .45; cursor: default; }
+
+/* ---------- 表格 ---------- */
+.agentp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.agentp-table th,
+.agentp-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid rgba(141, 190, 224, 0.18);
+    text-align: right;
+}
+.agentp-table th {
+    color: #8dbee0;
+    font-weight: 600;
+    border-bottom-color: rgba(141, 190, 224, 0.4);
+}
+.agentp-table th:first-child,
+.agentp-table td:first-child { text-align: left; }
+.agentp-table tbody tr:hover { background: rgba(141, 190, 224, 0.08); }
+.agentp-table td .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 5px;
+    border-radius: 2px;
+    vertical-align: -1px;
+}
+
+/* ---------- 指标卡 ---------- */
+.agentp-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: 6px;
+}
+.agentp-metric {
+    background: rgba(25, 81, 133, 0.25);
+    border: 1px solid rgba(141, 190, 224, 0.2);
+    border-radius: 4px;
+    padding: 6px 8px;
+}
+.agentp-metric .k { font-size: 11px; color: #7fa8cc; }
+.agentp-metric .v {
+    font-size: 16px;
+    color: #dff0ff;
+    font-family: Consolas, monospace;
+}
+.agentp-metric .u { font-size: 11px; color: #7fa8cc; margin-left: 2px; }
+
+/* ---------- 图表容器 ---------- */
+.agentp-chart {
+    width: 100%;
+    height: 190px;
+}
+
+/* ---------- 图例 ---------- */
+.agentp-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    margin-top: 6px;
+    font-size: 12px;
+    color: #a9c8e4;
+}
+.agentp-legend .item { display: flex; align-items: center; gap: 4px; }
+.agentp-legend .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+/* ---------- 输入区 ---------- */
+.agentp-input {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+.agentp-input textarea {
+    flex: 1;
+    height: 42px;
+    resize: none;
+    background: rgba(3, 12, 26, 0.7);
+    border: 1px solid rgba(141, 190, 224, 0.35);
+    color: #e3f1fd;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 13px;
+    font-family: inherit;
+}
+.agentp-input textarea:focus {
+    outline: none;
+    border-color: #8dbee0;
+}
+.agentp-input .send {
+    width: 52px;
+    height: 42px;
+    border-radius: 4px;
+    background: #195185;
+    border: 1px solid #8dbee0;
+    color: #fff;
+    cursor: pointer;
+}
+.agentp-input .send:hover { background: #22679f; }
+.agentp-input .send:disabled { opacity: .5; cursor: default; }
+
+/* ---------- 快捷问法 ---------- */
+.agentp-quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 6px;
+}
+.agentp-quick button {
+    background: rgba(25, 81, 133, 0.3);
+    border: 1px solid rgba(141, 190, 224, 0.25);
+    color: #a9c8e4;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.agentp-quick button:hover {
+    background: rgba(141, 190, 224, 0.28);
+    color: #fff;
+}
+
+.agentp-hint {
+    font-size: 11px;
+    color: #6f9dc4;
+    margin-top: 4px;
+}
+
+/* 数据来源标注：这份结果建立在什么高程数据上 */
+.agentp-source {
+    font-size: 11.5px;
+    color: #7fa8cc;
+    margin: 4px 0 6px;
+    padding-left: 7px;
+    border-left: 2px solid rgba(141, 190, 224, 0.45);
+}
+.agentp-source.warn {
+    color: #f0b35f;
+    border-left-color: rgba(240, 179, 95, 0.75);
+}

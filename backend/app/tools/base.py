@@ -263,6 +263,7 @@ def save_grid_artifact(
             "format": "npz",
             "name": name,
             "path": str(path),
+            "url": f"/artifacts/{subdir.name}/{path.name}",
             "shape": list(np.asarray(grid).shape),
         }
 
@@ -285,6 +286,9 @@ def save_grid_artifact(
         "format": fmt,
         "name": name,
         "path": str(path),
+        # 前端直接可用的 URL —— 静态服务把 ARTIFACT_ROOT 挂在 /artifacts 下。
+        # 以前只返回本地 path，前端拿不到，导致 Agent 的矢量产物从来没被加载过。
+        "url": f"/artifacts/{subdir.name}/{path.name}",
         "feature_count": feature_count,
     }
 
@@ -298,7 +302,12 @@ def save_json_artifact(payload: Dict[str, Any], name: str) -> Dict[str, Any]:
         json.dumps(payload, ensure_ascii=False, indent=2, default=_json_default),
         encoding="utf-8",
     )
-    return {"format": "json", "name": name, "path": str(path)}
+    return {
+        "format": "json",
+        "name": name,
+        "path": str(path),
+        "url": f"/artifacts/{subdir.name}/{path.name}",
+    }
 
 
 def _json_default(obj: Any) -> Any:

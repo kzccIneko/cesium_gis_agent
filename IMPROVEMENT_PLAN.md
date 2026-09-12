@@ -500,19 +500,92 @@ for case in dataset:
 
 > 「自建 100 条中文地理空间任务评测集，覆盖单工具调用 / 多工具串联 / 越界拒答三类，对比 ReAct 与 Plan-and-Execute 两种策略，工具选择准确率由 X% 提升至 Y%（【必填真实数字】）」
 
-### Week 6 · 10/13–10/19｜前端 + 部署 + 包装
+### Week 6 · 10/13–10/19｜**把 Agent 装进三维地理系统**（2026-09-12 重写）
 
-`earthscape` 目录里已经有完整的 Jupyter notebook 和 baselines，可以用作 demo 视频素材。
+> **重写原因**：W5-6 交出的 `cesium_old/agent_chat.html` 是一个**独立页面**，
+> 用户一针见血地指出三条硬伤：①脱离主系统，不能用地图上下文，也不回写结果；
+> ②发「你好」被当成越界任务拒答；③**回复只有纯文字，没有数据/表格/图表/图层**。
+> 这不是"对话流程跑通了"，而是"远没到能用的门槛"。本节重写为集成方案。
 
-新增：
-- `frontend/`（或扩展 `cesium_old/`）—— 对话侧工具调用链路可视化
-- `docker-compose.yml` —— backend + vector_db + frontend + mcp_server 一键启动
-- `README.md`（顶层新建）—— 架构图 + 5 分钟快速开始 + 评测结果表 + 演示 GIF
-- `docs/demo.gif` —— 3 分钟 demo 视频
+#### 6.0 先记下来：为什么"只能输出文字"（诊断结论，2026-09-12 实测）
 
-#### 简历增量句
+不是前端没画图表，是**后端链路从第一步就断了**，共 5 处：
 
-> 「FastAPI + Docker Compose 一键部署（后端 + 向量库 + 前端 + MCP Server），GitHub Actions 持续集成，代码开源：github.com/______」
+| # | 断点 | 位置 | 后果 |
+|---|---|---|---|
+| 1 | 工具产物落在 `geoagent_artifacts/`，而 HTTP 静态挂载的是 `cesiumjs_debug_outputs/` | `main.py:70` | 产物文件**根本访问不到** |
+| 2 | 工具返回 key 是单数 `artifact`，接口按复数 `artifacts` 取 | `main.py:991` | 匹配不上 |
+| 3 | 工具返回只有本地 `path` 没有 `url`，接口却按 `a.get("url")` 过滤 | `main.py:992` | `artifacts` 数组**恒为空** |
+| 4 | `ToolCallRecord` 只保留工具名/成败/耗时，丢弃了工具的 `data` | `executor.py:128` | 统计数值（分级面积/占比/均值）**到不了前端**，做不了表与图 |
+| 5 | 寒暄走 LLM 规划被判拒答，且把内部 `final_answer_hint` 模板当答案吐出 | 实测「你好」 | 回复是机器黑话：**"向用户说明问候语不属于…范围"** |
+
+工具其实算得很全 —— `zonal_statistics` 返回了每一级坡度多大面积、占多少比例，
+`classify_*` 返回了 8 类地物构成，`plan_route` 返回了里程与绕行系数。
+**这些数据从来没出过后端。** Week 6 就是把它们接出来。
+
+#### 6.1 设计原则：嵌入，不是并列
+
+| 原则 | 含义 | 违反后果 |
+|---|---|---|
+| **用系统已有的窗口、图层、 Levin 交互** | 面板是第 15 个 `.functionWin`，图层进 `sidebarManager`，复用 `loadArtifactToCesium` | 又造一个平行 UI |
+| **Agent 要知道你在看哪** | 默认取当前视野 bbox、侧栏已加载图层作为上下文 | "这篇区域"没法回答 |
+| **结果必须落到地图上** | 每个分析结果都给出"叠加图层 / 定位"动作 | 只有文字 = 没用 |
+| **AGENTS.md 铁律不可破** | 主 HTML 的 `<script>` **顺序不变**（只在末尾追加）、全局状态是设计意图、后端结果 URL 优先 | 改崩别人依赖 |
+
+#### 6.2 分层结构（Agent 与系统的调用关系）
+
+```
+┌─ cesium_old/Cesium_coordinate_copy_czDebugging.html（主页面，只追加 1 行 script）
+│
+├─ features/agent/AgentPanel.js        入口/外壳：functionWin 悬浮窗 + 对话 + 链路
+│     ├─ 取上下文 ──────────────────► TerrainBackendBridge.getViewBBox()   ← 新增导出
+│     │                               window.sidebarManager.getAllLayers()
+│     ├─ 提问 ──────────────────────► POST /api/v1/agent/chat
+│     │                               { query, bbox, session_id }
+│     └─ 拿到结果后 ─┬─► features/agent/AgentResultView.js   表格 + echarts 图表
+│                    ├─► TerrainBackendBridge.loadArtifactToCesium(url, fmt)
+│                    │      └─► viewer + window.sidebarManager.addLayer()  ← 复用现成管道
+│                    └─► window.sidebarManager.flyToLayer(id) / viewer.flyTo(bbox)
+│
+└─ features/slope/TerrainBackendIntegration.js（**只加导出，不改内部逻辑**）
+```
+
+关键判断：**不新写图层加载代码**。`TerrainBackendIntegration.js` 里的
+`loadArtifactToCesium()` 已经会做 GeoJSON→GroundPrimitive 分批、CZML/KML→DataSource、
+注册侧栏、绑定悬浮数值提示这一整套，直接复用，杜绝两套渲染行为不一致。
+
+#### 6.3 实施步骤
+
+| 步骤 | 内容 | 落点 | 验收 |
+|---|---|---|---|
+| **W6-1** | 产物可访问：`/artifacts` 静态挂载 + `save_*_artifact` 返回值补 `url` 字段 | `main.py`、`tools/base.py` | `GET /artifacts/xxx/slope.geojson` 能下载到内容 |
+| **W6-2** | 结构化结果回传：`ToolCallRecord` 增 `result` 摘要；`AgentChatStep` 增 `data` / `artifact` | `agent/state.py`、`nodes/executor.py`、`main.py` | 接口返回里能看到 zonal 的 `classes` 数组 |
+| **W6-3** | 对话态路由：寒暄/自我介绍/能力询问走**规则直答**（0 次 LLM 调用）；拒答不吐内部模板 | `agent/nodes/planner.py` 前置、`main.py` | 发「你好」秒回人话，且 100 条评测不降分 |
+| **W6-4** | 导出 `window.TerrainBackendBridge`（loadArtifactToCesium / getViewBBox 等） | `TerrainBackendIntegration.js` 末尾 | 控制台能调用 `TerrainBackendBridge.loadArtifactToCesium(...)` |
+| **W6-5** | `AgentPanel.js`：主系统内悬浮窗 —— 对话区 + 执行链路 + 结果区；入口按钮 | `features/agent/`、`主页面末尾追加 script` | 主页面点按钮开面板，和坡度分析窗同款可拖动/折叠 |
+| **W6-6** | `AgentResultView.js`：分级统计表、面积占比柱状图、地类构成饼图、路线指标卡、图例色卡 | `features/agent/` | 问"统计坡度分级"出表格+图，不再是纯文字 |
+| **W6-7** | 地图联动：叠加图层（自动进侧栏）、飞行定位、可叠加/可移除 | `AgentPanel.js` + Bridge | 分析结果落到三维地球上，侧栏能控制显隐 |
+| **W6-8** | 上下文感知：默认视野 bbox、已加载图层作为上下文、地图拾取起点终点 | `AgentPanel.js` | 不写地名，只说"分析当前视野"，也能给出结果 |
+
+#### 6.4 关于「提示词太严格」：要拆成两件事，别一起改
+
+用户说"提示词太严格"，实际是两个不同层面，**只有一个能放宽**：
+
+| 层面 | 现状 | 能不能放宽 | 理由 |
+|---|---|---|---|
+| **A. 对用户输入的宽容度** | 「你好」→ 拒答；含糊输入 → 拒答 | **必须放宽** ⬅ 本次改 | 寒暄/自我介绍/能力询问应有正常对话；关键信息缺失时应**反问澄清**而不是拒答 |
+| **B. 工具链判据（多加一步/少加一步都算错）** | 严格的一对一判据 | **不能动** | 这是 97.5% 的来源。一旦放松成"差不多就行"，多工具类会从 97.5% 掉回 55%（v9 的零和实验已经证明过一次） |
+
+**做法**：在 Agent 图**之前**加一层极轻量的意图分流（规则匹配，不走 LLM），
+把寒暄/元问题分流到"对话态"；只有真正像任务的输入才进 planner。
+这样既不影响工具链判据，又省掉一次 19 秒的无效 LLM 调用。
+
+#### 6.5 做完之后的增量简历句（待 W6 落地后回填）
+
+> 「对话式分析入口以悬浮面板形式嵌入既有 CesiumJS 三维系统，与主系统共享图层树、
+> 坐标系与渲染管线：分析结果的结构化数值（分级面积 / 占比 / 地类构成 / 路径里程）回传前端
+> 渲染为表格与图表，矢量产物经统一管道叠加到三维地球并纳入侧栏图层管理，
+> 同时以当前视野范围与已加载图层作为上下文实现『所见即所问』。」
 
 ---
 
@@ -733,9 +806,50 @@ RTX 2060 6 GB 可支撑 **2B/4B 级别**的 QLoRA（batch=1 + 梯度累积）；
 关键诊断：**32 条显式坐标样本两组都是满分 1.00**，68 条含地名样本基线仅 0.031。
 → 坐标能力本来就没问题，`param_bbox` 低是**纯知识缺口**，不是推理缺陷。
 无泄漏验证（12 个评测集未出现的地名）：bbox **0/12 → 12/12**。
-`multi_tool` 工具链仍只有 0.025 —— 那是**多步规划**问题，需接 LangGraph 编排。
+`multi_tool` 工具链仍只有 0.025 —— 那是**多步规划**问题。
 
-**结论：嵌入式已反超 Ollama 28%，Ollama 可卸载。** CUDA 运行时 DLL
+#### LangGraph 编排接入评测（2026-09-09）+ max_tokens 必须按场景标定
+
+`bench/graph_eval.py` 让**真实状态图**（不是临时脚本）成为评测执行器，
+评测脚本新增 `--orchestrator langgraph|loop` 可对拍两条路径。
+
+**这是本次最重要的一条经验**：
+
+> **一个全局的 `max_tokens` 会伪造出一个"模型没能力"的假象。**
+
+首次接入后 `multi_tool` 的 `tool_exact` 只有 **0.30**，看起来跟多轮试探（0.30）
+毫无差别，很容易得出"换编排没用"的结论。但汇总里有一个反常信号：
+`avg_llm_calls_per_case = 2.17`，而 planner 的 `max_retries = 3`
+—— 调用 3 次意味着**每次都失败、最后落到 `heuristic_plan` 关键词兜底**。
+也就是说，那个分数里大半压根不是模型的规划结果。
+
+用 `bench/diag_planner.py` 逐条打印原始输出才看清：
+**8 条里 7 条的输出恰好停在 ~384 token，JSON 没有闭合。**
+
+`384` 这个值是当年给 **tool_calling 场景**标定的（模型输出 `<tool_call>` 块，
+实测 p99=318）。而 planner 要输出完整的计划 JSON，两者不是一个量级。
+把上限放到几乎不设限后实测分布（`--measure`，20 条 multi_tool）：
+
+| 场景 | min | p50 | p90 | p95 | max | 合法率 |
+|---|---|---|---|---|---|---|
+| planner（完整计划 JSON） | 323 | 407 | 593 | **827** | 827 | **20/20** |
+
+不同上限下的截断率：**384 → 65%，512 → 20%，640 → 5%，1024 → 0%**。
+
+于是按同一套"三个约束取交集"的方法给每个节点分别定值
+（`llm.py` 顶部常量，节点调用时显式传入）：
+
+| 节点 | max_tokens | 依据 |
+|---|---|---|
+| planner | **1024** | ≥ max(827)，留 24% 余量；延迟最坏 ~20s，p50 约 8s |
+| summarizer | 768 | 提示词要求 300 字以内，实测约 400–600 token |
+| reflector | 384 | 只输出 action/reason 短 JSON |
+
+**结论复用的通用规则**：改任何"生成上限"前先测分布；
+看到指标异常时，先看**是否有拉胯的间接信号**（这里是 n_llm_calls），
+它往往直接指向真正的失败层，而不是交给"模型能力不行"来解释。
+
+> **结论：嵌入式已反超 Ollama 28%，Ollama 可卸载。** CUDA 运行时 DLL
 （cudart/cublas×3，共 ~570 MB）已复制进 `llama_cpp/lib/`，venv 自包含、可 turnkey。
 坑：MSBuild 找不到 Toolkit → 需在编译环境设 `CUDA_PATH`；运行时 DLL 在 `bin/x64/` 不在 `bin/`。
 

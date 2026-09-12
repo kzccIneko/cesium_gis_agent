@@ -270,6 +270,18 @@
     status.style.color = isError ? "#ffb4b4" : "#b7d4ff";
   }
 
+  function updateAnalysisProgress(current, total) {
+    var bar = document.getElementById("analysis-progress");
+    if (!bar) return;
+    var pct = total > 0 ? Math.round((current / total) * 100) : 0;
+    bar.value = pct;
+    bar.max = 100;
+    bar.style.display = "inline-block";
+    if (current >= total) {
+      setTimeout(function () { bar.style.display = "none"; }, 2000);
+    }
+  }
+
   function setStartButtonState(isRunning) {
     var btn = document.getElementById("sidebarStartBackendBtn");
     if (!btn) return;
@@ -736,6 +748,7 @@
       var tileLabel = "分块分析 " + (i + 1) + "/" + tiles.length + " (N=" + tileResolution + ")";
       if (!silent) {
         setStatus(tileLabel + "...");
+        updateAnalysisProgress(i + 1, tiles.length);
       }
 
       var tileKey = null;
@@ -1842,6 +1855,8 @@
     }
     global._terrainBackendLayers = [];
     global._terrainBackendSidebarLayerId = null;
+    global._terrainBackendLayersByLevel = {};
+    global._terrainBackendSidebarLayerIds = {};
   }
 
   async function renderTerrainArtifacts(viewer, artifacts, baseUrl, bbox, analysisType, options) {
@@ -2111,7 +2126,7 @@
 
       node.layerEntries = tileLayers;
       for (var i = 0; i < tileLayers.length; i++) {
-        addManagedLayerEntry(tileLayers[i]);
+        addManagedLayerEntry(tileLayers[i], "L" + node.z);
       }
       node.loaded = true;
       node.lastUsedAt = Date.now();
@@ -2272,7 +2287,7 @@
         for (var n = 0; n < keys.length; n++) {
           var node = state.nodeMap[keys[n]];
           if (!node || node.z <= 0 || !node.loaded) continue;
-          var shouldShowNode = !!requiredSet[node.key] && getTerrainBackendSidebarLayerVisible();
+          var shouldShowNode = !!requiredSet[node.key] && getLevelSidebarLayerVisible("L" + node.z);
           setManagedLayerStoreVisibility(node.layerEntries, shouldShowNode);
           if (shouldShowNode) {
             node.lastUsedAt = Date.now();
@@ -2293,7 +2308,7 @@
           var reqNode = requiredNodes[j];
           if (reqNode && reqNode.loaded) {
             reqNode.lastUsedAt = Date.now();
-            setManagedLayerStoreVisibility(reqNode.layerEntries, getTerrainBackendSidebarLayerVisible());
+            setManagedLayerStoreVisibility(reqNode.layerEntries, getLevelSidebarLayerVisible("L" + reqNode.z));
           }
         }
 
@@ -2342,7 +2357,7 @@
     rootNode.loaded = true;
     rootNode.layerEntries = Array.isArray(global._terrainBackendLayers) ? global._terrainBackendLayers.slice() : [];
     rootNode.lastUsedAt = Date.now();
-    setManagedLayerStoreVisibility(rootNode.layerEntries, getTerrainBackendSidebarLayerVisible());
+    setManagedLayerStoreVisibility(rootNode.layerEntries, getLevelSidebarLayerVisible("L0"));
 
     state.onMoveEnd = function () {
       scheduleDynamicTerrainRequestLod(state, false);
@@ -2419,13 +2434,18 @@
     }
   }
 
-  function addManagedLayerEntry(entry) {
+  function addManagedLayerEntry(entry, level) {
     if (!entry) return;
     if (!Array.isArray(global._terrainBackendLayers)) global._terrainBackendLayers = [];
     global._terrainBackendLayers.push(entry);
+    if (!global._terrainBackendLayersByLevel) global._terrainBackendLayersByLevel = {};
+    var levelKey = level != null ? String(level) : "L0";
+    if (!Array.isArray(global._terrainBackendLayersByLevel[levelKey])) {
+      global._terrainBackendLayersByLevel[levelKey] = [];
+    }
+    global._terrainBackendLayersByLevel[levelKey].push(entry);
     syncTerrainBackendSidebarLayerObject();
-    // 新加载的 LOD 图层继承侧边栏当前可见性与透明度状态。
-    applyTerrainBackendSidebarStateToEntry(entry);
+    applyTerrainBackendSidebarStateToEntry(entry, levelKey);
   }
 
   function removeManagedLayerEntry(viewer, entry) {
@@ -2436,32 +2456,47 @@
     if (idx >= 0) {
       all.splice(idx, 1);
     }
+    var levels = global._terrainBackendLayersByLevel || {};
+    Object.keys(levels).forEach(function (l) {
+      var arr = levels[l];
+      if (!Array.isArray(arr)) return;
+      var i = arr.indexOf(entry);
+      if (i >= 0) arr.splice(i, 1);
+    });
     syncTerrainBackendSidebarLayerObject();
   }
 
-  function getTerrainBackendSidebarLayer() {
-    if (!window.sidebarManager || !global._terrainBackendSidebarLayerId) return null;
+  function getLevelSidebarLayer(level) {
+    if (!window.sidebarManager || !global._terrainBackendSidebarLayerIds) return null;
     if (typeof window.sidebarManager.getLayerById !== "function") return null;
-    return window.sidebarManager.getLayerById(global._terrainBackendSidebarLayerId) || null;
+    var id = global._terrainBackendSidebarLayerIds[level || "L0"];
+    if (!id) return null;
+    return window.sidebarManager.getLayerById(id) || null;
   }
 
-  function syncTerrainBackendSidebarLayerObject() {
-    var layer = getTerrainBackendSidebarLayer();
-    if (!layer) return;
-    layer.cesiumObject = Array.isArray(global._terrainBackendLayers) ? global._terrainBackendLayers : [];
-  }
-
-  function getTerrainBackendSidebarLayerVisible() {
-    var layer = getTerrainBackendSidebarLayer();
+  function getLevelSidebarLayerVisible(level) {
+    var layer = getLevelSidebarLayer(level || "L0");
     if (!layer) return true;
     return layer.visible !== false;
   }
 
-  function getTerrainBackendSidebarLayerOpacity() {
-    var layer = getTerrainBackendSidebarLayer();
+  function getLevelSidebarLayerOpacity(level) {
+    var layer = getLevelSidebarLayer(level || "L0");
     if (!layer || !layer.extras) return 1.0;
     var opacity = Number(layer.extras._opacity);
     return Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 1.0;
+  }
+
+  function syncTerrainBackendSidebarLayerObject() {
+    if (!global._terrainBackendLayersByLevel) return;
+    var levelKeys = Object.keys(global._terrainBackendLayersByLevel);
+    for (var zi = 0; zi < levelKeys.length; zi++) {
+      var lk = levelKeys[zi];
+      var layer = getLevelSidebarLayer(lk);
+      if (!layer) continue;
+      layer.cesiumObject = Array.isArray(global._terrainBackendLayersByLevel[lk])
+        ? global._terrainBackendLayersByLevel[lk] : [];
+    }
   }
 
   function setPrimitiveItemOpacity(item, opacity) {
@@ -2490,47 +2525,65 @@
     }
   }
 
-  function applyTerrainBackendSidebarStateToEntry(entry) {
-    setOneManagedLayerVisibility(entry, getTerrainBackendSidebarLayerVisible());
-    setOneManagedLayerOpacity(entry, getTerrainBackendSidebarLayerOpacity());
+  function applyTerrainBackendSidebarStateToEntry(entry, level) {
+    var lk = level || "L0";
+    setOneManagedLayerVisibility(entry, getLevelSidebarLayerVisible(lk));
+    setOneManagedLayerOpacity(entry, getLevelSidebarLayerOpacity(lk));
   }
 
   function registerOrUpdateTerrainBackendSidebarLayer(modeLabel) {
     if (!window.sidebarManager || typeof window.sidebarManager.addLayer !== "function") return;
     if (!Array.isArray(global._terrainBackendLayers)) global._terrainBackendLayers = [];
+    if (!global._terrainBackendLayersByLevel) global._terrainBackendLayersByLevel = {};
+    if (!global._terrainBackendSidebarLayerIds) global._terrainBackendSidebarLayerIds = {};
 
     var typeLabel = modeLabel === "path" ? "路径分析" : "地形分析";
-    var layerName = "后端" + typeLabel + "（含动态LOD）";
-    if (global._terrainBackendSidebarLayerId &&
-        typeof window.sidebarManager.getLayerById === "function" &&
-        window.sidebarManager.getLayerById(global._terrainBackendSidebarLayerId)) {
-      var existing = window.sidebarManager.getLayerById(global._terrainBackendSidebarLayerId);
-      existing.name = layerName;
-      existing.type = "Analysis";
-      existing.group = "analysis";
-      existing.cesiumObject = global._terrainBackendLayers;
-      existing.extras = Object.assign({}, existing.extras || {}, {
-        _backendManaged: true,
-        _backendUnifiedLayer: true,
-      });
-      var nameEl = document.querySelector('[data-layer-id="' + existing.id + '"] .layer-item-name');
-      if (nameEl) {
-        nameEl.textContent = layerName;
-        nameEl.title = layerName + " (Analysis)";
+    var levels = ["L0", "L1", "L2", "L3", "L4"];
+    var levelLabels = ["基分辨率", "中等精度", "低空", "高分辨率", "最高精度"];
+    var cellScales = [16, 8, 4, 2, 1];
+
+    for (var zi = 0; zi < levels.length; zi++) {
+      var levelKey = levels[zi];
+      var levelName = levelKey + " - " + typeLabel + "(" + levelLabels[zi] + ")";
+
+      if (!Array.isArray(global._terrainBackendLayersByLevel[levelKey])) {
+        global._terrainBackendLayersByLevel[levelKey] = [];
       }
-      return;
+
+      var existingId = global._terrainBackendSidebarLayerIds[levelKey];
+      if (existingId && typeof window.sidebarManager.getLayerById === "function" &&
+          window.sidebarManager.getLayerById(existingId)) {
+        var existing = window.sidebarManager.getLayerById(existingId);
+        existing.name = levelName;
+        existing.type = "Analysis";
+        existing.cesiumObject = global._terrainBackendLayersByLevel[levelKey];
+        existing.extras = Object.assign({}, existing.extras || {}, {
+          _backendManaged: true,
+          _lodLevel: levelKey,
+        });
+        var nameEl = document.querySelector('[data-layer-id="' + existing.id + '"] .layer-item-name');
+        if (nameEl) {
+          nameEl.textContent = levelName;
+          nameEl.title = levelName;
+        }
+      } else {
+        var newId = window.sidebarManager.addLayer({
+          name: levelName,
+          type: "Analysis",
+          url: "__terrain_backend_L" + zi + "__",
+          cesiumObject: global._terrainBackendLayersByLevel[levelKey],
+          extras: {
+            _backendManaged: true,
+            _lodLevel: levelKey,
+          },
+        });
+        if (newId) global._terrainBackendSidebarLayerIds[levelKey] = newId;
+      }
     }
 
-    global._terrainBackendSidebarLayerId = window.sidebarManager.addLayer({
-      name: layerName,
-      type: "Analysis",
-      url: "__terrain_backend_unified__",
-      cesiumObject: global._terrainBackendLayers,
-      extras: {
-        _backendManaged: true,
-        _backendUnifiedLayer: true,
-      },
-    });
+    if (global._terrainBackendSidebarLayerId) {
+      global._terrainBackendSidebarLayerId = null;
+    }
   }
 
   async function loadTerrainLodDescriptor(viewer, descriptor) {
@@ -2553,7 +2606,7 @@
       );
 
       for (var i = 0; i < descriptor.layerEntries.length; i++) {
-        addManagedLayerEntry(descriptor.layerEntries[i]);
+        addManagedLayerEntry(descriptor.layerEntries[i], "L0");
       }
 
       descriptor.loaded = true;
@@ -3299,9 +3352,24 @@
         clearManagedBackendLayers(viewer);
         global._terrainBackendLayers = [];
         global._terrainBackendSidebarLayerId = null;
+        global._terrainBackendLayersByLevel = {};
+        global._terrainBackendSidebarLayerIds = {};
 
         releaseTerrainLodState(viewer);
         await renderTerrainArtifacts(viewer, artifacts, baseUrl, bbox, analysisType, { registerSidebar: false, runCtx: runCtx });
+
+        if (!global._terrainBackendLayersByLevel) global._terrainBackendLayersByLevel = {};
+        if (!Array.isArray(global._terrainBackendLayersByLevel.L0)) {
+          global._terrainBackendLayersByLevel.L0 = [];
+        }
+        var flatEntries = global._terrainBackendLayers || [];
+        for (var ei = 0; ei < flatEntries.length; ei++) {
+          var e = flatEntries[ei];
+          if (e && global._terrainBackendLayersByLevel.L0.indexOf(e) < 0) {
+            global._terrainBackendLayersByLevel.L0.push(e);
+          }
+        }
+
         registerOrUpdateTerrainBackendSidebarLayer(mode);
 
         // 地形模式下启动动态四叉树请求调度。
@@ -3612,6 +3680,65 @@
     if (runBtn) runBtn.disabled = false;
     setStatus("已终止分析并清理本次结果缓存");
     showToast("已终止分析并清理本次结果缓存");
+  };
+
+  /*
+   * 对外桥接接口（Agent 面板专用）
+   *
+   * 本文件内部一直有把后端产物加载到 Cesium 的完整管道
+   * （GeoJSON→GroundPrimitive 分批 / CZML·KML→DataSource / 注册侧栏图层 / 悬浮数值提示），
+   * 但整包是封闭 IIFE，外部拿不到。以前 Agent 因此只能自己另外写一套加载，
+   * 结果是两套渲染行为、两套图层管理 —— 违背 AGENTS.md「后端结果 URL 优先」的约定。
+   *
+   * 这里**只导出**，不改动任何内部逻辑。Agent 面板复用同一条管道，
+   * 图层进同一个 sidebarManager，视觉与交互与「坡度坡向分析」完全一致。
+   */
+  global.TerrainBackendBridge = {
+    /** 把 /artifacts 或 /outputs 下的矢量产物加载到 Cesium 并注册进侧栏图层树 */
+    loadArtifactToCesium: function (viewer, absoluteUrl, format, layerStore, visible, options) {
+      return loadArtifactToCesium(
+        viewer || global.viewer,
+        absoluteUrl,
+        format,
+        layerStore || [],
+        visible !== false,
+        options || null
+      );
+    },
+
+    /** 当前视野范围，转成后端要的 [minLon, minLat, maxLon, maxLat] */
+    getViewBBox: function (viewer) {
+      var b = getViewBBox(viewer || global.viewer);
+      if (!b) return null;
+      return [b.west, b.south, b.east, b.north];
+    },
+
+    /** 相对路径转绝对 URL */
+    normalizeUrl: function (baseUrl, relative) {
+      return normalizeUrl(baseUrl, relative);
+    },
+
+    /** 开启/关闭鼠标悬浮数值提示 */
+    setNumericTipEnabled: function (enabled, viewer) {
+      return setTerrainBackendNumericTipEnabled(enabled, viewer || global.viewer);
+    },
+
+    /** 飞行到指定 bbox（Agent 结果"定位"按钮用） */
+    flyToBBox: function (viewer, bbox, height) {
+      var v = viewer || global.viewer;
+      if (!v || !bbox || bbox.length < 4) return false;
+      try {
+        // 只给 destination（Rectangle），让 Cesium 自己算出合适的相机高度与俯仰。
+        // 同时塞 orientation 会让它贴地飞行，视野歪斜，反而看不清结果范围。
+        v.camera.flyTo({
+          destination: Cesium.Rectangle.fromDegrees(bbox[0], bbox[1], bbox[2], bbox[3]),
+        });
+        return true;
+      } catch (error) {
+        console.warn("[TerrainBackendBridge] flyToBBox 失败:", error);
+        return false;
+      }
+    },
   };
 
   function bindStartButtonOnly() {

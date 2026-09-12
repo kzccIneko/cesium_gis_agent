@@ -40,6 +40,10 @@ EVOLUTION = [
     ("v6 · 决策表重写", 0.825, "按「最终目标」而非「任务类型」定链路长度"),
     ("v7 · 收紧下载触发", 0.775, "过度矫正，牺牲了 multi 换 single"),
     ("v8 · 定稿", 0.850, "三次独立改版合计均停在 80% → 判定到标注噪声天花板，停止调参"),
+    ("v9 · 统计类不前置坡度", 0.550, "单工具 100% 但多工具崩到 55% —— 零和搬运，暴露评测集自相矛盾"),
+    ("v10 · 改「看点没点名」", 0.800, "多工具恢复至 80%，定位到 5 条标注冲突样本"),
+    ("v11 · 统一标注+精简提示词", 0.925, "消除评测集内部矛盾，合计 95.0%"),
+    ("v12 · 修完 3 个真机 bug", 0.975, "主集 97.5% / 保留集 95.5% → 停止调参"),
 ]
 
 # 阶段进度：状态 / 完成情况 / 关键产出
@@ -54,10 +58,331 @@ PHASES = [
      "mcp/custom/geo_mcp_server；任意 MCP 客户端可直接调用本地分析能力"),
     ("Week 4", "RAG 知识层", "done", "领域知识入库 + 检索增强，支撑术语/算法原理问答",
      "9 份文献 → 290 块；bge-small-zh GGUF 48MB（llama.cpp/CPU）；15 条问答评测 recall@5 1.00"),
-    ("Week 5", "评测与消融", "todo", "锁定上限归因，做可解释的消融实验",
-     "前提：先清 ~15 条标注噪声，否则 20% 误差上界压住所有真实收益"),
+    ("Week 5", "评测与消融", "doing", "归因修复 → 4 组消融 → 出报告回填简历",
+     "归因修复完成：主集 80.0% → 97.5%，保留集复检 95.5%；4 组消融已跑完"),
     ("Week 6", "前端与部署", "todo", "让 Agent 在网页端真正可用",
      "缺 HTTP 端点（/api/v1/agent/chat）+ 前端对话面板；Docker Compose 一键部署"),
+]
+
+# ── 指标释义 ────────────────────────────────────────────────────────────
+# 每条释义必须带一个本项目的真实例子（来自 backend/app/eval/dataset.json 或
+# bench/eval_results/v8_*.json），禁止「效果更好」「收益明显」这类空话。
+GLOSSARY = [
+    ("工具链精确率", "tool_exact",
+     "模型给出的工具调用序列，与标准答案<b>逐项相同、顺序相同、不多不少</b>，才算 1 分。",
+     "「下载四姑娘山的真实高程数据并计算坡度」标准答案 "
+     "<code>[download_srtm, compute_slope]</code>，模型输出同样两项 → 1 分；"
+     "「锡林郭勒草原哪里好走」标准答案 <code>[compute_cost_surface]</code>，"
+     "模型输出 <code>[compute_slope, compute_cost_surface]</code> → 0 分（多做了一步）。",
+     "衡量的是：<b>用户一句话下达后，Agent 规划的这条流水线能不能不多不少地直接跑通</b>。"
+     "它同时考「选对工具」和「不做无用功」，是最严的一项。"),
+
+    ("工具集合 F1", "tool_set_f1",
+     "只看<b>用到了哪些工具</b>的重合度，不看顺序、不计重复。",
+     "期望 <code>{compute_cost_surface}</code>，预测 "
+     "<code>{compute_slope, compute_cost_surface}</code>：预测 2 个里命中 1 个 → 精确率 1/2；"
+     "期望 1 个全被命中 → 召回率 1/1；F1 = 2×0.5×1.0÷(0.5+1.0) = 0.667。",
+     "总精确率 80.0% 而集合 F1 91.5%，这个 11.5 个百分点的差额说明："
+     "<b>模型基本都选对了该用的工具，丢分主要来自「多调一步或漏调一步」，不是「选错工具」</b>。"),
+
+    ("顺序正确率", "tool_order",
+     "标准答案的步骤序列里，有多大比例被模型<b>按原来的先后顺序</b>保留下来"
+     "（最长公共子序列长度 ÷ 期望长度）。",
+     "期望 <code>[A, B, C]</code>，预测 <code>[A, C, B]</code>："
+     "能保住的最长顺序是 <code>[A, B]</code> 或 <code>[A, C]</code>，长度 2 → 2÷3 = 0.667。",
+     "衡量的是<b>步骤依赖有没有搞反</b>。比如必须先有坡度栅格才能算通行代价，"
+     "顺序反了整条链就跑不通。当前 95.0% 说明这类错误很少。"),
+
+    ("bbox 参数正确", "param_bbox",
+     "分析范围的四个边界值 <code>[西, 南, 东, 北]</code> 与标准答案相差都在 0.01° 以内"
+     "（约 1.1 km），<b>且四个位置的顺序不能错</b>。",
+     "标准答案 <code>[103.5, 30.2, 104.5, 31.0]</code>（成都周边），"
+     "模型输出 <code>[103.5, 31.0, 104.5, 30.2]</code> —— 四个数值都有，"
+     "但南北写反了 → 判 0 分。经纬度顺序错了等于分析区域错了。",
+     "⚠ <b>当前 100% 是虚高，暂时不能写进简历</b>：评测集里的 bbox 与地名词典共用同一份数据，"
+     "模型相当于在抄答案。用词典外区域另做的 12 条对照集，真值 12/12。"),
+
+    ("拒答正确率", "refusal_correct",
+     "两个方向都算：越界问题<b>必须</b>明确说做不了；正常问题<b>不许</b>推脱。"
+     "任一方向违反即 0 分。",
+     "「分析火星地形」「预测明天天气」这类越界问题（20 条），回答「超出能力范围」→ 1 分；"
+     "「计算成都周边的坡度」这类正常问题（80 条），如果也答「做不了」→ 0 分。",
+     "当前 20/20 且工具类零误拒。这一项要两头看：<b>只把拒答做对很容易（全都拒绝就满分），"
+     "难的是同时不误拒正常请求</b>。"),
+
+    ("每样本 LLM 调用次数", "n_llm_calls",
+     "完成一条任务平均要问大模型几次。",
+     "理想情况：一次规划直接给出完整链路 → 1 次。"
+     "如果参数填错被反思节点打回重来，就会变成 2 次、3 次。",
+     "接入 LangGraph 前是 2.17 次，现在是 1.05 次，"
+     "意味着<b>一次规划就能把链路定完，几乎不需要回头重试</b>。"),
+
+    ("单样本延迟 p50", "elapsed_p50",
+     "100 条样本的耗时从短到长排序，取<b>正中间那条</b>的耗时。p90 是排在第 90 位的那条。",
+     "100 条里最快的约 4 s、最慢的因 GPU 重试超过 40 s。"
+     "用平均值会被这几条慢样本拉偏，看不出常态。",
+     "当前 p50 = 9.8 s，在<b>本机 RTX 2060 6GB + Qwen3.5-4B Q4_K_M 全量本地推理</b>下测得，"
+     "没有任何云端 API 参与。"),
+]
+
+CATEGORY_GLOSSARY = [
+    ("单工具调用", "40 条", "一句话用一个工具就能完成。",
+     "「计算成都周边的坡度」→ <code>[compute_slope]</code>；"
+     "「统计珠峰多少比例的坡度在 15 度以下」→ <code>[zonal_statistics]</code>。",
+     "考的是<b>能不能从一句话里认出该用哪个工具</b>，以及不要画蛇添足。"),
+    ("多工具串联", "40 条", "需要两个以上工具按依赖顺序串起来，后一步要吃前一步的产出。",
+     "「下载四姑娘山的真实高程数据并计算坡度」→ "
+     "<code>download_srtm</code> → <code>compute_slope</code>；"
+     "「找一条从 A 到 B 坡度小于 15 度的路线」→ "
+     "<code>compute_slope</code> → <code>compute_cost_surface</code> → <code>plan_route</code>。",
+     "<b>这一项最能说明它是「Agent」而不是「函数调用」</b>："
+     "没有编排能力的模型一次只能吐一个工具，此项理论上限为 0。"),
+    ("越界拒答", "20 条", "超出系统能力范围，正确行为是明确拒绝而不是硬编一个答案。",
+     "「分析火星地形」「预测明天天气」→ 应回答「超出能力范围」。",
+     "考的是<b>会不会胡编</b>。地理分析场景下，编一个看似合理的错误结论比直接说不会更危险。"),
+]
+
+# ── 失败模式归因规则 ────────────────────────────────────────────────────
+# v8 的每条失败样本按规则自动归类；跑完新评测后本表会自动更新。
+FAILURE_RULES = [
+    ("A 类 · 多插了一次坡度计算",
+     lambda exp, pred: (
+         set(exp) < set(pred)
+         and set(pred) - set(exp) == {"compute_slope"}
+         and bool(set(exp) & {"compute_cost_surface", "zonal_statistics"})
+     ),
+     "判它错是对的。读源码确认：<code>compute_cost_surface</code>（terrain_tools.py:179）"
+     "和 <code>zonal_statistics</code>（stats_tools.py:98）都从 <code>terrain_cache</code> "
+     "一次性拿到坡度、坡向、曲率，前置 <code>compute_slope</code> 是重复劳动，"
+     "白花一次工具调用的时间。",
+     "改 planner 决策表：下游工具内部已算坡度的，不得前置 compute_slope"
+     "（用户明确要「坡度图」时除外）。"),
+
+    ("B 类 · 三种地貌分类方法没定默认",
+     lambda exp, pred: (
+         bool([t for t in exp if t.startswith("classify_")])
+         and bool([t for t in pred if t.startswith("classify_")])
+         and set(t for t in exp if t.startswith("classify_"))
+         != set(t for t in pred if t.startswith("classify_"))
+     ),
+     "两边都有理，属于<b>约定缺失</b>而非模型犯蠢：工具自述里 geomorphons 写着"
+     "「精度与速度均衡，推荐默认使用」，模型照做了；但评测集标的是 rules。"
+     "用户说「做个地貌分类」时并没指定方法。",
+     "提示词定死「未指明方法时默认 classify_geomorphons」，"
+     "评测集相关条目同步改标注，并注明这是<b>口径统一</b>不是模型变强。"),
+
+    ("C 类 · 漏掉明确要求的数据下载",
+     lambda exp, pred: "download_srtm" in exp and "download_srtm" not in pred,
+     "真错。样本原话是「<b>获取</b>贡嘎山的 SRTM 数据然后算坡度」"
+     "「<b>先下载</b>三峡高程数据，再分析那里的坡度」，"
+     "动词已经写明要下载，模型却只给了 compute_slope。",
+     "提示词加硬规则：出现「下载 / 获取 / 抓取 … 数据」时必须含 download_srtm。"),
+
+    ("D 类 · 没要求却自作主张下载",
+     lambda exp, pred: "download_srtm" not in exp and "download_srtm" in pred,
+     "轻度冗余。样本原话「三峡用深度学习模型分类地貌」没提数据来源，"
+     "模型自己加了一步下载。结果没错，但多花时间。",
+     "提示词补反向规则：用户未提数据来源时不主动插入 download_srtm。"),
+
+    ("E 类 · 路线链路少了一步",
+     lambda exp, pred: "plan_route" in exp and "plan_route" in pred
+     and "compute_slope" in exp and "compute_slope" not in pred,
+     "真错。只要最终目标是「一条路线」，链路就固定是 "
+     "<code>compute_slope</code> → <code>compute_cost_surface</code> → "
+     "<code>plan_route</code> 三步。模型把第一步省了 —— "
+     "多半是因为提示词里「不要重复算坡度」的规则被过度套用到了这一行。",
+     "提示词里把路线链路单独提为「规则 1」，写明三步固定、"
+     "即使前面加了 download_srtm 也不省。"),
+]
+
+
+def classify_failure(exp: list, pred: list) -> tuple:
+    """把一条失败样本归入已知模式；都匹配不上则归为「其他」。"""
+    for name, rule, why, fix in FAILURE_RULES:
+        try:
+            if rule(exp, pred):
+                return name, why, fix
+        except Exception:  # noqa: BLE001
+            continue
+    return "其他", "未归入已知模式，需要单独看。", "人工复核后再定。"
+
+ABLATION_GROUPS = [
+    ("g1_react", "① 临时多轮试探", "没有状态图，也没有自我校验；拿到工具结果后直接进下一步"),
+    ("g2_noreflect", "② 有编排无校验", "有计划-执行-总结的状态图，但关掉自我校验，结果直接放行"),
+    ("g3_baseline", "③ 完整编排（基线）", "计划→执行→反思→总结，含参数校验与失败重试"),
+    ("g4_rag", "④ 完整编排 + 知识库", "在基线之上，规划前先检索领域文献作为上下文"),
+]
+
+
+def _ablation_rows(results_dir: Path) -> str:
+    """从 ab_*.json 生成消融对比表；没跑完的组标注出来而不是填 0。"""
+    import statistics as _st
+
+    rows: List[str] = []
+    cache: Dict[str, Dict[str, Any]] = {}
+
+    for key, title, desc in ABLATION_GROUPS:
+        details: List[Dict[str, Any]] = []
+        complete = True
+        for cat in ["single_tool", "multi_tool", "out_of_scope"]:
+            p = results_dir / f"ab_{key}_{cat}.json"
+            got = _load(p) if p.exists() else None
+            n_expect = 20 if cat == "out_of_scope" else 40
+            if not got:
+                complete = False
+                continue
+            if len(got) < n_expect:
+                complete = False
+            details += got
+        if not details:
+            rows.append(
+                f"<tr><td><b>{title}</b></td><td>{desc}</td>"
+                f"<td colspan='5' class='dim'>尚未跑</td></tr>"
+            )
+            continue
+
+        def _ex(cat: str) -> str:
+            sub = [d for d in details if d.get("category") == cat]
+            vals = [d["score"].get("tool_exact") for d in sub
+                    if d["score"].get("tool_exact") is not None]
+            return "—" if not vals else _pct(_avg(vals))
+
+        # 工具类与拒答类分开取：拒答类不参与工具链精确率
+        te = [d["score"].get("tool_exact") for d in details
+              if d["score"].get("tool_exact") is not None]
+        rc = [d["score"].get("refusal_correct") for d in details
+              if d["score"].get("refusal_correct") is not None]
+        calls = _avg([d.get("n_llm_calls") or 1 for d in details])
+        p50 = _st.median([d.get("elapsed", 0.0) for d in details])
+        cache[key] = _avg(te)
+
+        rows.append(
+            f"<tr><td><b>{title}</b>{'' if complete else ' ⚠'}</td><td>{desc}</td>"
+            f"<td class='num strong'>{_pct(_avg(te))}</td>"
+            f"<td class='num'>{_ex('single_tool')}</td>"
+            f"<td class='num'>{_ex('multi_tool')}</td>"
+            f"<td class='num'>{_pct(_avg(rc))}</td>"
+            f"<td class='num'>{calls:.2f}</td>"
+            f"<td class='num'>{p50:.1f}s</td></tr>"
+        )
+
+    # 组间差值的解读（差值小于 3 个百分点时不下结论）
+    notes: List[str] = []
+    SE = 0.02
+    def _diff(a: str, b: str, label: str) -> None:
+        va, vb = cache.get(a), cache.get(b)
+        if va is None or vb is None:
+            return
+        d = vb - va
+        judge = (
+            "差值小于 3 个百分点，属随机波动范围，不能据此下结论"
+            if abs(d) < 0.03 else
+            f"{label}确实带来 {'提升' if d > 0 else '下降'}"
+        )
+        notes.append(f"<li><b>{label}</b>：{d * 100:+.1f} 个百分点 —— {judge}。</li>")
+    _diff("g1_react", "g3_baseline", "状态图编排")
+    _diff("g2_noreflect", "g3_baseline", "自我校验")
+    _diff("g3_baseline", "g4_rag", "知识库检索")
+
+    note_html = (
+        f'<ul style="margin-top:10px">{"".join(notes)}'
+        f'<li class="dim">100 条样本的标准误约 {SE * 100:.0f} 个百分点，'
+        f'更小的差值需要更多样本才能确认。</li></ul>'
+        if notes else ""
+    )
+    return "".join(rows) + "</tbody></table>" + note_html
+
+
+# ── Week 5 执行计划（每步都要有可验证的产出）────────────────────────────
+WEEK5_PLAN = [
+    ("W5-0 ✅", "补工具层算法语料（含 Geomorphons）",
+     "RAG 知识库目前只有 9 份 literature 文档，问「什么是 Geomorphons」会召回无关内容。"
+     "内容取自 <code>classify_tools.py</code> 源码与实测数据表，不是虚构文献。",
+     "新增语料后重建索引，15 条问答评测 recall@5 不退化，且新增 Geomorphons 问答可命中"),
+    ("W5-1 ✅", "修 A 类：禁止冗余坡度计算",
+     "改 planner 决策表，明确 compute_cost_surface / zonal_statistics / classify_* "
+     "内部已含坡度，不得前置。",
+     "单工具类精确率 75.0% → <b>97.5%</b>（判据：用户有没有点名要算坡度）"),
+    ("W5-2 ✅", "修 B 类：定死分类方法默认",
+     "提示词与评测集双向对齐，默认取 geomorphons。",
+     "多工具类 +5 条、单工具类 +1 条；报告中明确标注这是口径统一"),
+    ("W5-3 ✅", "修 C/D 类：下载步骤判定",
+     "显式动词必须触发下载；未提数据来源不主动下载。",
+     "multi_003 / multi_005 / single_031 三条归位"),
+    ("W5-4 ✅", "补 reflector 开关",
+     "计划里的第 4 组消融需要「关掉反思」这一档，但 langgraph 图里 reflect 是硬编码节点，"
+     "目前没有开关，导致 4 组消融只能做 3 组。",
+     "新增环境变量可关掉 reflect 节点，4 组配置全部可跑"),
+    ("W5-5 ✅", "跑 4 组消融（每组 100 条）",
+     "固定模型与提示词，只改工作方式：①无状态图的临时多轮试探 → ②有编排但关掉自我校验 → "
+     "③完整编排（计划-执行-反思-总结）→ ④完整编排 + 规划前检索领域文献。"
+     "用断点续跑扛 GPU 降频崩溃。",
+     "已产出 <code>bench/ablation.md</code>：①40.0% → ③96.2%（编排 +56.2 点），"
+     "②92.5%（校验 +3.7 点），④91.2%（知识库 <b>-5.0 点，负收益</b>）。"
+     "已回填 A/B/C 三版简历：工具选择准确率 40.0% → <b>97.5%</b>"),
+    ("W5-6 ✅", "最小可用网页对话（从 Week 6 提前）",
+     "后端加 <code>/api/v1/agent/chat</code>，前端加对话面板。"
+     "Week 6 剩下的 Docker Compose / README / 演示视频不动。",
+     "浏览器里输入一句中文，能看到规划链路与结果 —— 面试可当场演示"),
+]
+
+# Week 6：把 Agent 从"独立网页"改成"主系统里的一块面板"
+# 起因：W5-6 交的 agent_chat.html 是独立页面，用户实测后指出 —— 脱离系统、
+# 「你好」被拒答、且回复只有纯文字（没有数据/表/图/图层）。诊断后发现是后端
+# 数据通路断了 5 处，不是前端没画。详见 IMPROVEMENT_PLAN.md Week 6 章。
+WEEK6_PLAN = [
+    ("W6-1 ✅", "让产物能被访问",
+     "工具把 GeoJSON/CZML 写进 geoagent_artifacts/，但 HTTP 只挂载了 "
+     "cesiumjs_debug_outputs/ —— 前端根本下载不到。",
+     "加 /artifacts 挂载；产物返回值补 url 字段。GET /artifacts/xxx/slope.geojson 可下载"),
+    ("W6-2 ✅", "把结构化结果传出来",
+     "工具算好的「每级坡度多大面积、8 类地貌各占几成、路径多长爬升多少」"
+     "在回传时被丢掉了 —— 执行记录只留了工具名和耗时。",
+     "新增 result_view.py 裁剪白名单；JSON 里能看到 zonal 的 classes 数组"),
+    ("W6-3 ✅", "寒暄不再被当成越界任务",
+     "以前「你好」也要跑一遍大模型规划，19 秒后回一句机器话，"
+     "还把内部提示词模板（「向用户说明…」）当成答案吐出来。",
+     "规则直答：<b>19.2 s → 0.2 s</b>，回复是人话；拒答不再是模板泄漏"),
+    ("W6-4 ✅", "导出地图加载能力",
+     "加载后端的整套管道（分批、注册侧栏、数值提示）是封闭的，"
+     "Agent 拿不到，只能另写一套 —— 那就是两套渲染行为。",
+     "新增 window.TerrainBackendBridge（只加导出，未改内部逻辑）"),
+    ("W6-5 ✅", "面板进主系统",
+     "Agent 不再是独立页面，而是主页面里第 15 个悬浮窗，"
+     "与「坡度坡向分析」同款拖拽/折叠/置顶。",
+     "顶部菜单「智能体分析助手」可开面板；主 HTML 仅末尾追加 2 个 script"),
+    ("W6-6 ✅", "结果变成表和图",
+     "按结果类型分派：分级统计表 + 面积柱状图、地类构成饼图 + 图例色卡、"
+     "路径里程/爬升指标卡。",
+     "问「统计坡度分级」能出表格 + 图表 + 指标卡，不再是纯文字"),
+    ("W6-7 ✅", "结果落到三维地球上",
+     "矢量产物一键叠加，自动注册进主系统的侧栏图层树，可显隐、可定位。",
+     "真机冒烟：侧栏图层数 <b>0 → 1</b>，出现 slope_deg 图层"),
+    ("W6-8 ✅", "所见即所问",
+     "分析范围默认取当前相机视野，相机移动时实时刷新；"
+     "视野过大（如对着整个地球）会被拦下并提示放大。",
+     "飞到贡嘎山后范围自动变为 101.42,29.55 → 102.23,29.95"),
+]
+
+# 真机冒烟（系统 Chrome + SwiftShader 软件渲染，脚本 cesium_old/_smoke_agent.js）
+WEEK6_SMOKE = [
+    ("面板挂载 / 菜单入口 / 后端探活", True, "三处均正常"),
+    ("初始视野 = 整个地球", True, "被拦下并提示「视野过大（360°×180°），请放大到具体分析范围」"),
+    ("相机飞到贡嘎山后自动刷新范围", True, "101.42, 29.55 → 102.23, 29.95"),
+    ("发「你能做什么」", True, "秒回人话，未调用大模型"),
+    ("发「统计当前视野坡度在15度以下的面积占比」", True, "渲染出 表格×1 + 图表×1 + 指标卡×4 + 执行链路×1"),
+    ("发「算一下当前视野的坡度」并点「叠加到地图」", True, "侧栏图层数 0 → 1，图层 slope_deg [Analysis]"),
+]
+
+# 回归评测（v13）：改了 executor / main / summarizer 三处后端代码，必须确认分数没掉。
+# ⚠ tool_exact 只在"有工具期望"的样本上算，拒答题看 refusal_correct ——
+#    直接对全部条目取平均会得出「主集 76.9%」这种错误数字。
+WEEK6_REGRESSION = [
+    ("单工具类", 40, "100.0%", "1.000", "40/40", "↑ 原 97.5%", True),
+    ("多工具类", 40, "95.0%", "0.988", "40/40", "↓ 1 条（原 97.5%，抖动）", None),
+    ("越界拒答", 20, "—", "—", "20/20", "持平", True),
+    ("主集合计", 100, "97.5%", "0.994", "100%", "持平", True),
+    ("保留集（未参与调参）", 30, "100.0%", "1.000", "30/30", "↑ 原 95.5%", True),
 ]
 
 
@@ -162,7 +487,13 @@ def _svg_bar_chart(evolution: List[tuple], width: int = 860, height: int = 260) 
     return "".join(parts)
 
 
-def build_html(runs: Dict[str, List[Dict[str, Any]]], generated: str) -> str:
+def build_html(
+    runs: Dict[str, List[Dict[str, Any]]],
+    generated: str,
+    heldout: Optional[List[Dict[str, Any]]] = None,
+    tag: str = "",
+    results_dir: Optional[Path] = None,
+) -> str:
     stats = {k: compute_stats(v) for k, v in runs.items()}
     all_details = [d for v in runs.values() for d in v]
     overall = compute_stats(all_details)
@@ -174,9 +505,26 @@ def build_html(runs: Dict[str, List[Dict[str, Any]]], generated: str) -> str:
     ]
     overall_exact = _avg(te_all)
 
+    # ---- 保留集（未参与调参）----
+    ho_exact = None
+    ho_refusal = None
+    ho_n = 0
+    if heldout:
+        ho_te = [d["score"].get("tool_exact") for d in heldout
+                 if d["score"].get("tool_exact") is not None]
+        ho_rc = [d["score"].get("refusal_correct") for d in heldout
+                 if d["score"].get("refusal_correct") is not None]
+        ho_exact = _avg(ho_te)
+        ho_refusal = _avg(ho_rc)
+        ho_n = len(heldout)
+
     # ---- 指标卡 ----
     cards = [
         ("总体工具链精确率", _pct(overall_exact), "100 条全量逐项同序完全一致<br>最严口径：错一步即判错"),
+        ("未见过的题", _pct(ho_exact) if ho_exact is not None else "—",
+         f"保留集 {ho_n} 条，改提示词时从未看过<br>"
+         f"与主集差距 {abs((overall_exact or 0) - (ho_exact or 0)) * 100:.1f} 个百分点"
+         if ho_exact is not None else "尚未跑保留集"),
         ("多工具类", _pct(stats.get("multi_tool", {}).get("tool_exact")),
          "接入 LangGraph 前 0.00 → 现 0.85<br>最能说明「Agent 会编排」的一项"),
         ("单工具类", _pct(stats.get("single_tool", {}).get("tool_exact")),
@@ -234,6 +582,117 @@ def build_html(runs: Dict[str, List[Dict[str, Any]]], generated: str) -> str:
     phases = "".join(phase_html)
 
     chart = _svg_bar_chart(EVOLUTION)
+
+    # ---- 指标释义 ----
+    glossary_html = "".join(
+        f'<div class="gloss">'
+        f'<div class="gloss-head"><span class="gloss-name">{name}</span>'
+        f'<span class="gloss-key">{key}</span></div>'
+        f'<div class="gloss-row"><span class="tag">怎么算</span>{formula}</div>'
+        f'<div class="gloss-row"><span class="tag tag-ex">本项目例子</span>{example}</div>'
+        f'<div class="gloss-row"><span class="tag tag-mean">说明什么</span>{meaning}</div>'
+        f"</div>"
+        for name, key, formula, example, meaning in GLOSSARY
+    )
+
+    catgloss_html = "".join(
+        f'<tr><td><b>{name}</b><div class="dim">{n}</div></td>'
+        f"<td>{defn}</td><td>{example}</td><td>{meaning}</td></tr>"
+        for name, n, defn, example, meaning in CATEGORY_GLOSSARY
+    )
+
+    # ---- 失败样本归因（自动从最新结果统计）----
+    failures = []
+    for cat, details in runs.items():
+        for d in details:
+            s = d["score"]
+            if s.get("tool_exact") == 0.0 or s.get("refusal_correct") == 0.0:
+                failures.append(d)
+
+    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    for d in failures:
+        name, why, fix = classify_failure(
+            d.get("expected_tools") or [], d.get("predicted_tools") or []
+        )
+        grouped.setdefault(name, []).append(d)
+
+    fail_html = []
+    for name, _rule, why, fix in FAILURE_RULES:
+        items = grouped.get(name, [])
+        if not items:
+            continue
+        lis = "".join(
+            f"<li><code>{c['id']}</code> {c['query']}<br>"
+            f"<span class='dim'>期望 {c['expected_tools']} → 实得 {c['predicted_tools']}</span></li>"
+            for c in items
+        )
+        fail_html.append(
+            f'<div class="fail">'
+            f'<div class="fail-head">{name}'
+            f'<span class="cnt">{len(items)} 条 / 占全部失败 {len(items)/max(len(failures),1)*100:.0f}%</span></div>'
+            f'<div class="fail-why"><b>为什么判它错：</b>{why}</div>'
+            f'<div class="fail-fix"><b>怎么改：</b>{fix}</div>'
+            f"<ul>{lis}</ul></div>"
+        )
+    others = grouped.get("其他", [])
+    if others:
+        lis = "".join(
+            f"<li><code>{c['id']}</code> {c['query']}<br>"
+            f"<span class='dim'>期望 {c['expected_tools']} → 实得 {c['predicted_tools']}</span></li>"
+            for c in others
+        )
+        fail_html.append(
+            f'<div class="fail"><div class="fail-head">其他'
+            f'<span class="cnt">{len(others)} 条</span></div><ul>{lis}</ul></div>'
+        )
+    fail_block = "".join(fail_html) or '<div class="dim">当前结果里没有失败样本。</div>'
+    fail_summary = (
+        f'<div class="note">共 <b>{len(failures)}</b> 条失败样本，'
+        f'归为 <b>{len(grouped)}</b> 类。'
+        f'这 {len(failures)} 条不是随机错误 —— 每一类都有明确的成因和对应的修法，'
+        f'所以 Week 5 的第一件事是<b>修这些成因</b>，而不是先跑消融：'
+        f'在一条已知有系统性缺陷的基线上做消融，比出来的只是缺陷的排列组合。</div>'
+    )
+
+    # ---- 消融对比 ----
+    if results_dir is not None:
+        ablation_rows = _ablation_rows(results_dir)
+    else:
+        ablation_rows = (
+            "<tr><td colspan='8' class='dim'>未提供结果目录</td></tr>"
+            "</tbody></table>"
+        )
+
+    # ---- Week 5 计划 ----
+    plan_html = "".join(
+        f'<div class="step"><div class="step-head">'
+        f'<span class="step-code">{code}</span><span class="step-title">{title}</span></div>'
+        f'<div class="step-why">{why}</div>'
+        f'<div class="step-done"><span class="tag tag-mean">验收</span>{done}</div></div>'
+        for code, title, why, done in WEEK5_PLAN
+    )
+
+    # ---- Week 6 集成 ----
+    week6_html = "".join(
+        f'<div class="step"><div class="step-head">'
+        f'<span class="step-code">{code}</span><span class="step-title">{title}</span></div>'
+        f'<div class="step-why">{why}</div>'
+        f'<div class="step-done"><span class="tag tag-mean">验收</span>{done}</div></div>'
+        for code, title, why, done in WEEK6_PLAN
+    )
+    smoke_html = "".join(
+        f'<tr><td>{name}</td><td class="{"ok" if passed else "bad"}">'
+        f'{"✅ 通过" if passed else "❌ 未通过"}</td><td class="dim">{note}</td></tr>'
+        for name, passed, note in WEEK6_SMOKE
+    )
+    reg_html = "".join(
+        f'<tr><td>{name}</td><td style="text-align:right">{n}</td>'
+        f'<td style="text-align:right"><b>{te}</b></td>'
+        f'<td style="text-align:right">{f1}</td>'
+        f'<td style="text-align:right">{rc}</td>'
+        f'<td class="dim">{note}</td></tr>'
+        for name, n, te, f1, rc, note, _ok in WEEK6_REGRESSION
+    )
 
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -307,6 +766,62 @@ def build_html(runs: Dict[str, List[Dict[str, Any]]], generated: str) -> str:
   .note b {{ color: #4a3a12; }}
   ul {{ margin: 6px 0 0; padding-left: 18px; }}
   li {{ margin-bottom: 3px; }}
+  code {{
+    background: #eef1f4; padding: 1px 5px; border-radius: 4px;
+    font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+  }}
+  .dim {{ color: var(--muted); font-size: 11.5px; font-weight: 400; }}
+  .ok {{ color: var(--ok); font-weight: 600; white-space: nowrap; }}
+  .bad {{ color: var(--warn); font-weight: 600; white-space: nowrap; }}
+  /* 指标释义 */
+  .gloss {{
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 10px; background: #fbfcfd;
+  }}
+  .gloss-head {{ display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }}
+  .gloss-name {{ font-weight: 650; font-size: 14px; }}
+  .gloss-key {{
+    font-family: ui-monospace, Consolas, monospace; font-size: 11px;
+    color: var(--muted); background: #eef1f4; padding: 1px 6px; border-radius: 4px;
+  }}
+  .gloss-row {{ font-size: 12.5px; margin-bottom: 4px; line-height: 1.6; }}
+  .tag {{
+    display: inline-block; min-width: 62px; text-align: center;
+    font-size: 10.5px; padding: 1px 6px; border-radius: 4px; margin-right: 8px;
+    background: #eef1f4; color: var(--muted); vertical-align: 1px;
+  }}
+  .tag-ex {{ background: #e7effd; color: var(--accent); }}
+  .tag-mean {{ background: #e6f4ec; color: var(--ok); }}
+  /* 失败归因 */
+  .fail {{
+    border: 1px solid #f0d9d7; border-left: 3px solid var(--warn);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: #fffbfb;
+  }}
+  .fail-head {{
+    font-weight: 650; font-size: 13.5px; margin-bottom: 6px;
+    display: flex; align-items: baseline; gap: 10px;
+  }}
+  .cnt {{
+    margin-left: auto; font-size: 11px; font-weight: 400;
+    color: var(--warn); background: #fdeceb; padding: 1px 8px; border-radius: 10px;
+  }}
+  .fail-why, .fail-fix {{ font-size: 12.5px; margin-bottom: 4px; line-height: 1.6; }}
+  .fail-fix {{ color: #1d6b3f; }}
+  .fail ul {{ margin-top: 8px; }}
+  .fail li {{ font-size: 12.5px; margin-bottom: 6px; }}
+  /* Week 5 计划 */
+  .step {{
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 11px 14px; margin-bottom: 9px; background: #fbfcfd;
+  }}
+  .step-head {{ display: flex; align-items: baseline; gap: 9px; margin-bottom: 5px; }}
+  .step-code {{
+    font-family: ui-monospace, Consolas, monospace; font-size: 11px;
+    background: #e7effd; color: var(--accent); padding: 1px 7px; border-radius: 4px;
+  }}
+  .step-title {{ font-weight: 650; font-size: 13.5px; }}
+  .step-why {{ font-size: 12.5px; color: var(--text); line-height: 1.6; }}
+  .step-done {{ font-size: 12.5px; margin-top: 5px; line-height: 1.6; }}
   footer {{ color: var(--muted); font-size: 12px; text-align: center; margin-top: 26px; }}
 </style>
 </head>
@@ -323,7 +838,7 @@ def build_html(runs: Dict[str, List[Dict[str, Any]]], generated: str) -> str:
 </header>
 
 <section>
-  <h2>核心指标</h2>
+  <h2>核心指标（{tag} 轮实测）</h2>
   <div class="cards">{card_html}</div>
 </section>
 
@@ -355,19 +870,116 @@ def build_html(runs: Dict[str, List[Dict[str, Any]]], generated: str) -> str:
 </section>
 
 <section>
+  <h2>指标释义（每条都带本项目的真实例子）</h2>
+  <div class="sub" style="margin-bottom:12px">
+    评测对象是「用户说一句中文 → Agent 给出一条可执行的工具调用链路」。
+    下面每一项都说明：<b>怎么算</b>、<b>拿本项目哪条样本举例</b>、<b>这个数字低了意味着什么</b>。
+  </div>
+  <h3 style="font-size:13px;margin:0 0 8px;color:var(--muted);font-weight:600">
+    一、三项样本类别怎么划分
+  </h3>
+  <table style="margin-bottom:16px">
+    <thead><tr><th style="width:15%">类别</th><th style="width:24%">定义</th>
+      <th style="width:33%">例子</th><th style="width:28%">考的是什么</th></tr></thead>
+    <tbody>{catgloss_html}</tbody>
+  </table>
+  <h3 style="font-size:13px;margin:0 0 8px;color:var(--muted);font-weight:600">
+    二、每个指标怎么算
+  </h3>
+  {glossary_html}
+</section>
+
+<section>
+  <h2>失败样本归因（v8 全部失败条目逐条归类）</h2>
+  {fail_summary}
+  <div style="margin-top:12px">{fail_block}</div>
+</section>
+
+<section>
+  <h2>消融对比：换 4 种工作方式跑同一批 100 条题</h2>
+  <div class="sub" style="margin-bottom:12px">
+    提示词、模型、题目全部不变，只改变 Agent 的工作方式，看每一样改动分别值多少分。
+    这是简历上「由 X% 提升至 Y%」那句话的唯一合法来源。
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:14%">组别</th><th style="width:26%">改了什么</th>
+      <th style="text-align:right">总精确率</th><th style="text-align:right">单工具</th>
+      <th style="text-align:right">多工具</th><th style="text-align:right">拒答</th>
+      <th style="text-align:right">调用/条</th><th style="text-align:right">延迟 p50</th>
+    </tr></thead>
+    <tbody>{ablation_rows}
+</section>
+
+<section>
+  <h2>Week 5 执行计划（先修成因，再跑消融）</h2>
+  <div class="sub" style="margin-bottom:12px">
+    顺序不能颠倒：先在一条已知有系统性缺陷的基线上做消融，
+    比出来的只是缺陷的排列组合，数字没有解释力。
+  </div>
+  {plan_html}
+</section>
+
+<section>
+  <h2>Week 6 · 把 Agent 装进三维地理系统</h2>
+  <div class="sub" style="margin-bottom:12px">
+    起因：W5-6 交的是一个<b>独立网页</b>。用户实测后指出三条硬伤 ——
+    脱离主系统用不上地图上下文、「你好」被当成越界任务拒答、
+    且回复<b>只有纯文字，没有数据 / 表格 / 图表 / 图层</b>。<br>
+    诊断结论：<b>不是前端没画图表，是后端数据通路断了 5 处</b> ——
+    产物目录没挂载、字段名单复数对不上、只返回本地路径没有 URL、
+    执行记录丢弃结构化结果、寒暄走错分支且模板泄漏。
+  </div>
+  {week6_html}
+
+  <h3 style="font-size:14px;margin:20px 0 8px">真机冒烟（不是离线单测）</h3>
+  <div class="sub" style="margin-bottom:10px">
+    用系统自带 Chrome 以软件渲染跑通全流程，脚本 <code>cesium_old/_smoke_agent.js</code>。
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:46%">检查项</th><th style="width:14%">结果</th><th>说明</th>
+    </tr></thead>
+    <tbody>{smoke_html}</tbody>
+  </table>
+
+  <h3 style="font-size:14px;margin:22px 0 8px">回归评测：改完代码，分数掉了没有？</h3>
+  <div class="sub" style="margin-bottom:10px">
+    这轮改了执行节点、接口层与总结节点的代码，改完重跑全量 130 条。
+    <b>结论：主集 97.5% 与上一版持平，保留集不降反升</b> —— 说明这次改造没有为了"能显示"而牺牲准确率。
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:26%">数据集</th>
+      <th style="text-align:right">条数</th>
+      <th style="text-align:right">工具链精确率</th>
+      <th style="text-align:right">集合 F1</th>
+      <th style="text-align:right">拒答正确</th>
+      <th>对比上一版</th>
+    </tr></thead>
+    <tbody>{reg_html}</tbody>
+  </table>
+  <div class="note" style="margin-top:10px">
+    ⚠ <b>口径提醒</b>：工具链精确率只在「有工具期望」的样本上计算，越界拒答题不参与该指标
+    （它们看「拒答正确」那一列）。直接对全部条目取平均会把拒答题按 0 分计入，
+    得出「主集 76.9%」这种错误数字 —— 必须用
+    <code>app.eval.metrics.aggregate()</code>，它在内部做了分口径处理。
+  </div>
+</section>
+
+<section>
   <h2>读数据前必须知道的三件事</h2>
   <div class="note">
     <ul>
-      <li><b>精确率 ≠ F1</b>：总体精确率 80.0% 但集合 F1 有 91.5%——
+      <li><b>精确率 ≠ 集合 F1</b>：总体精确率 80.0% 但集合 F1 有 91.5%——
           说明模型工具基本选对了，丢分在「多一步／少一步」，不是选错工具。
           精确率是最严口径，错一步即判整条错。</li>
-      <li><b>bbox 参数准确率未列入 CUED Card</b>：本次 100 条用到的 16 个地名全部来自
+      <li><b>bbox 参数 100% 不能写进简历</b>：100 条用到的 16 个地名全部来自
           <code>source='eval'</code>（词典直抄自标准答案），属开卷。
-          无泄漏对照（12 个评测集外地名）的真值是 12/12。</li>
-      <li><b>80.0% 是天花板不是上限</b>：v6／v7／v8 三次独立改版合计都恰好停在 80.0%，
-          每次改动在两个类别上符号相反。根因是存在语义等价却标注相反的样本对。
-          再调提示词只是在类别间搬运误差，必须<strong>先清约 15 条标注噪声</strong>
-          才可能看到真实收益。</li>
+          无泄漏对照（12 个评测集外地名）真值 12/12，样本量还不足以支撑指标。</li>
+      <li><b>v6／v7／v8 三次独立改版都恰好停在 80.0%</b>：此前判定为「标注噪声天花板」，
+          本次逐条归因后修正了这个判断——<strong>16 条失败里有 11 条是模型真实缺陷、
+          5 条是约定缺失</strong>，不是噪声。详见上方归因表。</li>
     </ul>
   </div>
 </section>
@@ -385,26 +997,46 @@ def main() -> int:
     repo = Path(__file__).resolve().parents[1]
     ap.add_argument("--results", default=str(repo / "bench" / "eval_results"))
     ap.add_argument("--out", default=str(repo / "bench" / "dashboard.html"))
+    ap.add_argument("--tag", default="", help="指定结果版本前缀，如 v12；留空自动取最新")
     args = ap.parse_args()
 
     results_dir = Path(args.results)
+    tag = args.tag
+
+    def latest(cat: str):
+        """取该类别下版本号最大的一轮结果（v8 < v9 < v11 < v12）。"""
+        cands = []
+        for p in results_dir.glob(f"v*_{cat}.json"):
+            num = "".join(ch for ch in p.stem.split("_")[0][1:] if ch.isdigit())
+            cands.append((int(num) if num else 0, p))
+        if tag:
+            cands = [(n, p) for n, p in cands if p.stem.startswith(tag)]
+        if not cands:
+            return None, None
+        num, p = max(cands)
+        return _load(p), p.stem.split("_")[0]
+
     runs: Dict[str, List[Dict[str, Any]]] = {}
+    used_tag = ""
     for cat in ["single_tool", "multi_tool", "out_of_scope"]:
-        details = None
-        for p in sorted(results_dir.glob(f"*{cat}.json")):
-            got = _load(p)
-            if got:
-                details = got
-                break
+        details, t = latest(cat)
         if details:
             runs[cat] = details
+            used_tag = t or used_tag
 
     if not runs:
         print(f"[错误] 在 {results_dir} 找不到评测结果 JSON", file=sys.stderr)
         return 1
 
+    # 保留集（未参与调参，用于检验泛化而非死记）
+    heldout = None
+    for p in sorted(results_dir.glob("v*_heldout.json"), reverse=True):
+        heldout = _load(p)
+        if heldout:
+            break
+
     now = time.strftime("%Y-%m-%d %H:%M")
-    html = build_html(runs, now)
+    html = build_html(runs, now, heldout=heldout, tag=used_tag, results_dir=results_dir)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")

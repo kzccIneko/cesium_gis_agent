@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoAgent · 地理分析对话</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --line: #e3e6ea;
+    --text: #1f242c; --muted: #6b747f;
+    --accent: #2f6feb; --ok: #2e9e5b; --warn: #d9534f;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Microsoft YaHei", "PingFang SC", sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header {
+    flex: none; display: flex; align-items: center; gap: 10px;
+    padding: 12px 18px; background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  h1 { margin: 0; font-size: 15px; font-weight: 650; }
+  #state {
+    margin-left: auto; font-size: 12px; color: var(--muted);
+    display: flex; align-items: center; gap: 6px;
+  }
+  #dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  #dot.ready { background: var(--ok); }
+  #dot.busy  { background: var(--accent); }
+  #dot.error { background: var(--warn); }
+
+  #log {
+    flex: 1; overflow-y: auto; padding: 18px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .msg { max-width: 860px; width: 100%; margin: 0 auto; }
+  .who { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .bubble {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 11px 14px;
+  }
+  .msg.me { align-self: flex-end; }
+  .msg.me .bubble { background: #eaf1fd; border-color: #c9dcfa; }
+  .msg.me .who { text-align: right; }
+
+  .steps { margin: 10px 0 4px; padding: 0; list-style: none; }
+  .steps li {
+    display: flex; align-items: baseline; gap: 8px;
+    font-size: 12.5px; padding: 4px 0; border-top: 1px dashed var(--line);
+  }
+  .steps li:first-child { border-top: none; }
+  code {
+    background: #eef1f4; padding: 1px 5px; border-radius: 4px;
+    font: 12px ui-monospace, Consolas, monospace;
+  }
+  .ms { margin-left: auto; color: var(--muted); font-size: 11px; }
+  .flag { font-size: 11px; padding: 0 6px; border-radius: 9px; }
+  .flag.ok { background: #e6f4ec; color: var(--ok); }
+  .flag.no { background: #fdeceb; color: var(--warn); }
+  .meta { margin-top: 8px; font-size: 11px; color: var(--muted); }
+
+  form {
+    flex: none; display: flex; gap: 10px; padding: 12px 18px;
+    background: var(--panel); border-top: 1px solid var(--line);
+  }
+  #q {
+    flex: 1; padding: 9px 12px; font: inherit;
+    border: 1px solid var(--line); border-radius: 7px; resize: none;
+  }
+  #q:focus { outline: none; border-color: var(--accent); }
+  #send {
+    flex: none; padding: 0 18px; font: inherit; font-weight: 600; color: #fff;
+    background: var(--accent); border: none; border-radius: 7px; cursor: pointer;
+  }
+  #send:disabled { background: #b9c4d4; cursor: not-allowed; }
+  .hint { padding: 0 18px 10px; font-size: 11.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GeoAgent · 地理分析对话</h1>
+  <div id="state"><span id="dot"></span><span id="stateText">正在连接…</span></div>
+</header>
+
+<div id="log"></div>
+
+<form id="form">
+  <textarea id="q" rows="2" placeholder="用一句话说出你想分析什么，例如：统计珠峰多少比例的坡度在 15 度以下"></textarea>
+  <button id="send" type="submit">发送</button>
+</form>
+<div class="hint">本地运行：模型与数据全部在本机，不经过任何云端接口。</div>
+
+<script>
+const API = "http://127.0.0.1:8000";
+const log = document.getElementById("log");
+const form = document.getElementById("form");
+const input = document.getElementById("q");
+const sendBtn = document.getElementById("send");
+const dot = document.getElementById("dot");
+const stateText = document.getElementById("stateText");
+
+function setState(cls, text) {
+  dot.className = cls || "";
+  stateText.textContent = text;
+}
+
+function addMsg(who, cls) {
+  const wrap = document.createElement("div");
+  wrap.className = "msg" + (cls ? " " + cls : "");
+  const w = document.createElement("div");
+  w.className = "who";
+  w.textContent = who;
+  const b = document.createElement("div");
+  b.className = "bubble";
+  wrap.appendChild(w);
+  wrap.appendChild(b);
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+  return b;
+}
+
+function renderAnswer(bubble, data) {
+  // 理解
+  if (data.understanding) {
+    const p = document.createElement("div");
+    p.style.color = "#6b747f";
+    p.style.fontSize = "12.5px";
+    p.textContent = "理解：" + data.understanding;
+    bubble.appendChild(p);
+  }
+  // 执行链路
+  if (data.steps && data.steps.length) {
+    const ul = document.createElement("ul");
+    ul.className = "steps";
+    for (const s of data.steps) {
+      const li = document.createElement("li");
+      const code = document.createElement("code");
+      code.textContent = s.tool;
+      li.appendChild(code);
+      if (s.intent) {
+        const span = document.createElement("span");
+        span.textContent = s.intent;
+        li.appendChild(span);
+      }
+      const flag = document.createElement("span");
+      flag.className = "flag " + (s.success ? "ok" : "no");
+      flag.textContent = s.success ? "成功" : "失败";
+      li.appendChild(flag);
+      if (s.duration_ms) {
+        const ms = document.createElement("span");
+        ms.className = "ms";
+        ms.textContent = Math.round(s.duration_ms) + " ms";
+        li.appendChild(ms);
+      }
+      ul.appendChild(li);
+    }
+    bubble.appendChild(ul);
+  }
+  // 回答
+  const ans = document.createElement("div");
+  ans.textContent = data.answer || (data.error ? "出错了：" + data.error : "（没有返回内容）");
+  if (data.error) ans.style.color = "#d9534f";
+  bubble.appendChild(ans);
+  // 元信息
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = "耗时 " + Math.round(data.elapsed_ms) + " ms"
+    + (data.bbox ? "　范围 " + data.bbox.map(v => v.toFixed(2)).join(", ") : "");
+  bubble.appendChild(meta);
+}
+
+async function ask(query) {
+  const mine = addMsg("你", "me");
+  mine.textContent = query;
+  const bubble = addMsg("GeoAgent");
+  bubble.textContent = "正在规划并执行…";
+  setState("busy", "分析中");
+  sendBtn.disabled = true;
+
+  try {
+    const resp = await fetch(API + "/api/v1/agent/chat", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({query: query, session_id: "web"}),
+    });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const data = await resp.json();
+    bubble.innerHTML = "";
+    renderAnswer(bubble, data);
+    setState("ready", "就绪");
+  } catch (err) {
+    bubble.innerHTML = "";
+    const p = document.createElement("div");
+    p.style.color = "#d9534f";
+    p.textContent = "请求失败：" + err.message
+      + "（后端是否已启动？命令行运行 uvicorn app.main:app --port 8000）";
+    bubble.appendChild(p);
+    setState("error", "连接失败");
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+    log.scrollTop = log.scrollHeight;
+  }
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = "";
+  ask(q);
+});
+
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    form.requestSubmit();
+  }
+});
+
+// 启动探活：模型首次加载约 10 秒，提前告知而不是让用户干等
+(async () => {
+  try {
+    const r = await fetch(API + "/api/v1/agent/health");
+    const h = await r.json();
+    if (h.ready) setState("ready", "就绪 · " + h.backend);
+    else setState("error", "模型未就绪：" + (h.error || ""));
+  } catch (err) {
+    setState("error", "后端未启动");
+  }
+})();
+</script>
+</body>
+</html>

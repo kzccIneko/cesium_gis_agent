@@ -54,6 +54,8 @@ class ToolCallRecord(TypedDict, total=False):
     duration_ms: float
     summary: str         # 结果的一句话摘要
     attempt: int         # 第几次尝试（1 表示首次）
+    result: Dict[str, Any]  # 为前端裁剪过的结构化结果（见 result_view.build_step_view）
+                            # ⚠ 曾长期缺失，导致工具算好的统计值到不了前端，只能吐文字
 
 
 class AgentState(TypedDict, total=False):
@@ -72,6 +74,7 @@ class AgentState(TypedDict, total=False):
     query: str
     bbox: Optional[List[float]]          # [minLon, minLat, maxLon, maxLat]，WGS84
     session_id: str                       # 会话标识，用于持久化与多轮恢复
+    session_dem_path: Optional[str]       # 本次会话的默认 DEM（前端从 Cesium 地形采样写成的 GeoTIFF）
 
     # ---- 对话 ----
     messages: List[Dict[str, Any]]        # [{role, content}]，覆盖式更新
@@ -83,6 +86,11 @@ class AgentState(TypedDict, total=False):
     # ---- 执行 ----
     tool_calls: List[ToolCallRecord]
     last_result: Optional[Dict[str, Any]]  # 最近一次 ToolResult.to_dict()
+    # 前序步骤的关键产出，按工具名索引，供后续步骤取用。
+    # 为什么需要它：planner 是 LLM，它会**编造** dem_path 之类的文件名
+    # （实测编出过 "SRTM_83_38.5_85_40.npz"），直接传给工具必然失败。
+    # 真实路径只有工具执行完才知道，必须由执行层回填。
+    step_outputs: Dict[str, Dict[str, Any]]
 
     # ---- 反思 ----
     reflection: Optional[Dict[str, Any]]
@@ -93,6 +101,7 @@ class AgentState(TypedDict, total=False):
     final_answer: Optional[str]
     status: str
     trace: List[str]                      # 人类可读的执行轨迹
+    refused: bool                         # planner 判定问题越界、主动拒答
 
     # ---- 规划副产物 ----
     understanding: Optional[str]          # planner 对问题的理解
@@ -104,6 +113,7 @@ def create_initial_state(
     bbox: Optional[List[float]] = None,
     session_id: str = "default",
     max_retries: int = DEFAULT_MAX_RETRIES,
+    session_dem_path: Optional[str] = None,
 ) -> AgentState:
     """构造初始状态。
 
@@ -112,21 +122,27 @@ def create_initial_state(
         bbox: 可选的研究区范围 [minLon, minLat, maxLon, maxLat]
         session_id: 会话 ID，相同 ID 可从持久化存储恢复
         max_retries: 单步最大重试次数
+        session_dem_path: 本次会话的默认 DEM 路径。
+            前端从 Cesium 自带地形（Cesium World Terrain）采样高程后写成的 GeoTIFF；
+            用户没有自带 DEM 时用它，避免落到"合成地形"上算出没有意义的数字。
     """
     return AgentState(
         query=query,
         bbox=list(bbox) if bbox else None,
         session_id=session_id,
+        session_dem_path=session_dem_path,
         messages=[{"role": "user", "content": query}],
         plan=[],
         step_index=0,
         tool_calls=[],
+        step_outputs={},
         last_result=None,
         reflection=None,
         retry_count=0,
         max_retries=max_retries,
         final_answer=None,
         status=STATUS_PLANNING,
+        refused=False,
         trace=[f"收到问题：{query}"],
     )
 

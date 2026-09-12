@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from ..llm import LLMClient
+from ..llm import LLMClient, SUMMARIZER_MAX_TOKENS
 from ..state import (
     AgentState,
     STATUS_DONE,
@@ -48,10 +48,33 @@ SUMMARY_PROMPT = """你是地理空间分析助手。基于以下工具执行结
 """
 
 
+def _refusal_answer(query: str) -> str:
+    """越界问题时给用户的回答 —— 必须是人话，不能是给 LLM 的指令。
+
+    planner 生成的 `final_answer_hint` 是写给总结节点的**指令**（典型样子：
+    「向用户说明问候语不属于地理空间分析能力范围…」）。以前这条指令被原样当成
+    回答吐给用户，看起来就像系统在对用户下命令 —— 直接照搬是不可接受的。
+    """
+    return (
+        f"「{query}」不在我的能力范围内。\n\n"
+        "我只做地球表面的地理空间分析，具体是这几类：\n"
+        "· 地形因子 —— 坡度、坡向、曲率\n"
+        "· 地貌分类 —— 判断某片区域属于山脊、山谷、平原等哪一类\n"
+        "· 通行性与路径 —— 哪里好走、两点之间怎么走最省力\n"
+        "· 分区统计 —— 某个指标各占多少面积、多大比例\n\n"
+        "换个问法就行，比如「算一下贡嘎山的坡度分布」。"
+    )
+
+
 def _template_summary(state: AgentState) -> str:
     """无 LLM 时的模板化回答。"""
     calls: List[Dict[str, Any]] = list(state.get("tool_calls") or [])
     lines: List[str] = []
+
+    # 越界拒答：不用 planner 的 hint 原文（那是给 LLM 的指令，不是给用户的话）。
+    # 没有工具调用不代表分析失败，这两件事不能混为一谈。
+    if state.get("refused"):
+        return _refusal_answer(state.get("query", ""))
 
     if not calls:
         return (
@@ -132,6 +155,7 @@ def summarize_node(state: AgentState, llm: Optional[LLMClient]) -> Dict[str, Any
                     }
                 ],
                 temperature=0.0,
+                max_tokens=SUMMARIZER_MAX_TOKENS,
             )
             if resp.content and resp.content.strip():
                 answer = resp.content.strip()
