@@ -75,6 +75,10 @@ class AgentState(TypedDict, total=False):
     bbox: Optional[List[float]]          # [minLon, minLat, maxLon, maxLat]，WGS84
     session_id: str                       # 会话标识，用于持久化与多轮恢复
     session_dem_path: Optional[str]       # 本次会话的默认 DEM（前端从 Cesium 地形采样写成的 GeoTIFF）
+    view_context: Dict[str, Any]          # 前端上报的当前视图（视野 bbox / 中心 / 面积 / 是否全球）
+    intent: str                           # 规划器判定的意图：analysis | knowledge | action | chat | refuse
+    reply: str                            # 非 analysis 意图下直接给用户看的回答
+    actions: List[Dict[str, Any]]         # 系统动作（如 flyTo 跳转区域），由前端执行
 
     # ---- 对话 ----
     messages: List[Dict[str, Any]]        # [{role, content}]，覆盖式更新
@@ -114,6 +118,7 @@ def create_initial_state(
     session_id: str = "default",
     max_retries: int = DEFAULT_MAX_RETRIES,
     session_dem_path: Optional[str] = None,
+    view_context: Optional[Dict[str, Any]] = None,
 ) -> AgentState:
     """构造初始状态。
 
@@ -125,12 +130,18 @@ def create_initial_state(
         session_dem_path: 本次会话的默认 DEM 路径。
             前端从 Cesium 自带地形（Cesium World Terrain）采样高程后写成的 GeoTIFF；
             用户没有自带 DEM 时用它，避免落到"合成地形"上算出没有意义的数字。
+        view_context: 前端当前视图信息（视野 bbox / 中心点 / 面积 / 是否全球）。
+            用于回答「这里是什么地方」以及支撑「跳转到某地」这类系统操作。
     """
     return AgentState(
         query=query,
         bbox=list(bbox) if bbox else None,
         session_id=session_id,
         session_dem_path=session_dem_path,
+        view_context=dict(view_context) if view_context else {},
+        intent="",
+        reply="",
+        actions=[],
         messages=[{"role": "user", "content": query}],
         plan=[],
         step_index=0,

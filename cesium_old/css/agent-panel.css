@@ -8,63 +8,31 @@
  * 这样面板放进主页面后不会像"外挂的东西"。
  * ============================================================ */
 
-/* ---------- 顶层菜单入口（独立常驻，不在任何分组里） ---------- */
+/* ---------- 顶层菜单入口（独立常驻，只用图标） ----------
+ * 顶部菜单栏本身常驻，所以这里不需要再放一个悬浮按钮（重复）。
+ * 按项目约定：能用图标表示就不用文字。
+ */
 .agent-nav-entry > a {
     display: flex !important;
     align-items: center;
-    gap: 6px;
-}
-/* 状态点：真实反映后端探活结果，不是装饰 —— 绿=模型就绪，橙=后端未启动，灰=未探测 */
-.agent-nav-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #7c8a99;
-    box-shadow: 0 0 6px rgba(124, 138, 153, 0.8);
-    flex: 0 0 auto;
-    transition: background .25s, box-shadow .25s;
-}
-.agent-nav-dot.is-ready {
-    background: #46d17f;
-    box-shadow: 0 0 8px rgba(70, 209, 127, 0.9);
-}
-.agent-nav-dot.is-down {
-    background: #f0a35f;
-    box-shadow: 0 0 8px rgba(240, 163, 95, 0.9);
-}
-
-/* ---------- 常驻悬浮入口按钮 ---------- */
-#agentFloatBtn {
-    position: fixed;
-    right: 20px;
-    bottom: 112px;            /* 让开右下角的比例尺 */
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: 1px solid rgba(141, 190, 224, 0.55);
-    background: rgba(12, 30, 58, 0.92);
-    color: #cfe6f7;
-    display: flex;
-    align-items: center;
     justify-content: center;
-    cursor: pointer;
-    z-index: 900;             /* 低于 functionWin(2000)，高于地图控件 */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
-    transition: transform .16s, box-shadow .16s, background .16s, color .16s;
+    padding: 0 16px !important;
+    height: 100%;
 }
-#agentFloatBtn:hover {
-    background: #195185;
-    color: #fff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 14px rgba(25, 81, 133, 0.7);
+.agent-nav-entry > a svg {
+    display: block;
+    transition: color .16s, transform .16s;
 }
-#agentFloatBtn:focus { outline: none; }
-/* 面板打开时保持高亮，形成"开/关"的明暗区分 */
-#agentFloatBtn.is-active {
-    background: #195185;
-    border-color: #8dbee0;
-    color: #fff;
-    box-shadow: 0 0 0 3px rgba(141, 190, 224, 0.25), 0 4px 14px rgba(25, 81, 133, 0.7);
+.agent-nav-entry > a:hover svg {
+    color: #8dbee0;
+    transform: translateY(-1px);
+}
+/* 面板打开时菜单图标保持高亮 —— 开/关状态一眼可辨 */
+.agent-nav-entry.is-active > a {
+    background: rgba(141, 190, 224, 0.14);
+}
+.agent-nav-entry.is-active > a svg {
+    color: #8dbee0;
 }
 
 #agentAssistantWin {

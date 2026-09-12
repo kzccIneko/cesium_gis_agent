@@ -924,11 +924,26 @@ class DemGridPayload(BaseModel):
     heights: List[List[Optional[float]]]
 
 
+class ViewContextPayload(BaseModel):
+    """前端上报的「用户此刻在看哪」。
+
+    单独于 bbox 传：bbox 是"分析范围"（可能被限制），
+    view_context 是"视图事实"（如实上报，哪怕它大到整个地球）。
+    没有它，模型答不出「这里是什么地方」，也理解不了「跳转到海南省」。
+    """
+
+    bbox: Optional[List[float]] = None
+    center: Optional[List[float]] = None
+    area_km2: Optional[float] = None
+    is_global: bool = False
+
+
 class AgentChatRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=500)
     bbox: Optional[List[float]] = None
     session_id: str = "web"
     dem_grid: Optional[DemGridPayload] = None
+    view_context: Optional[ViewContextPayload] = None
 
 
 class AgentChatStep(BaseModel):
@@ -951,6 +966,10 @@ class AgentChatResponse(BaseModel):
     artifacts: List[Dict[str, Any]] = []
     # 本次分析用的地形来源：cesium（前端采样）/ real_dem（用户自带或下载）/ synthetic（兜底）
     dem_source: str = ""
+    # 规划器判定的意图，便于前端区分"在分析"还是"在聊天/做操作"
+    intent: str = ""
+    # 需要前端执行的系统动作（目前只有 flyTo 跳转视角）
+    actions: List[Dict[str, Any]] = []
     elapsed_ms: float = 0.0
     trace: List[str] = []
     error: str = ""
@@ -1015,6 +1034,7 @@ def agent_chat(req: AgentChatRequest) -> AgentChatResponse:
             llm=llm,
             session_id=req.session_id,
             session_dem_path=session_dem_path,
+            view_context=req.view_context.model_dump() if req.view_context else None,
         )
     except Exception as exc:
         return _fail(f"{type(exc).__name__}：{exc}")
@@ -1076,6 +1096,8 @@ def agent_chat(req: AgentChatRequest) -> AgentChatResponse:
         bbox=state.get("bbox"),
         artifacts=artifacts,
         dem_source=dem_source,
+        intent=str(state.get("intent") or ""),
+        actions=list(state.get("actions") or []),
         elapsed_ms=(perf_counter() - t0) * 1000,
         trace=trace_out,
     )

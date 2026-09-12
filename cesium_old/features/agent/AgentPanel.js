@@ -436,6 +436,40 @@
         });
     }
 
+    /**
+     * 组装给后端的「当前视图」。
+     *
+     * ⚠ 与 `currentViewBBox()` 的区别：那个是**分析范围**（视野过大时返回 null，
+     * 不让后端拿整个地球去算）；这个是**视图事实**，无论多大都如实上报。
+     * 模型要靠它回答「这里是什么地方」「跳转到某地」这类问题。
+     */
+    function buildViewContext() {
+        var bbox = _rawViewBBox();
+        if (!bbox) return null;
+        var spanLon = Math.abs(bbox[2] - bbox[0]);
+        var spanLat = Math.abs(bbox[3] - bbox[1]);
+        return {
+            bbox: bbox,
+            center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2],
+            area_km2: approxAreaKm2(bbox),
+            is_global: (spanLon > 180 && spanLat > 90)
+        };
+    }
+
+    /** 执行后端下发的系统动作（目前只有 flyTo） */
+    function runActions(actions) {
+        if (!actions || !actions.length) return 0;
+        var done = 0;
+        actions.forEach(function (a) {
+            if (!a || !a.type) return;
+            if (a.type === 'flyTo' && a.bbox && a.bbox.length === 4) {
+                locateBBox(a.bbox);
+                done++;
+            }
+        });
+        return done;
+    }
+
     /* ---------------- 请求 ---------------- */
 
     async function send(text) {
@@ -504,7 +538,10 @@
             query: text,
             bbox: bboxForRequest,
             session_id: 'web-panel',
-            dem_grid: demGrid
+            dem_grid: demGrid,
+            // 视图上下文始终上报（与分析范围分开）——
+            // 模型据此回答「这里是什么地方」，也据此理解「跳转到海南省」。
+            view_context: buildViewContext()
         };
 
         try {
@@ -525,6 +562,16 @@
                 addDataSourceTag(wrap, data.dem_source);
                 addSteps(wrap, data.steps || []);
                 addResults(wrap, data.steps || []);
+
+                // 模型下发的系统动作（例如「跳转到海南省」）—— 这是用户明确要求的操作，
+                // 与早前"自作主张移动地图"是两回事。
+                var acted = runActions(data.actions);
+                if (acted) {
+                    var tip = document.createElement('div');
+                    tip.className = 'agentp-source';
+                    tip.textContent = '已执行 ' + acted + ' 个地图操作';
+                    wrap.appendChild(tip);
+                }
                 scrollToBottom();
             }
         } catch (err) {
@@ -583,13 +630,11 @@
                         tip.textContent = '本地模型就绪（' + (d.backend || '') + '）';
                         tip.style.color = '#5fd08a';
                     }
-                    syncNavDot('is-ready');
                 } else {
                     if (tip) {
                         tip.textContent = '模型未加载：' + (d.error || '未知原因');
                         tip.style.color = '#f0b35f';
                     }
-                    syncNavDot('is-down');
                 }
             })
             .catch(function () {
@@ -598,7 +643,6 @@
                     tip.textContent = '后端未启动，请先运行 backend\\run_backend.ps1';
                     tip.style.color = '#f08a8a';
                 }
-                syncNavDot('is-down');
             });
     }
 
@@ -648,7 +692,7 @@
 
         if (global.WindowMgr) global.WindowMgr.register(WIN_ID, win);
         refreshCtxLabel();
-        syncFloatBtn();
+        syncNavActive();
         watchCamera();
         if (global.AgentResultView && state.chatEl) {
             global.AgentResultView.resizeCharts(state.chatEl);
@@ -704,19 +748,11 @@
         return getComputedStyle(state.win).display !== 'none';
     }
 
-    /** 面板开关状态 → 悬浮按钮的明暗（真实状态，不是装饰） */
-    function syncFloatBtn() {
-        var btn = document.getElementById('agentFloatBtn');
-        if (!btn || !state.win) return;
-        btn.classList.toggle('is-active', isWinOpen());
-    }
-
-    /** 探活结果 → 顶部菜单那个状态点 */
-    function syncNavDot(cls) {
-        var dot = document.querySelector('#agentChat .agent-nav-dot');
-        if (!dot) return;
-        dot.classList.remove('is-ready', 'is-down');
-        if (cls) dot.classList.add(cls);
+    /** 面板开关状态 → 顶部菜单图标的高亮（真实状态，不是装饰） */
+    function syncNavActive() {
+        var entry = document.getElementById('agentChat');
+        if (!entry || !state.win) return;
+        entry.classList.toggle('is-active', isWinOpen());
     }
 
     function toggle() {
@@ -727,7 +763,7 @@
         } else {
             open();
         }
-        syncFloatBtn();
+        syncNavActive();
     }
 
     /** 绑定各种入口（菜单项、悬浮按钮、面板内的控件） */
@@ -735,15 +771,6 @@
         if (state._entriesBound) return;
         state._entriesBound = true;
         if (!buildUiOnce()) return;
-
-        // 悬浮常驻入口
-        var floatBtn = document.getElementById('agentFloatBtn');
-        if (floatBtn) {
-            floatBtn.addEventListener('click', function (e) {
-                e.preventDefault();
-                toggle();
-            });
-        }
 
         // 顶部独立菜单入口 —— 自己绑定，不去动 eventBindInit.js（那里逻辑多，风险高）
         var menu = document.getElementById('agentChat');
@@ -756,7 +783,7 @@
 
         // 用户可能通过窗口自带的关闭/折叠按钮改变显示状态，
         // 用 MutationObserver 兜住，保证悬浮按钮的明暗始终与面板一致。
-        var mo = new MutationObserver(function () { syncFloatBtn(); });
+        var mo = new MutationObserver(function () { syncNavActive(); });
         mo.observe(state.win, { attributes: true, attributeFilter: ['style'] });
 
         probe();

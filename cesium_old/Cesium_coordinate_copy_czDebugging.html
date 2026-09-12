@@ -67,10 +67,19 @@
                 <!--无序列表  地理管理 三维模型 研究分析 其他-->
                 <ul class="nav navbar-nav navbar-right">
                     <!--智能体助手：独立常驻入口，不隶属于任何功能分组 ——
-                        它不是"空间分析"里的一个工具，而是贯穿全系统的对话入口 -->
+                        它不是"空间分析"里的一个工具，而是贯穿全系统的对话入口。
+                        顶部菜单栏常驻，故只用一个图标表示（项目约定：能用图标就不用文字） -->
                     <li id="agentChat" class="agent-nav-entry">
-                        <a href="#" title="GeoAgent 智能体分析助手">
-                            <span class="agent-nav-dot"></span>智能体助手
+                        <a href="#" title="GeoAgent 智能体分析助手" aria-label="打开智能体分析助手">
+                            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
+                                 fill="none" stroke="currentColor" stroke-width="1.8"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="4" y="8" width="16" height="11" rx="3.2"></rect>
+                                <circle cx="9.2" cy="13.4" r="1.25" fill="currentColor" stroke="none"></circle>
+                                <circle cx="14.8" cy="13.4" r="1.25" fill="currentColor" stroke="none"></circle>
+                                <path d="M12 8V5.2"></path>
+                                <path d="M9.2 4h5.6"></path>
+                            </svg>
                         </a>
                     </li>
                     <!--地理管理-->
@@ -133,18 +142,6 @@
 <!--*********************************************Cesium主界面**********************************************-->
 <div id="cesiumContainer"></div>
 
-<!-- GeoAgent 常驻悬浮入口：不隶属于任何菜单分组，切到哪个功能都在，
-     一键唤起对话式分析（风格遵循项目约定：纯图标、无附带文字） -->
-<button id="agentFloatBtn" type="button" title="GeoAgent 智能体分析助手" aria-label="打开智能体分析助手">
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
-         fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="4" y="8" width="16" height="11" rx="3.2"></rect>
-        <circle cx="9.2" cy="13.4" r="1.25" fill="currentColor" stroke="none"></circle>
-        <circle cx="14.8" cy="13.4" r="1.25" fill="currentColor" stroke="none"></circle>
-        <path d="M12 8V5.2"></path>
-        <path d="M9.2 4h5.6"></path>
-    </svg>
-</button>
 
 <!--**********************************************仿谷歌地球侧边栏*********************************************-->
 <!-- 侧边栏折叠/展开按钮（始终可见） -->

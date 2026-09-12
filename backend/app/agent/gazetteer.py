@@ -116,6 +116,46 @@ SEED: List[tuple] = [
     ("塔里木盆地", 76.0, 37.0, 90.0, 42.0, "basin", "塔里木", "manual"),
     ("准噶尔盆地", 83.0, 44.0, 91.0, 48.0, "basin", "准噶尔", "manual"),
     ("柴达木盆地", 90.0, 36.0, 99.0, 39.5, "basin", "柴达木", "manual"),
+
+    # ---------- 中国省级行政区（source=manual，bbox 为陆地范围近似值）----------
+    # 用途：支撑「跳转到海南省」「放大到云南省」这类**系统操作类**指令，
+    # 以及「我当前看的地方属于哪里」这类**反查**问题。
+    # ⚠ 台湾省、香港特别行政区、澳门特别行政区均按我国省级行政区录入，
+    #   不是独立国家；别名里也带上「中国台湾 / 中国香港 / 中国澳门」。
+    ("北京市", 115.42, 39.44, 117.51, 41.06, "province", "北京,首都", "manual"),
+    ("天津市", 116.70, 38.55, 118.06, 40.25, "province", "天津", "manual"),
+    ("河北省", 113.45, 36.05, 119.85, 42.62, "province", "河北", "manual"),
+    ("山西省", 110.23, 34.58, 114.55, 40.75, "province", "山西", "manual"),
+    ("内蒙古自治区", 97.12, 37.40, 126.07, 53.33, "province", "内蒙古", "manual"),
+    ("辽宁省", 118.84, 38.72, 125.78, 43.49, "province", "辽宁", "manual"),
+    ("吉林省", 121.64, 40.87, 131.30, 46.30, "province", "吉林", "manual"),
+    ("黑龙江省", 121.18, 43.42, 135.09, 53.56, "province", "黑龙江", "manual"),
+    ("上海市", 120.85, 30.67, 122.12, 31.88, "province", "上海", "manual"),
+    ("江苏省", 116.36, 30.76, 121.96, 35.13, "province", "江苏", "manual"),
+    ("浙江省", 118.03, 27.04, 123.15, 31.18, "province", "浙江", "manual"),
+    ("安徽省", 114.88, 29.40, 119.65, 34.65, "province", "安徽", "manual"),
+    ("福建省", 115.85, 23.53, 120.72, 28.32, "province", "福建", "manual"),
+    ("江西省", 113.57, 24.49, 118.48, 30.08, "province", "江西", "manual"),
+    ("山东省", 114.81, 34.38, 122.71, 38.40, "province", "山东", "manual"),
+    ("河南省", 110.36, 31.38, 116.65, 36.37, "province", "河南", "manual"),
+    ("湖北省", 108.36, 29.03, 116.13, 33.26, "province", "湖北", "manual"),
+    ("湖南省", 108.79, 24.64, 114.26, 30.13, "province", "湖南", "manual"),
+    ("广东省", 109.66, 20.22, 117.30, 25.52, "province", "广东", "manual"),
+    ("广西壮族自治区", 104.45, 20.90, 112.05, 26.39, "province", "广西", "manual"),
+    ("海南省", 108.60, 18.15, 111.05, 20.15, "province", "海南,海南岛,琼州海峡", "manual"),
+    ("重庆市", 105.29, 28.16, 110.19, 32.20, "province", "重庆", "manual"),
+    ("四川省", 97.35, 26.05, 108.55, 34.32, "province", "四川", "manual"),
+    ("贵州省", 103.60, 24.62, 109.55, 29.22, "province", "贵州", "manual"),
+    ("云南省", 97.53, 21.14, 106.20, 29.26, "province", "云南", "manual"),
+    ("西藏自治区", 78.39, 26.85, 99.11, 36.53, "province", "西藏", "manual"),
+    ("陕西省", 105.49, 31.71, 111.25, 39.59, "province", "陕西", "manual"),
+    ("甘肃省", 92.13, 32.11, 108.71, 42.79, "province", "甘肃", "manual"),
+    ("青海省", 89.35, 31.60, 103.07, 39.21, "province", "青海", "manual"),
+    ("宁夏回族自治区", 104.28, 35.24, 107.66, 39.39, "province", "宁夏", "manual"),
+    ("新疆维吾尔自治区", 73.50, 34.25, 96.38, 49.18, "province", "新疆", "manual"),
+    ("台湾省", 119.30, 21.90, 122.05, 25.30, "province", "台湾,台湾岛,中国台湾", "manual"),
+    ("香港特别行政区", 113.83, 22.15, 114.44, 22.56, "province", "香港,中国香港", "manual"),
+    ("澳门特别行政区", 113.53, 22.11, 113.60, 22.22, "province", "澳门,中国澳门", "manual"),
 ]
 
 
@@ -237,13 +277,19 @@ class Gazetteer:
 
         if not rows:
             self.seed()
-            conn = self._connect()
-            try:
-                rows = conn.execute(
-                    "SELECT name,west,south,east,north,kind,aliases,source FROM gazetteer"
-                ).fetchall()
-            finally:
-                conn.close()
+
+        # 种子数据会随版本新增（例如后来补的 34 个省级行政区）。
+        # 用 INSERT OR IGNORE 幂等补齐一遍，既让老库自动获得新条目，
+        # 又不会覆盖已有记录或用户自己 upsert 的数据。
+        self.seed(force=False)
+
+        conn = self._connect()
+        try:
+            rows = conn.execute(
+                "SELECT name,west,south,east,north,kind,aliases,source FROM gazetteer"
+            ).fetchall()
+        finally:
+            conn.close()
 
         index: Dict[str, PlaceMatch] = {}
         for name, w, s, e, n, kind, aliases, source in rows:
@@ -284,6 +330,37 @@ class Gazetteer:
         """只要一个 bbox 时用这个。没命中返回 None。"""
         hits = self.lookup(text, limit=1)
         return hits[0].bbox if hits else None
+
+    def lookup_point(self, lon: float, lat: float, limit: int = 3) -> List[PlaceMatch]:
+        """反查：给定经纬度，找出覆盖它的地名，**按范围从小到大**返回。
+
+        用途：用户问「我当前看的这块是什么地方」时，模型并不需要知道
+        某个坐标对应哪个行政区 —— 词典直接给出答案，模型只负责组织语言。
+        4B 模型记不住这类对应关系，也不该要求它硬记（上一条实测教训：
+        「这里有什么国家/地区」被它判成越界直接拒答）。
+        """
+        hits: List[tuple] = []
+        seen: set = set()
+        for _alias, m in self._by_alias.items():
+            if m.name in seen:
+                continue
+            west, south, east, north = m.bbox
+            if west <= lon <= east and south <= lat <= north:
+                seen.add(m.name)
+                # 面积越小越具体（市 < 省 < 高原），排序时优先
+                hits.append(((east - west) * (north - south), m))
+        hits.sort(key=lambda item: item[0])
+        return [
+            PlaceMatch(m.name, list(m.bbox), m.kind, m.source, m.name)
+            for _area, m in hits[:limit]
+        ]
+
+    def describe_point(self, lon: float, lat: float) -> str:
+        """把反查结果拼成一句给模型/用户看的话。"""
+        hits = self.lookup_point(lon, lat)
+        if not hits:
+            return f"坐标 ({lon:.2f}, {lat:.2f}) 附近没有收录的地名"
+        return "、".join(f"{h.name}（{h.kind}）" for h in hits)
 
     def annotate(self, query: str) -> str:
         """把地名提示追加到 query 后面。

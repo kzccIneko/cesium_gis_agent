@@ -58,11 +58,16 @@ def _normalize(query: str) -> str:
 
 
 def is_chitchat(query: str) -> bool:
-    """判断这句话是不是寒暄 / 自我介绍 / 能力询问。
+    """判断这句话是不是**纯社交寒暄**（打招呼 / 道谢 / 告别）。
 
-    两个条件同时满足才算寒暄，宁可漏判也不要误判：
-    1. 句子里没有任何地理分析信号词；
-    2. 归一化后完全等于某个寒暄词条，或者是很短（≤10 字）且以寒暄词开头。
+    ⚠ 边界收窄说明（2026-09-12 用户反馈后调整）：
+
+    这一层原本还负责「你是谁」「你能做什么」这类元问题。
+    实测下来这是错的 —— 用户换个说法（「你有什么功能模块」）就命不中规则，
+    于是掉进规划器被当成"越界"拒答，给人的感觉是"只会回答你写死的那几个问题"。
+
+    现在这一层**只处理纯社交寒暄**（这类问题答案固定、且用户希望秒回），
+    其余一律交给模型自己判断和回答 —— 泛化能力靠模型，不靠词表。
     """
     raw = (query or "").strip()
     if not raw:
@@ -75,7 +80,7 @@ def is_chitchat(query: str) -> bool:
         if kw.lower() in q:
             return False
 
-    pools = (_GREETINGS, _THANKS, _FAREWELL, _WHO_ARE_YOU, _CAPABILITY)
+    pools = (_GREETINGS, _THANKS, _FAREWELL)
 
     # 完全相等 —— 最安全的一类
     for pool in pools:

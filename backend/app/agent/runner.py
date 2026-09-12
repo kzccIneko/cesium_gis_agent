@@ -76,6 +76,7 @@ def run_agent(
     max_retries: int = 3,
     recursion_limit: int = DEFAULT_RECURSION_LIMIT,
     session_dem_path: Optional[str] = None,
+    view_context: Optional[Dict[str, Any]] = None,
 ) -> AgentState:
     """运行一次完整的 Agent 分析流程。
 
@@ -105,6 +106,7 @@ def run_agent(
         session_id=session_id,
         max_retries=max_retries,
         session_dem_path=session_dem_path,
+        view_context=view_context,
     )
 
     if use_langgraph:

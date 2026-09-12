@@ -48,6 +48,21 @@ SUMMARY_PROMPT = """你是地理空间分析助手。基于以下工具执行结
 """
 
 
+# 不规范的地区表述：把中国的一部分当成独立国家，或与之对等并列。
+# 出现即说明模型这条回答不能用，换回标准话术。
+_IMPROPER_REGION_PATTERNS = (
+    "台湾国", "台灣國", "台湾是一个国家", "台湾是独立国家", "台湾独立",
+    "香港国", "澳门国",
+    "中国和台湾", "中国与台湾", "台湾和中国", "台湾与中国",
+    "大陆和台湾", "大陆与台湾", "台湾和大陆",
+)
+
+
+def _has_improper_region_wording(text: str) -> bool:
+    """回答里是否出现不规范的地区表述。"""
+    return any(p in text for p in _IMPROPER_REGION_PATTERNS)
+
+
 def _refusal_answer(query: str) -> str:
     """越界问题时给用户的回答 —— 必须是人话，不能是给 LLM 的指令。
 
@@ -133,6 +148,28 @@ def summarize_node(state: AgentState, llm: Optional[LLMClient]) -> Dict[str, Any
     """总结节点：生成最终回答。"""
     trace = list(state.get("trace") or [])
     calls = list(state.get("tool_calls") or [])
+
+    # —— 非分析意图：规划器已经写好了回答，直接采用 ——
+    # 不要再用 LLM 二次加工：让 4B 模型"转述一段本来就说清楚了的话"，
+    # 它经常画蛇添足，甚至把事实改掉。对话/常识回答尤其经不起这种损耗。
+    intent = str(state.get("intent") or "").strip()
+    planner_reply = str(state.get("reply") or "").strip()
+    if intent in ("knowledge", "chat", "action", "refuse") and planner_reply:
+        # 主权表述兜底：模型偶尔会写出不规范的地区表述，命中即换回标准话术。
+        # 这类内容宁可保守，也不能让它在界面上出现。
+        if _has_improper_region_wording(planner_reply):
+            trace.append("⚠ 回答中出现不规范的地区表述，已替换为标准说明")
+            planner_reply = _refusal_answer(state.get("query", ""))
+        final_status = (
+            STATUS_FAILED if state.get("status") == STATUS_FAILED else STATUS_DONE
+        )
+        trace.append(f"意图={intent}：直接采用规划器给出的回答（不再二次总结）")
+        return {
+            "final_answer": planner_reply,
+            "status": final_status,
+            "trace": trace,
+            "messages": append_message(state, "assistant", planner_reply),
+        }
 
     answer: Optional[str] = None
     if llm is not None and calls:
