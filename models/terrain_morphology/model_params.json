@@ -1,0 +1,5 @@
+{
+  "patch_size": 64,
+  "n_classes": 8,
+  "best_val_acc": 76.0
+}

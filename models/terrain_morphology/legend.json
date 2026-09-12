@@ -1,0 +1,50 @@
+[
+  {
+    "id": 0,
+    "name": "flat",
+    "label_cn": "平地",
+    "color": "#38a800"
+  },
+  {
+    "id": 1,
+    "name": "peak",
+    "label_cn": "山顶",
+    "color": "#ff0000"
+  },
+  {
+    "id": 2,
+    "name": "ridge",
+    "label_cn": "山脊",
+    "color": "#ff8000"
+  },
+  {
+    "id": 3,
+    "name": "steep_slope",
+    "label_cn": "陡坡",
+    "color": "#ff00ff"
+  },
+  {
+    "id": 4,
+    "name": "gentle_slope",
+    "label_cn": "缓坡",
+    "color": "#ffff00"
+  },
+  {
+    "id": 5,
+    "name": "valley",
+    "label_cn": "山谷",
+    "color": "#00a6ff"
+  },
+  {
+    "id": 6,
+    "name": "depression",
+    "label_cn": "洼地",
+    "color": "#0040ff"
+  },
+  {
+    "id": 7,
+    "name": "cliff",
+    "label_cn": "悬崖",
+    "color": "#8b0000"
+  }
+]
