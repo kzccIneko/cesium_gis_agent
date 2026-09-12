@@ -186,7 +186,8 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
         "classify_terrain_rules",
         "用地形形态规则对区域做 8 类地貌分类（基于坡度、曲率、TPI 的判据）。"
         "8 类为：平地、山顶、山脊、陡坡、缓坡、山谷、洼地、陡崖。"
-        "速度最快，适合大范围快速筛查。",
+        "速度最快。**区域跨度 > 0.5°（约 50 km）的大范围筛查必须用这个**；"
+        "更小的范围用 classify_geomorphons。",
         {
             "bbox": BBOX_PARAM,
             "resolution": RES_PARAM,
@@ -199,7 +200,8 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
         "classify_geomorphons",
         "用 Geomorphons 算法（Jasiewicz & Stepinski 2013）对区域做 8 类地貌分类。"
         "该方法通过八方向视线分析判别局部地形形态，是地形形态学的经典算法，"
-        "精度与速度均衡，推荐作为默认分类方法。",
+        "精度与速度均衡。适合区域跨度 ≤ 0.5°（约 50 km）的常规范围；"
+        "更大范围请用 classify_terrain_rules。",
         {
             "bbox": BBOX_PARAM,
             "resolution": RES_PARAM,
