@@ -75,9 +75,12 @@ models/llm/
 *.gguf
 *.gguf.part
 
-# 训练数据与权重（体积过大，禁止入库；生成脚本见根目录 *_train.py）
-models/terrain_morphology/*.pt
-models/terrain_morphology/*.pth
+# 训练权重与数据：体积过大，禁止入库
+# 训练脚本（根目录 *_train.py、generate_*_data.py）与配置 json 已入库，
+# 权重可由脚本重新生成
+/models/**
+!/models/terrain_morphology/
+!/models/terrain_morphology/*.json
 
 # 外部数据集仓库（数千文件、含 5MB+ 附件）
 earthscape/
