@@ -511,6 +511,12 @@ WEEK8_NOTES = [
      "没划清（「气候」放 knowledge、「天气」放 refuse），不是方法问题"),
 ]
 
+# 4B QLoRA 显存实测（本机 RTX 2060 6GB）—— 决定「本地训还是上云」
+WEEK8_VRAM = [
+    ("Qwen3.5-0.8B", "0.72 GB", "1.75 GB", "2.04 GB", "+3.96 GB", True),
+    ("Qwen3.5-4B", "2.90 GB", "5.31 GB", "6.04 GB", "−0.04 GB", False),
+]
+
 # 算力选型（价格实测；前提：训练效果与显卡无关，显卡只决定速度与能否跑得动）
 WEEK8_GPU = [
     ("本机 RTX 2060（笔记本）", "6 GB", "~24", "25–35 min", "电费",
@@ -873,6 +879,13 @@ def build_html(
         f'<td style="text-align:right"><b>{cost}</b></td>'
         f'<td class="dim">{note}</td></tr>'
         for name, vram, tflops, dur, cost, note, _ok in WEEK8_GPU
+    )
+    w8_vram_html = "".join(
+        f'<tr><td>{name}</td><td style="text-align:right">{load}</td>'
+        f'<td style="text-align:right">{alloc}</td>'
+        f'<td style="text-align:right">{reserved}</td>'
+        f'<td style="text-align:right" class="{"ok" if ok else "bad"}"><b>{margin}</b></td></tr>'
+        for name, load, alloc, reserved, margin, ok in WEEK8_VRAM
     )
 
     return f"""<!DOCTYPE html>
@@ -1250,7 +1263,32 @@ def build_html(
     <tbody>{w8_note_html}</tbody>
   </table>
 
-  <h3 style="font-size:14px;margin:22px 0 8px">训练算力选型（价格实测，全部 ≤5 元/小时）</h3>
+  <h3 style="font-size:14px;margin:22px 0 8px">本机能不能训 4B？——显存实测（RTX 2060 / 6 GB）</h3>
+  <div class="sub" style="margin-bottom:10px">
+    调研只能给"4–5 GB"的估算区间，实际必须实测。结论是<b>能跑，但不该在这跑</b>：
+    4B 的峰值显存已经把 6 GB 卡<b>打满且越界</b>（reserved 6.04 &gt; 6.00 GB），
+    而这还是单 batch、序列 512 的理想情况；真实训练连续几百步加上显存碎片没有任何缓冲。
+    叠加这台笔记本<b>已实测的散热问题</b>（功耗墙 75 W → 47 W，推理阶段就反复崩过 CUDA error），
+    训练风险不可接受。
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:26%">模型</th>
+      <th style="text-align:right">4-bit 加载后</th>
+      <th style="text-align:right">训练峰值(allocated)</th>
+      <th style="text-align:right">训练峰值(reserved)</th>
+      <th style="text-align:right">6 GB 卡余量</th>
+    </tr></thead>
+    <tbody>{w8_vram_html}</tbody>
+  </table>
+  <div class="sub" style="margin-top:10px">
+    这次实测给出一个可复用的结论：<b>4B QLoRA 的最低硬件门槛 ≈ 8 GB 显存</b>
+    （6 GB 是极限贴线，8 GB 才有安全余量）。
+    4B 的链路本身完全跑通 —— 13 种线性层全部命中（含 Gated DeltaNet 的 5 个投影层）、
+    可训练参数 1.323%、前向反向都成功。所以<b>卡住的不是能力，是余量</b>。
+  </div>
+
+  <h3 style="font-size:14px;margin:22px 0 8px">那去哪儿训？——算力选型（价格实测，全部 ≤5 元/小时）</h3>
   <div class="sub" style="margin-bottom:10px">
     <b>前提：训练效果与显卡无关</b> —— 效果取决于数据、超参和轮数；
     显卡只决定<b>跑多快</b>和<b>能不能跑得动</b>。所以选卡只看性价比。
