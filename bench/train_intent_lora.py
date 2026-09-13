@@ -24,8 +24,16 @@
     python bench/train_intent_lora.py --model Qwen/Qwen3.5-0.8B --device cpu \
         --limit 300 --epochs 1
 
-    # 有 CUDA 之后
-    python bench/train_intent_lora.py --model Qwen/Qwen3.5-4B-Instruct --device cuda
+    # 云端 24 GB 卡（bf16 加载 4B，最稳）
+    python bench/train_intent_lora.py --model Qwen/Qwen3.5-4B --device cuda \
+        --epochs 2 --save lora_out/intent_4b
+
+    # 8–12 GB 卡（4-bit 加载 + 梯度检查点）
+    python bench/train_intent_lora.py --model Qwen/Qwen3.5-4B --device cuda \
+        --load-4bit --batch 1 --accum 16 --epochs 2 --save lora_out/intent_4b
+
+    注：ModelScope 上的 id 是 Qwen/Qwen3.5-4B；Qwen/Qwen3.5-4B-Instruct 不存在
+    （HuggingFace 的命名不能照搬到 ModelScope）。
 """
 from __future__ import annotations
 
@@ -106,25 +114,47 @@ def main() -> None:
     ap.add_argument("--max-len", type=int, default=320)
     ap.add_argument("--batch", type=int, default=1)
     ap.add_argument("--accum", type=int, default=8)
+    ap.add_argument("--load-4bit", action="store_true",
+                    help="以 4-bit（NF4）加载底座。显存约为 bf16 的 1/4，"
+                         "8–12 GB 显卡跑 4B 时用这个；24 GB 卡可直接用 bf16")
     ap.add_argument("--save", default="")
     args = ap.parse_args()
 
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
-    from peft import LoraConfig, get_peft_model
+    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
     dev = "cuda" if (args.device == "cuda" and torch.cuda.is_available()) else "cpu"
-    print(f"设备: {dev}   模型: {args.model}")
+    print(f"设备: {dev}   模型: {args.model}   4bit: {args.load_4bit}")
     if args.device == "cuda" and dev == "cpu":
         print("  ⚠ 指定了 cuda 但不可用（装的是 +cpu 版 torch？），已回退 CPU")
 
     tok = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
     load_kw = {"trust_remote_code": True, "low_cpu_mem_usage": True}
-    if dev == "cuda":
+    quantized = bool(args.load_4bit and dev == "cuda")
+    if quantized:
+        # 4-bit 分支：权重按 NF4 存、按 bf16 算。双重量化再省约 0.4 bit/参数。
+        # 注意 quantized 模型必须用 device_map 指定设备，之后**不能**再调 .to()。
+        from transformers import BitsAndBytesConfig
+
+        load_kw.update(
+            quantization_config=BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_use_double_quant=True,
+            ),
+            device_map={"": 0},
+        )
+    elif dev == "cuda":
         load_kw.update(torch_dtype=torch.bfloat16, device_map={"": 0})
     else:
         load_kw.update(torch_dtype=torch.float32)   # CPU 用 fp32，bf16 在 CPU 上很慢
     model = AutoModelForCausalLM.from_pretrained(args.model, **load_kw)
+
+    if quantized:
+        # 把 LayerNorm 等非量化层转回 fp32 并开梯度检查点，否则 4-bit 下训练不稳
+        model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
     n_lin = sum(1 for _, m in model.named_modules() if isinstance(m, torch.nn.Linear))
     print(f"线性层数: {n_lin}")
@@ -139,7 +169,10 @@ def main() -> None:
     )
     model = get_peft_model(model, lcfg)
     model.print_trainable_parameters()
-    model.to(dev)
+    if not quantized:
+        model.to(dev)
+    if dev == "cuda":
+        print(f"  显存占用: {torch.cuda.memory_allocated() / 1024**3:.2f} GB")
 
     train_rows = load_split("train.json", args.limit or None)
     eval_rows = load_split("eval.json", args.eval_limit)

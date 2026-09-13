@@ -95,3 +95,11 @@ bench/lora_out/**/optimizer.pt
 
 # 训练数据与缓存（体积大，可由脚本重新生成）
 bench/sft_data/*.json.bak
+
+# LoRA 训练副产物：tokenizer 副本 20MB、PEFT 自动生成的模型卡
+# （训练配置在 adapter_config.json 里，评测数字在 eval_result.json 里，两者入库）
+bench/lora_out/**/tokenizer.json
+bench/lora_out/**/tokenizer_config.json
+bench/lora_out/**/chat_template.jinja
+bench/lora_out/**/README.md
+bench/lora_out/_smoke*/
