@@ -1,0 +1,1282 @@
+[
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "锡林郭勒草原里从山脚到山顶怎么走"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "分析兰州的曲率，区分山脊和沟谷"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "设计一条塔克拉玛干的徒步路线，绕开陡崖"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "帮我切换到柴达木盆地，谢谢"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "请你能做什么，谢谢"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"chat\", \"understanding\": \"用户在在寒暄或问我的能力\", \"reply\": \"你好，我是这个三维地理信息系统的分析助手。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想乌拉尔山的山坡主要朝向哪边，谢谢"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想让你北京会下雨吗"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "请帮我翻译这段话一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "能不能水星表面的地形一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "能不能武汉会下雨吗，麻烦了"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦放大到四川盆地，可以吗"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "请切换到雅鲁藏布江一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想坡向是怎么算的看看"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"knowledge\", \"understanding\": \"用户在问地理常识或概念\", \"reply\": \"这是一条地理常识或概念问题，我直接回答。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦我想看看小兴安岭一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "可以跳到塔克拉玛干沙漠去看看"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦帮我帮我翻译这段话看看"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "帮我地形起伏度是什么意思一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"knowledge\", \"understanding\": \"用户在问地理常识或概念\", \"reply\": \"这是一条地理常识或概念问题，我直接回答。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "请大兴安岭属于什么地貌类型"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦天山的海拔是多少，麻烦了"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"knowledge\", \"understanding\": \"用户在问地理常识或概念\", \"reply\": \"这是一条地理常识或概念问题，我直接回答。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想泰山适不适合徒步穿越，可以吗"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "25加25等于几一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "推荐几支股票，可以吗"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "跳到西藏去，麻烦了"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦你有什么功能，麻烦了"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"chat\", \"understanding\": \"用户在在寒暄或问我的能力\", \"reply\": \"你好，我是这个三维地理信息系统的分析助手。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦帮我讲个笑话"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "用 Geomorphons 算法对黄山做地貌分类"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "秦岭的越野通行性怎么样"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦跳到五台山去，谢谢"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "能不能你会什么一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"chat\", \"understanding\": \"用户在在寒暄或问我的能力\", \"reply\": \"你好，我是这个三维地理信息系统的分析助手。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "统计张家界坡度在15度以下的比例，可以吗"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "推荐几只值得买的股票"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "黄山的气候怎么样，可以吗"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"knowledge\", \"understanding\": \"用户在问地理常识或概念\", \"reply\": \"这是一条地理常识或概念问题，我直接回答。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦帮我塔克拉玛干沙漠的通行代价怎么样看看"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "算雅安的坡度栅格"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦帮我生成天山的坡度分级图"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "能不能定位到塔克拉玛干沙漠，谢谢"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "算雅安的坡度，然后用地貌规则分类"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦黄山坡度在35度以下的面积占比是多少，谢谢"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "您好，可以吗"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"chat\", \"understanding\": \"用户在在寒暄或问我的能力\", \"reply\": \"你好，我是这个三维地理信息系统的分析助手。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "成都周边内帮我找一条越野路线，要避开陡坡"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想让你庐山的坡度是多少一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "经度 117.0 到 117.3、纬度 36.2 到 36.4的地貌怎么分类"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "20加20等于几一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "帮我坡向是怎么算的"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"knowledge\", \"understanding\": \"用户在问地理常识或概念\", \"reply\": \"这是一条地理常识或概念问题，我直接回答。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想让你四川省在哪里一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"knowledge\", \"understanding\": \"用户在问地理常识或概念\", \"reply\": \"这是一条地理常识或概念问题，我直接回答。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想介绍一下你自己"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"chat\", \"understanding\": \"用户在在寒暄或问我的能力\", \"reply\": \"你好，我是这个三维地理信息系统的分析助手。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "帮我早上好"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"chat\", \"understanding\": \"用户在在寒暄或问我的能力\", \"reply\": \"你好，我是这个三维地理信息系统的分析助手。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "SRTM是什么意思"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"knowledge\", \"understanding\": \"用户在问地理常识或概念\", \"reply\": \"这是一条地理常识或概念问题，我直接回答。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "帮我我头疼吃什么药一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想让你落基山脉的海拔是多少，麻烦了"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"knowledge\", \"understanding\": \"用户在问地理常识或概念\", \"reply\": \"这是一条地理常识或概念问题，我直接回答。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想看看太行山，可以吗"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "落基山脉属于什么地貌类型看看"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "帮我上海明天天气怎么样，可以吗"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "统计经度 100.1 到 100.3、纬度 27.0 到 27.2的坡度分级情况"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "念青唐古拉山的山坡主要朝向哪边看看"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "推荐几本机器学习入门书"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "请跳转到昆仑山，可以吗"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "五指山的坡度是多少一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦放大到比利牛斯山看看"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦帮我我头疼吃什么药"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "武汉会下雨吗"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "圆的面积公式是什么，谢谢"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦三峡适不适合徒步穿越，谢谢"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "分析泰山的坡度，给出可通行面积比例"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "可以下载富士山的高程数据一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "帮我帮我翻译这段话看看"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想让你月球上有山吗，谢谢"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "可以你是谁一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"chat\", \"understanding\": \"用户在在寒暄或问我的能力\", \"reply\": \"你好，我是这个三维地理信息系统的分析助手。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "获取昆明真实地形，计算坡度并统计有多少能走"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "能不能判断甘肃省的地貌类型一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "可以帮我写一篇邮件，麻烦了"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "帮我45加45等于几，谢谢"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "可以唐古拉山适不适合徒步穿越，谢谢"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "帮我分析四川省的地形因子，麻烦了"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想下载四川盆地的高程数据一下"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "麻烦北京会下雨吗，麻烦了"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "把这段英文翻译成法语"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "计算珠峰坡度，再做地形形态分类"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "统计可可西里可通行面积的占比"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"analysis\", \"understanding\": \"用户在要求做地形/路径/统计类的计算\", \"reply\": \"\"}"
+   }
+  ]
+ },
+ {
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是「三维地理信息分析系统」里的智能助手。判断用户这句话的意图，只输出一个 JSON：{\"intent\": \"...\", \"understanding\": \"...\", \"reply\": \"...\"}\nintent 取值：analysis（要算地形/路径/统计）、knowledge（地理常识或问概念）、action（移动地图视角）、chat（寒暄闲聊）、refuse（与地球地理无关）。\n非 analysis 时在 reply 里给出给用户看的回答；analysis 时 reply 留空。"
+   },
+   {
+    "role": "user",
+    "content": "我想我想看看念青唐古拉山看看"
+   },
+   {
+    "role": "assistant",
+    "content": "{\"intent\": \"action\", \"understanding\": \"用户在要求移动地图视角\", \"reply\": \"好的，正在把地图移动到你说的位置。\"}"
+   }
+  ]
+ }
+]
