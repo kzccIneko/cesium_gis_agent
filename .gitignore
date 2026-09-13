@@ -87,3 +87,11 @@ earthscape/
 
 # 运行时数据
 backend/.data/
+
+# LoRA 训练产物：只忽略权重文件（61MB+），评测结果 JSON 要入库作为数字来源
+bench/lora_out/**/*.safetensors
+bench/lora_out/**/*.bin
+bench/lora_out/**/optimizer.pt
+
+# 训练数据与缓存（体积大，可由脚本重新生成）
+bench/sft_data/*.json.bak

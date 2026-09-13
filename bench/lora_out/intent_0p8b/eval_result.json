@@ -1,0 +1,23 @@
+{
+  "model": "D:/llama_build/ms/models/Qwen--Qwen3.5-0.8B/snapshots/master",
+  "device": "cpu",
+  "epochs": 2,
+  "train_n": 400,
+  "eval_n": 80,
+  "acc_before": 0.575,
+  "acc_after": 0.975,
+  "eval_detail_after": [
+    {
+      "query": "黄山的气候怎么样，可以吗",
+      "want": "knowledge",
+      "got": "refuse",
+      "raw": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}\n"
+    },
+    {
+      "query": "SRTM是什么意思",
+      "want": "knowledge",
+      "got": "refuse",
+      "raw": "{\"intent\": \"refuse\", \"understanding\": \"用户在问与地球地理无关的事\", \"reply\": \"这个问题超出了我的能力范围 —— 我只做地球表面的地理空间分析。\"}\n"
+    }
+  ]
+}
