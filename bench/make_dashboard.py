@@ -494,6 +494,38 @@ def _load(path: Path) -> Optional[List[Dict[str, Any]]]:
     return data["details"] if isinstance(data, dict) else data
 
 
+# ---------------------------------------------------------------- Week 8
+# 后训练验证：目的是拆掉正则安全网（用户明确反对"靠硬编码判断才让 agent 执行"）。
+WEEK8_RESULT = [
+    ("意图判定准确率（留出集 80 条）", "57.5%（46/80）", "<b>97.5%（78/80）</b>", "+40.0pp"),
+    ("训练 loss", "0.56", "0.0043", "收敛"),
+    ("产物大小", "—", "<b>61 MB</b>（adapter）", "远低于 ≤5GB 约束"),
+]
+
+WEEK8_NOTES = [
+    ("底座 / 数据", "Qwen3.5-0.8B，训练 400 条 × 2 epoch，LoRA r=16，CPU + fp32"),
+    ("耗时", "83.4 分钟（CPU；缺 flash-linear-attention 时 GDN 走参考实现，明显偏慢）"),
+    ("架构可行性", "LoRA <code>all-linear</code> 命中 <b>187 个线性层</b>、可训练参数 1.42%，"
+     "证明 PEFT 覆盖到了 Gated DeltaNet 层，混合架构可训"),
+    ("剩余 2 条错误", "「黄山的气候怎么样」「SRTM 是什么意思」被判越界 —— 是模板标注边界"
+     "没划清（「气候」放 knowledge、「天气」放 refuse），不是方法问题"),
+]
+
+# 算力选型（价格实测；前提：训练效果与显卡无关，显卡只决定速度与能否跑得动）
+WEEK8_GPU = [
+    ("本机 RTX 2060（笔记本）", "6 GB", "~24", "25–35 min", "电费",
+     "⚠ 显存零余量；实测笔记本降频会崩（75W→47W）", False),
+    ("台式 RX 7700 XT", "12 GB", "~70", "—", "—",
+     "❌ Windows 无可用 ROCm 训练栈", False),
+    ("AutoDL RTX 3080Ti", "12 GB", "70", "6–8 min", "¥0.32", "✅ 最便宜", True),
+    ("AutoDL RTX 3090", "24 GB", "71", "6–8 min", "¥0.44", "✅ 显存充裕", True),
+    ("AutoDL RTX 4090", "24 GB", "165", "3–4 min", "¥0.62", "✅ 推荐（本次实验约 15 分钟）", True),
+    ("AutoDL RTX 5090", "32 GB", "210", "2–3 min", "¥0.92", "✅ 最快", True),
+    ("阿里云 T4（按量）", "16 GB", "65", "10–15 min", "¥2.0", "⚠ 算力弱、不支持 bf16", None),
+    ("阿里云 A10（抢占式）", "24 GB", "125", "4–6 min", "¥0.8–1.2", "⚠ 可能被平台回收", None),
+]
+
+
 
 def _avg(values: List[float]) -> Optional[float]:
     vals = [v for v in values if v is not None]
@@ -821,6 +853,26 @@ def build_html(
         f'<tr><td>{name}</td><td style="text-align:right"><b>{value}</b></td>'
         f'<td class="dim">{note}</td></tr>'
         for name, value, note, _ok in GBNF_AB
+    )
+
+    # ---- Week 8 后训练 ----
+    w8_res_html = "".join(
+        f'<tr><td>{name}</td><td style="text-align:right">{before}</td>'
+        f'<td style="text-align:right">{after}</td>'
+        f'<td style="text-align:right"><b>{delta}</b></td></tr>'
+        for name, before, after, delta in WEEK8_RESULT
+    )
+    w8_note_html = "".join(
+        f'<tr><td style="white-space:nowrap">{k}</td><td class="dim">{v}</td></tr>'
+        for k, v in WEEK8_NOTES
+    )
+    w8_gpu_html = "".join(
+        f'<tr><td>{name}</td><td style="text-align:right">{vram}</td>'
+        f'<td style="text-align:right">{tflops}</td>'
+        f'<td style="text-align:right">{dur}</td>'
+        f'<td style="text-align:right"><b>{cost}</b></td>'
+        f'<td class="dim">{note}</td></tr>'
+        for name, vram, tflops, dur, cost, note, _ok in WEEK8_GPU
     )
 
     return f"""<!DOCTYPE html>
@@ -1170,6 +1222,54 @@ def build_html(
         但<b>意图判断仍交给模型</b> —— 规则只补事实，不替模型做决定，
         否则就会回到用户批评过的"只会回答写死的问题"。</li>
     </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Week 8 · 后训练：让模型自己判对</h2>
+  <div class="sub" style="margin-bottom:12px">
+    起因是用户的一句批评：<b>「不要所有的操作和对话都靠词典或者硬编码或者正则去判断
+    才能让 agent 执行，这样就太笨太死板了」</b>。<br>
+    沿着这条线查下去，链条闭合了：模型自己判意图只有 <b>91.7%</b>，但主集得分
+    <b>98.75%</b> —— 差额来自正则安全网 <code>_force_analysis</code> 在替模型兜底。
+    于是只剩一条路：<b>把模型本身训强，让正则退休</b>。
+  </div>
+
+  <h3 style="font-size:14px;margin:18px 0 8px">微调效果（留出集 80 条，训练时未见过）</h3>
+  <table>
+    <thead><tr>
+      <th style="width:40%">指标</th>
+      <th style="text-align:right">训练前</th>
+      <th style="text-align:right">训练后</th>
+      <th style="text-align:right">变化</th>
+    </tr></thead>
+    <tbody>{w8_res_html}</tbody>
+  </table>
+
+  <table style="margin-top:12px">
+    <tbody>{w8_note_html}</tbody>
+  </table>
+
+  <h3 style="font-size:14px;margin:22px 0 8px">训练算力选型（价格实测，全部 ≤5 元/小时）</h3>
+  <div class="sub" style="margin-bottom:10px">
+    <b>前提：训练效果与显卡无关</b> —— 效果取决于数据、超参和轮数；
+    显卡只决定<b>跑多快</b>和<b>能不能跑得动</b>。所以选卡只看性价比。
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:22%">方案</th>
+      <th style="text-align:right">显存</th>
+      <th style="text-align:right">算力</th>
+      <th style="text-align:right">训练耗时</th>
+      <th style="text-align:right">花费</th>
+      <th>判断</th>
+    </tr></thead>
+    <tbody>{w8_gpu_html}</tbody>
+  </table>
+  <div class="sub" style="margin-top:10px">
+    云端的性价比是压倒性的（4090 跑完约 15 分钟 ¥0.62，而本机光把训练依赖下完就花了 2.5 小时）；
+    且 <b>61 MB 的 adapter 下载回本地即可用</b>，与训练用哪张卡无关 ——
+    这正好绕开了「训练要 N 卡、部署用 llama.cpp」的生态割裂。
   </div>
 </section>
 

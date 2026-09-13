@@ -136,7 +136,7 @@
   <h1>GeoAgent · 地理空间分析智能体 · 进度看板</h1>
   <div class="sub">
     数据源 <code>bench/eval_results/v8_*.json</code>（100 条全量实测）·
-    更新于 2026-09-13 19:36 ·
+    更新于 2026-09-13 22:09 ·
     详细归因见 <code>GEOAGENT_PROGRESS.md</code>、<code>bench/EVAL_REPORT.md</code>
   </div>
 </header>
@@ -345,6 +345,54 @@
         但<b>意图判断仍交给模型</b> —— 规则只补事实，不替模型做决定，
         否则就会回到用户批评过的"只会回答写死的问题"。</li>
     </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Week 8 · 后训练：让模型自己判对</h2>
+  <div class="sub" style="margin-bottom:12px">
+    起因是用户的一句批评：<b>「不要所有的操作和对话都靠词典或者硬编码或者正则去判断
+    才能让 agent 执行，这样就太笨太死板了」</b>。<br>
+    沿着这条线查下去，链条闭合了：模型自己判意图只有 <b>91.7%</b>，但主集得分
+    <b>98.75%</b> —— 差额来自正则安全网 <code>_force_analysis</code> 在替模型兜底。
+    于是只剩一条路：<b>把模型本身训强，让正则退休</b>。
+  </div>
+
+  <h3 style="font-size:14px;margin:18px 0 8px">微调效果（留出集 80 条，训练时未见过）</h3>
+  <table>
+    <thead><tr>
+      <th style="width:40%">指标</th>
+      <th style="text-align:right">训练前</th>
+      <th style="text-align:right">训练后</th>
+      <th style="text-align:right">变化</th>
+    </tr></thead>
+    <tbody><tr><td>意图判定准确率（留出集 80 条）</td><td style="text-align:right">57.5%（46/80）</td><td style="text-align:right"><b>97.5%（78/80）</b></td><td style="text-align:right"><b>+40.0pp</b></td></tr><tr><td>训练 loss</td><td style="text-align:right">0.56</td><td style="text-align:right">0.0043</td><td style="text-align:right"><b>收敛</b></td></tr><tr><td>产物大小</td><td style="text-align:right">—</td><td style="text-align:right"><b>61 MB</b>（adapter）</td><td style="text-align:right"><b>远低于 ≤5GB 约束</b></td></tr></tbody>
+  </table>
+
+  <table style="margin-top:12px">
+    <tbody><tr><td style="white-space:nowrap">底座 / 数据</td><td class="dim">Qwen3.5-0.8B，训练 400 条 × 2 epoch，LoRA r=16，CPU + fp32</td></tr><tr><td style="white-space:nowrap">耗时</td><td class="dim">83.4 分钟（CPU；缺 flash-linear-attention 时 GDN 走参考实现，明显偏慢）</td></tr><tr><td style="white-space:nowrap">架构可行性</td><td class="dim">LoRA <code>all-linear</code> 命中 <b>187 个线性层</b>、可训练参数 1.42%，证明 PEFT 覆盖到了 Gated DeltaNet 层，混合架构可训</td></tr><tr><td style="white-space:nowrap">剩余 2 条错误</td><td class="dim">「黄山的气候怎么样」「SRTM 是什么意思」被判越界 —— 是模板标注边界没划清（「气候」放 knowledge、「天气」放 refuse），不是方法问题</td></tr></tbody>
+  </table>
+
+  <h3 style="font-size:14px;margin:22px 0 8px">训练算力选型（价格实测，全部 ≤5 元/小时）</h3>
+  <div class="sub" style="margin-bottom:10px">
+    <b>前提：训练效果与显卡无关</b> —— 效果取决于数据、超参和轮数；
+    显卡只决定<b>跑多快</b>和<b>能不能跑得动</b>。所以选卡只看性价比。
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:22%">方案</th>
+      <th style="text-align:right">显存</th>
+      <th style="text-align:right">算力</th>
+      <th style="text-align:right">训练耗时</th>
+      <th style="text-align:right">花费</th>
+      <th>判断</th>
+    </tr></thead>
+    <tbody><tr><td>本机 RTX 2060（笔记本）</td><td style="text-align:right">6 GB</td><td style="text-align:right">~24</td><td style="text-align:right">25–35 min</td><td style="text-align:right"><b>电费</b></td><td class="dim">⚠ 显存零余量；实测笔记本降频会崩（75W→47W）</td></tr><tr><td>台式 RX 7700 XT</td><td style="text-align:right">12 GB</td><td style="text-align:right">~70</td><td style="text-align:right">—</td><td style="text-align:right"><b>—</b></td><td class="dim">❌ Windows 无可用 ROCm 训练栈</td></tr><tr><td>AutoDL RTX 3080Ti</td><td style="text-align:right">12 GB</td><td style="text-align:right">70</td><td style="text-align:right">6–8 min</td><td style="text-align:right"><b>¥0.32</b></td><td class="dim">✅ 最便宜</td></tr><tr><td>AutoDL RTX 3090</td><td style="text-align:right">24 GB</td><td style="text-align:right">71</td><td style="text-align:right">6–8 min</td><td style="text-align:right"><b>¥0.44</b></td><td class="dim">✅ 显存充裕</td></tr><tr><td>AutoDL RTX 4090</td><td style="text-align:right">24 GB</td><td style="text-align:right">165</td><td style="text-align:right">3–4 min</td><td style="text-align:right"><b>¥0.62</b></td><td class="dim">✅ 推荐（本次实验约 15 分钟）</td></tr><tr><td>AutoDL RTX 5090</td><td style="text-align:right">32 GB</td><td style="text-align:right">210</td><td style="text-align:right">2–3 min</td><td style="text-align:right"><b>¥0.92</b></td><td class="dim">✅ 最快</td></tr><tr><td>阿里云 T4（按量）</td><td style="text-align:right">16 GB</td><td style="text-align:right">65</td><td style="text-align:right">10–15 min</td><td style="text-align:right"><b>¥2.0</b></td><td class="dim">⚠ 算力弱、不支持 bf16</td></tr><tr><td>阿里云 A10（抢占式）</td><td style="text-align:right">24 GB</td><td style="text-align:right">125</td><td style="text-align:right">4–6 min</td><td style="text-align:right"><b>¥0.8–1.2</b></td><td class="dim">⚠ 可能被平台回收</td></tr></tbody>
+  </table>
+  <div class="sub" style="margin-top:10px">
+    云端的性价比是压倒性的（4090 跑完约 15 分钟 ¥0.62，而本机光把训练依赖下完就花了 2.5 小时）；
+    且 <b>61 MB 的 adapter 下载回本地即可用</b>，与训练用哪张卡无关 ——
+    这正好绕开了「训练要 N 卡、部署用 llama.cpp」的生态割裂。
   </div>
 </section>
 
