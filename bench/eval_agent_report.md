@@ -1,12 +1,12 @@
 # Agent Tool-Calling 评测（嵌入式 CUDA）
 
-_generated: 2026-09-13 06:10:37_
+_generated: 2026-09-13 19:22:40_
 
 - 模型：Qwen3.5-4B Q4_K_M（进程内 llama.cpp，CUDA sm_75，全层卸载）
 - 编排：LangGraph 编排（plan→execute→reflect→summarize）
 - 模式：tool_calling
-- 样本：30 条，本次耗时 308.1s（10.27s/条）
-- 每样本 LLM 调用次数：1.17
+- 样本：30 条，本次耗时 192.3s（10.68s/条）
+- 每样本 LLM 调用次数：1.2
 - 结束状态分布：done 30
 - 解析成功率：30/30
 

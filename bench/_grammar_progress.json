@@ -1,0 +1,12 @@
+{
+  "无约束": {
+    "json_ok": 23,
+    "intent_ok": 21,
+    "done": 24
+  },
+  "GBNF 约束": {
+    "json_ok": 23,
+    "intent_ok": 21,
+    "done": 24
+  }
+}

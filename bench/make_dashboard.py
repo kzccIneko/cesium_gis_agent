@@ -465,6 +465,27 @@ WEEK7_SMOKE = [
     ("点「新会话」图标", True, "对话区清空、会话 ID 更换；旧会话记忆仍留在库里不误删"),
 ]
 
+# 回归评测（v19）：加了记忆层之后，确认单轮准确率没有下降。
+# 评测时显式关闭记忆（GEOAGENT_MEMORY=0）—— 评测集是单轮任务且所有样本
+# 共用默认 session_id，开着记忆会让第 N 题读到前 N-1 题的历史。
+WEEK7_REGRESSION = [
+    ("单工具类", 40, "100.0%", "1.000", "40/40", "↑ 2.5 点（v18 = 97.5%）", True),
+    ("多工具类", 40, "97.5%", "0.992", "40/40", "↑ 2.5 点（v18 = 95.0%）", True),
+    ("越界拒答", 20, "—", "—", "20/20", "持平", True),
+    ("主集合计", 100, "98.75%", "0.996", "100/100", "↑ 2.5 点（v18 = 96.25%）—— 历史最高", True),
+    ("保留集（未参与调参）", 22, "81.8%", "0.921", "—", "与 v18 持平；与主集仍有 17 点差距", False),
+]
+
+# GBNF 约束解码 A/B 实测（bench/_test_grammar.py，24 条意图分类样本）。
+# 结论出乎意料：**无约束时 JSON 解析成功率已经是 100%** ——
+# 说明 GBNF 想解决的"格式不合法"在本项目的意图分类环节并不存在，
+# 它唯一可能的价值是用 enum 收窄选择空间来提升决策准确率。
+GBNF_AB = [
+    ("JSON 解析成功率", "100.0%（24/24）", "格式问题在实测中不存在", False),
+    ("意图判定准确率", "91.7%（22/24）", "失败的 2 条：「统计珠峰坡度在15度以下的比例」→ refuse、"
+     "「这片区域属于什么地貌类型」→ knowledge", False),
+]
+
 
 def _load(path: Path) -> Optional[List[Dict[str, Any]]]:
     if not path.exists():
@@ -788,6 +809,19 @@ def build_html(
         f'{"✅ 通过" if passed else "❌ 未通过"}</td><td class="dim">{note}</td></tr>'
         for name, passed, note in WEEK7_SMOKE
     )
+    reg7_html = "".join(
+        f'<tr><td>{name}</td><td style="text-align:right">{n}</td>'
+        f'<td style="text-align:right"><b>{te}</b></td>'
+        f'<td style="text-align:right">{f1}</td>'
+        f'<td style="text-align:right">{rc}</td>'
+        f'<td class="dim">{note}</td></tr>'
+        for name, n, te, f1, rc, note, _ok in WEEK7_REGRESSION
+    )
+    gbnf_html = "".join(
+        f'<tr><td>{name}</td><td style="text-align:right"><b>{value}</b></td>'
+        f'<td class="dim">{note}</td></tr>'
+        for name, value, note, _ok in GBNF_AB
+    )
 
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -1086,6 +1120,39 @@ def build_html(
       <th style="width:46%">检查项</th><th style="width:14%">结果</th><th>说明</th>
     </tr></thead>
     <tbody>{smoke7_html}</tbody>
+  </table>
+
+  <h3 style="font-size:14px;margin:22px 0 8px">回归评测：加了记忆层，单轮准确率掉了没有？</h3>
+  <div class="sub" style="margin-bottom:10px">
+    评测时<b>显式关闭会话记忆</b>（<code>GEOAGENT_MEMORY=0</code>）—— 评测集是单轮任务，
+    且所有样本共用默认 session_id，开着记忆会让第 N 题读到前 N-1 题的历史，基线就被污染了。
+    <b>结论：主集 98.75%（历史最高，改造前 96.25%），单工具类 100%</b>。
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:26%">数据集</th>
+      <th style="text-align:right">条数</th>
+      <th style="text-align:right">工具链精确率</th>
+      <th style="text-align:right">集合 F1</th>
+      <th style="text-align:right">拒答正确</th>
+      <th>对比上一版</th>
+    </tr></thead>
+    <tbody>{reg7_html}</tbody>
+  </table>
+
+  <h3 style="font-size:14px;margin:22px 0 8px">一个被实测否定的技术方案：GBNF 约束解码</h3>
+  <div class="sub" style="margin-bottom:10px">
+    我原本的计划是给意图分类加上 GBNF 文法约束（基础设施早就写好了但一直没调用），
+    理由是"JSON 偶尔不合法"。<b>实测把这个假设证伪了</b> ——
+    无约束时 JSON 解析成功率本来就是 100%，GBNF 对决策准确率零影响，还慢 32%。
+    两组失败的样本完全相同，说明错因是<b>语义理解</b>，而 GBNF 只管语法。
+    这条否定结果把问题精确定位到了"模型能力"而非"格式"，直接决定了下一步方向。
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:40%">指标</th><th style="text-align:right">实测值</th><th>说明</th>
+    </tr></thead>
+    <tbody>{gbnf_html}</tbody>
   </table>
 
   <h3 style="font-size:14px;margin:22px 0 8px">设计取舍（面试会问的三点）</h3>
