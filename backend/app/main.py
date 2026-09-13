@@ -970,6 +970,15 @@ class AgentChatResponse(BaseModel):
     intent: str = ""
     # 需要前端执行的系统动作（目前只有 flyTo 跳转视角）
     actions: List[Dict[str, Any]] = []
+    # —— 记忆相关 ——
+    # 指代消解说明：把「这个地方」理解成了什么。必须回传，用户才能判断系统有没有理解错
+    memory_notes: List[str] = []
+    # 补全后的句子（原句里若有指代词，这里是被替换过的版本）
+    resolved_query: str = ""
+    # 本会话已记住的轮数，前端据此显示记忆状态
+    session_turns: int = 0
+    # 后端判定"这一步必须要有真实地形，但前端这次没给" → 前端补采后重发一次
+    need_terrain: bool = False
     elapsed_ms: float = 0.0
     trace: List[str] = []
     error: str = ""
@@ -987,17 +996,45 @@ def agent_chat(req: AgentChatRequest) -> AgentChatResponse:
             error=msg,
         )
 
+    # 记忆层的导入放在函数内：与上面 LLM 的加载策略一致，
+    # 避免后端启动时就去建库连接（首次请求才初始化）。
+    from .agent.memory import (
+        build_focus_text,
+        get_memory_store,
+        infer_place_name,
+        resolve_coreference,
+    )
+
+    # —— 记忆：读 ——
+    # 取本会话的空间焦点（上一轮用的 bbox / 地名 / 工具）与最近几轮对话。
+    # 指代消解在这里做：规则只负责把「这个地方」补全成显式坐标，
+    # 意图判断仍然交给模型（见 memory/__init__.py 的设计说明）。
+    store = get_memory_store()
+    focus = store.get_focus(req.session_id) if store else {}
+    view_ctx = req.view_context.model_dump() if req.view_context else None
+    resolved_query, coref_notes = resolve_coreference(req.query, focus, view_ctx)
+    history = store.recent_turns(req.session_id) if store else []
+    focus_text = build_focus_text(focus, view_ctx) if focus else ""
+
     try:
         from .agent import run_agent
         from .agent.chitchat import try_chitchat
 
         # 寒暄 / 自我介绍 / 能力询问走规则直答，不进 Agent 图。
         # 以前这类输入也要走一遍 LLM 规划（约 19 秒）才被拒答，既慢又答非所问。
+        # 注意：这里用**原句**判断，避免指代替换把寒暄改得不像寒暄。
         quick = try_chitchat(req.query)
         if quick:
+            if store:
+                store.append_turn(req.session_id, "user", req.query, intent="chat")
+                store.append_turn(req.session_id, "assistant", quick, intent="chat")
             return AgentChatResponse(
                 answer=quick,
                 bbox=req.bbox,
+                intent="chat",
+                memory_notes=coref_notes,
+                resolved_query=resolved_query,
+                session_turns=len(history) + 2,
                 elapsed_ms=(perf_counter() - t0) * 1000,
                 trace=["命中寒暄/元问题，规则直答（未调用大模型）"],
             )
@@ -1029,12 +1066,14 @@ def agent_chat(req: AgentChatRequest) -> AgentChatResponse:
 
     try:
         state = run_agent(
-            query=req.query,
+            query=resolved_query,
             bbox=req.bbox,
             llm=llm,
             session_id=req.session_id,
             session_dem_path=session_dem_path,
-            view_context=req.view_context.model_dump() if req.view_context else None,
+            view_context=view_ctx,
+            history=history,
+            focus_context=focus_text,
         )
     except Exception as exc:
         return _fail(f"{type(exc).__name__}：{exc}")
@@ -1087,17 +1126,77 @@ def agent_chat(req: AgentChatRequest) -> AgentChatResponse:
     trace_out = list(state.get("trace") or [])[-20:]
     if dem_note:
         trace_out = [dem_note] + trace_out
+    if coref_notes:
+        # 指代消解结果放最前面 —— 用户第一眼就该看到"系统把我的『这个地方』理解成了哪儿"
+        trace_out = [f"记忆：{n}" for n in coref_notes] + trace_out
+
+    intent_out = str(state.get("intent") or "")
+    actions_out = list(state.get("actions") or [])
+    answer_out = str(state.get("final_answer") or "")
+    bbox_out = state.get("bbox")
+
+    # 跳转类动作里带的坐标也要记进空间焦点，而且**优先级高于请求里的 bbox**。
+    # 请求里那个 bbox 是"当前视野"（用户原来在看哪），不是他要去的目标 ——
+    # 实测踩过：第 3 轮「跳转到阿尔卑斯山」执行成功，但焦点里存的是视野坐标，
+    # 于是第 4 轮出现「阿尔卑斯山一带（北纬 18.5°、东经 109°）」这种名字配海南坐标的错配。
+    for _a in actions_out:
+        _ab = (_a or {}).get("bbox")
+        if _ab and len(_ab) >= 4:
+            bbox_out = list(_ab)[:4]
+            break
+
+    # —— 判断要不要让前端补采地形 ——
+    # 前端为省时间做了规则预判（跳转/常识类不采样，见 AgentPanel.js needsTerrain）。
+    # 万一预判错了（该采样却没采），后端这边会退化成合成地形，算出来的数字没有意义。
+    # 所以这里明确告诉前端"请补一份地形，再发一次"。
+    need_terrain = bool(
+        intent_out == "analysis"
+        and not session_dem_path
+        and bbox_out
+        and dem_source in ("", "synthetic")
+    )
+
+    # —— 记忆：写 ——
+    # 写回顺序讲究：先 user 后 assistant，空间焦点最后写（它要用到本轮的结果）。
+    if store:
+        try:
+            place = infer_place_name(resolved_query, actions_out)
+            store.append_turn(
+                req.session_id, "user", req.query, intent=intent_out or None, bbox=bbox_out
+            )
+            store.append_turn(
+                req.session_id, "assistant", answer_out, intent=intent_out or None
+            )
+            store.update_focus(
+                req.session_id,
+                last_bbox=bbox_out,
+                last_place=place,
+                last_intent=intent_out or None,
+                last_tool=(steps[-1].tool if steps else None),
+                last_query=req.query,
+                last_answer=answer_out[:200] if answer_out else None,
+            )
+            # 只有真的分析了某个区域才进长期记忆 —— 跳转/闲聊不该污染"常用区域"
+            if intent_out == "analysis" and bbox_out and place:
+                store.remember_region(place, bbox_out)
+            store.trim_turns(req.session_id)
+        except Exception as exc:  # noqa: BLE001 —— 记忆写失败不该影响这次回答
+            trace_out.append(f"记忆写入失败（{type(exc).__name__}）：{exc}")
 
     return AgentChatResponse(
-        answer=str(state.get("final_answer") or ""),
+        answer=answer_out,
         refused=bool(state.get("refused", False)),
         understanding=str(state.get("understanding") or ""),
         steps=steps,
-        bbox=state.get("bbox"),
+        bbox=bbox_out,
         artifacts=artifacts,
         dem_source=dem_source,
-        intent=str(state.get("intent") or ""),
-        actions=list(state.get("actions") or []),
+        intent=intent_out,
+        actions=actions_out,
+        memory_notes=coref_notes,
+        resolved_query=resolved_query if coref_notes else "",
+        session_turns=len(history) + 2 if store else 0,
+        need_terrain=need_terrain,
         elapsed_ms=(perf_counter() - t0) * 1000,
         trace=trace_out,
     )

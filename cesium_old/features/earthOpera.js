@@ -285,18 +285,25 @@ function showGaosiCoordinates() {
 	viewer.camera.setView({
 		destination: Cesium.Cartesian3.fromDegrees(119.196653, 26.031937, 27000000)
 	});
-	this.viewer.HomeButton.viewModel.command.beforeExecute.addEventListener((e) => {
-		e.cancel = true;
-		//你要飞的位置
-		this.viewer.camera.flyTo({
-			destination: Cesium.Cartesian3.fromDegrees(119.196653, 26.031937, 27000000),
-		});console.log(66666);
-	});
-	
-	var imageryProviderViewModels = viewer.baseLayerPicker.viewModel.imageryProviderViewModels;
-	var terrainProviderViewModels = viewer.baseLayerPicker.viewModel.terrainProviderViewModels;
-	viewer.baseLayerPicker.viewModel.selectedImagery = imageryProviderViewModels[imageryProviderViewModels.length - 1];
-	viewer.baseLayerPicker.viewModel.selectedTerrain = terrainProviderViewModels[0];
+	// 防御性判断：HomeButton / baseLayerPicker 属于可选控件，
+	// 在未启用的配置（以及无头浏览器）下是 undefined，
+	// 直接取 .viewModel 会让控制台每次都刷一条 TypeError。
+	if (this.viewer.HomeButton && this.viewer.HomeButton.viewModel) {
+		this.viewer.HomeButton.viewModel.command.beforeExecute.addEventListener((e) => {
+			e.cancel = true;
+			//你要飞的位置
+			this.viewer.camera.flyTo({
+				destination: Cesium.Cartesian3.fromDegrees(119.196653, 26.031937, 27000000),
+			});console.log(66666);
+		});
+	}
+
+	if (viewer.baseLayerPicker && viewer.baseLayerPicker.viewModel) {
+		var imageryProviderViewModels = viewer.baseLayerPicker.viewModel.imageryProviderViewModels;
+		var terrainProviderViewModels = viewer.baseLayerPicker.viewModel.terrainProviderViewModels;
+		viewer.baseLayerPicker.viewModel.selectedImagery = imageryProviderViewModels[imageryProviderViewModels.length - 1];
+		viewer.baseLayerPicker.viewModel.selectedTerrain = terrainProviderViewModels[0];
+	}
 
 
 

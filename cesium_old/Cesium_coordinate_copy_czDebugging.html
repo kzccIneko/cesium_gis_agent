@@ -1295,6 +1295,13 @@
                 <span class="ctx-value" id="agentpCtxValue">—</span>
                 <span class="ctx-spacer"></span>
                 <button id="agentpUseViewBtn" title="用当前地图视野作为分析范围">当前视野</button>
+                <!-- 新会话：换一个 session_id，就不再引用上文（旧记忆仍在库里） -->
+                <button id="agentpNewSessionBtn" class="icon" title="开一个新会话（不再引用上文）" aria-label="开新会话">
+                    <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"
+                         fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                        <path d="M12 5v14M5 12h14"></path>
+                    </svg>
+                </button>
             </div>
 
             <!-- 对话区 -->

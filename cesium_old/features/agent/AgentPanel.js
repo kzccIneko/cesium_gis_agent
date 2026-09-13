@@ -470,7 +470,77 @@
         return done;
     }
 
+    /* ---------------- 会话标识 ---------------- */
+
+    // 会话 ID 持久化在 localStorage：刷新页面、关掉再打开，上文仍然在。
+    // 以前这里是硬编码的 'web-panel' —— 所有会话共用一个 ID，
+    // 既没法区分用户，也没法按会话隔离记忆。
+    var SESSION_KEY = 'geoagent.session_id';
+
+    function getSessionId() {
+        try {
+            var id = global.localStorage.getItem(SESSION_KEY);
+            if (!id) {
+                id = 'web-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+                global.localStorage.setItem(SESSION_KEY, id);
+            }
+            return id;
+        } catch (e) {
+            return 'web-panel';
+        }
+    }
+
+    /** 开一个新会话（旧会话的记忆仍在库里，只是不再被引用） */
+    function startNewSession() {
+        try {
+            global.localStorage.removeItem(SESSION_KEY);
+        } catch (e) { /* 隐私模式下 localStorage 可能不可用，忽略 */ }
+    }
+
+    /* ---------------- 是否需要地形采样 ---------------- */
+
+    // 与后端 planner.py 的 _FORCE_ANALYSIS_KEYWORDS 保持同源 ——
+    // 两边判据必须一致，否则会出现"前端不采、后端偏要算"的错配。
+    // 改这里的时候记得同步改后端那份。
+    var ANALYSIS_RE = /坡度|坡向|朝向|阴坡|阳坡|曲率|山脊|沟谷|山谷线|地形因子|地形起伏|地貌|地形分类|地形形态|通行|代价栅格|路径|路线|分区统计|面积占比|多少面积|多大面积|陡|好走|能走|爬升|DEM|高程数据|SRTM|分析|计算|统计|评估/i;
+
+    // 明确的地图操作 / 浏览意图
+    var NAV_RE = /跳转|跳到|飞往|飞到|定位到|移动到|切换到|导航到|前往|带我|看看|看一下|瞅瞅|游览|去一下|转到/;
+
+    // 概念询问 / 社交 / 能力询问 —— 都不需要地形
+    var CONCEPT_RE = /什么是|是什么|什么意思|是什么样|介绍一下|介绍下|为什么|怎么理解|概念|科普|你好|您好|谢谢|再见|你是谁|你能做什么|你有什么|有什么功能|会什么/;
+
+    /**
+     * 这一句话需不需要先采一份地形高程？
+     *
+     * 【为什么必须判】采样是 128×128 = 16384 个点，实测要几分钟。
+     * 以前是**无条件采样**，于是「跳转到阿尔卑斯山」这种纯操作请求也要先等采样完
+     * 才把请求发出去 —— 用户看到的是"执行了地形分析，几分钟后才跳转"。
+     *
+     * 判据顺序：先看有没有分析信号（有就一定要地形），再看是不是纯操作/常识（不是就不采），
+     * 都不是则**保守采样** —— 多采一次只是慢一点，漏采会让分析落到合成地形上，性质更严重。
+     */
+    function needsTerrainGrid(text) {
+        var t = String(text || '');
+        if (ANALYSIS_RE.test(t)) return true;
+        if (NAV_RE.test(t)) return false;
+        if (CONCEPT_RE.test(t)) return false;
+        return true;
+    }
+
     /* ---------------- 请求 ---------------- */
+
+    /** 发一次 Agent 请求（抽出来是为了 need_terrain 回退时能重发一次） */
+    function postAgent(payload) {
+        return fetch(API_BASE + '/api/v1/agent/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(function (resp) {
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            return resp.json();
+        });
+    }
 
     async function send(text) {
         if (state.busy || !text || !text.trim()) return;
@@ -514,9 +584,11 @@
         var bboxForRequest = currentViewBBox();
         var demGrid = null;
 
-        // 有明确范围就先采一份 Cesium 地形。用户没自带 DEM 时，
-        // 后端拿它当数据源，而不是退回那张"和实地毫无关系"的合成曲面。
-        if (bboxForRequest) {
+        // 【关键修复】只在"这句话确实需要地形"时才采样。
+        // 以前是无条件采样（只要视野有范围），于是「跳转到阿尔卑斯山」这种
+        // 纯操作请求也要先花几分钟采完地形才把请求发出去 —— 用户实测反馈的
+        // "执行了地形分析、几分钟后才跳转"就是这么来的。判据见 needsTerrainGrid。
+        if (bboxForRequest && needsTerrainGrid(text)) {
             waiting.textContent = '正在从 Cesium 地形采样高程…';
             try {
                 demGrid = await prepareDemGrid(bboxForRequest, function (p) {
@@ -532,12 +604,15 @@
             waiting.textContent = demGrid
                 ? '地形已就绪，正在规划…'
                 : '未取到地形数据，本次将使用默认数据源…';
+        } else if (bboxForRequest) {
+            // 不需要地形 —— 直接进意图理解，不再让用户白等
+            waiting.textContent = '正在理解你的意图…';
         }
 
         var payload = {
             query: text,
             bbox: bboxForRequest,
-            session_id: 'web-panel',
+            session_id: getSessionId(),
             dem_grid: demGrid,
             // 视图上下文始终上报（与分析范围分开）——
             // 模型据此回答「这里是什么地方」，也据此理解「跳转到海南省」。
@@ -545,13 +620,28 @@
         };
 
         try {
-            var resp = await fetch(API_BASE + '/api/v1/agent/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            var data = await resp.json();
+            var data = await postAgent(payload);
+
+            // 安全网：后端判为分析任务、但这次没带地形（前端预判偏保守时可能发生）
+            // → 补采一份再发一次，用第二次的结果覆盖展示。
+            // 宁可偶尔多跑一轮，也不能让分析落到合成地形上给出没有意义的数字。
+            if (data.need_terrain && bboxForRequest && !demGrid && !data.error) {
+                waiting.textContent = '这次分析需要真实地形，正在采样…';
+                try {
+                    demGrid = await prepareDemGrid(bboxForRequest, function (p) {
+                        if (p >= 0) {
+                            waiting.textContent = '正在采样地形高程… ' + Math.round(p * 100) + '%';
+                        }
+                    });
+                } catch (e2) {
+                    demGrid = null;
+                }
+                if (demGrid) {
+                    payload.dem_grid = demGrid;
+                    waiting.textContent = '地形已就绪，正在重新分析…';
+                    data = await postAgent(payload);
+                }
+            }
 
             waiting.remove();
             if (data.error) {
@@ -559,6 +649,9 @@
                 wrap.querySelector('.bubble').textContent = data.answer || ('出错了：' + data.error);
             } else {
                 wrap.querySelector('.bubble').textContent = data.answer || '（没有生成回答）';
+                // 记忆先展示 —— 用户要先知道"系统把我的话理解成了什么"，
+                // 再去看结果才有意义（理解错了的话结果也不用看了）。
+                addMemoryNote(wrap, data.memory_notes, data.session_turns);
                 addDataSourceTag(wrap, data.dem_source);
                 addSteps(wrap, data.steps || []);
                 addResults(wrap, data.steps || []);
@@ -586,6 +679,45 @@
             state.busy = false;
             setBusy(false);
         }
+    }
+
+    /** 往对话区插一条系统提示（不是模型说的话，所以样式不同） */
+    function appendSystemNote(text) {
+        if (!state.chatEl) return;
+        var box = document.createElement('div');
+        box.className = 'agentp-memory';
+        var head = document.createElement('div');
+        head.className = 'agentp-memory-head';
+        head.textContent = text;
+        box.appendChild(head);
+        state.chatEl.appendChild(box);
+    }
+
+    /**
+     * 展示记忆机制刚刚做了什么。
+     *
+     * 必须可见：记忆是个"看不见的推断"，用户只有看到"我把『这个地方』理解成了五指山一带"
+     * 才知道系统有没有理解错 —— 猜错了要能立刻纠正，否则错得无声无息。
+     */
+    function addMemoryNote(wrap, notes, turns) {
+        if (!notes || !notes.length) return;
+        var box = document.createElement('div');
+        box.className = 'agentp-memory';
+
+        var head = document.createElement('div');
+        head.className = 'agentp-memory-head';
+        head.textContent = turns
+            ? '结合上文理解（本会话第 ' + Math.max(1, Math.round(turns / 2)) + ' 轮）'
+            : '结合上文理解';
+        box.appendChild(head);
+
+        notes.forEach(function (n) {
+            var line = document.createElement('div');
+            line.className = 'agentp-memory-line';
+            line.textContent = '· ' + n;
+            box.appendChild(line);
+        });
+        wrap.appendChild(box);
     }
 
     /** 如实标出这次分析用的高程是哪来的 —— 用户有权知道数字建立在什么数据上 */
@@ -678,6 +810,19 @@
                     send(state.inputEl.value);
                     state.inputEl.value = '';
                 }
+            });
+        }
+
+        // 新会话：清空聊天区并换一个 session_id。
+        // 旧会话的记忆仍留在库里（换回来还能接着用），只是不再作为上下文引用。
+        var newSessBtn = document.getElementById('agentpNewSessionBtn');
+        if (newSessBtn) {
+            newSessBtn.addEventListener('click', function () {
+                if (state.busy) return;
+                startNewSession();
+                if (state.chatEl) state.chatEl.innerHTML = '';
+                appendSystemNote('已开新会话 —— 之前的对话不再作为上下文。');
+                scrollToBottom();
             });
         }
 

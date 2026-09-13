@@ -76,6 +76,7 @@ class AgentState(TypedDict, total=False):
     session_id: str                       # 会话标识，用于持久化与多轮恢复
     session_dem_path: Optional[str]       # 本次会话的默认 DEM（前端从 Cesium 地形采样写成的 GeoTIFF）
     view_context: Dict[str, Any]          # 前端上报的当前视图（视野 bbox / 中心 / 面积 / 是否全球）
+    focus_context: str                    # 跨轮空间焦点文本（上轮 bbox/地名/工具），来自记忆层
     intent: str                           # 规划器判定的意图：analysis | knowledge | action | chat | refuse
     reply: str                            # 非 analysis 意图下直接给用户看的回答
     actions: List[Dict[str, Any]]         # 系统动作（如 flyTo 跳转区域），由前端执行
@@ -119,6 +120,8 @@ def create_initial_state(
     max_retries: int = DEFAULT_MAX_RETRIES,
     session_dem_path: Optional[str] = None,
     view_context: Optional[Dict[str, Any]] = None,
+    history: Optional[List[Dict[str, Any]]] = None,
+    focus_context: str = "",
 ) -> AgentState:
     """构造初始状态。
 
@@ -132,17 +135,30 @@ def create_initial_state(
             用户没有自带 DEM 时用它，避免落到"合成地形"上算出没有意义的数字。
         view_context: 前端当前视图信息（视野 bbox / 中心点 / 面积 / 是否全球）。
             用于回答「这里是什么地方」以及支撑「跳转到某地」这类系统操作。
+        history: 本会话此前几轮的消息（`[{role, content}]`，时间正序，**不含本轮**）。
+            由记忆层从 SQLite 取出，只给最近若干轮 —— 规划器据此理解「这个地方」
+            「再算一次」这类跨轮指代。
+        focus_context: 跨轮空间焦点的文本描述（上一轮用的 bbox / 地名 / 工具 / 原话）。
+            与 view_context 互补：view 是"用户此刻在看哪"，focus 是"这一轮对话在聊哪"，
+            两者可能不同（用户跳到海南后问「刚才那个山西的区域」就是这种情况）。
     """
+    # 历史在前、当前问题在最后。这一点很关键：
+    # 注意力实测呈 U 型（Lost-in-the-Middle），末尾位置最强，
+    # 而当前问题恰恰是必须被准确理解的那条。
+    msgs: List[Dict[str, Any]] = [dict(m) for m in (history or [])]
+    msgs.append({"role": "user", "content": query})
+
     return AgentState(
         query=query,
         bbox=list(bbox) if bbox else None,
         session_id=session_id,
         session_dem_path=session_dem_path,
         view_context=dict(view_context) if view_context else {},
+        focus_context=str(focus_context or ""),
         intent="",
         reply="",
         actions=[],
-        messages=[{"role": "user", "content": query}],
+        messages=msgs,
         plan=[],
         step_index=0,
         tool_calls=[],

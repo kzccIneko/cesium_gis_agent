@@ -412,11 +412,66 @@ WEEK6_REGRESSION = [
 ]
 
 
+# ---------------------------------------------------------------- Week 7
+# 起因（用户实测反馈）：
+#   ① Agent 不保留、也不阅读上下文 —— 上一轮聊完五指山，下一句「跳转到这个地方」
+#      它答"请提供具体地名"；
+#   ② 同样操作换个地名就变样 ——「跳转到五指山」秒回，「跳转到阿尔卑斯山」
+#      先跑几分钟地形采样才跳转。
+WEEK7_PLAN = [
+    ("W7-1 ✅", "记忆存储层",
+     "SQLite 五张表：turns（会话轮次）/ spatial_focus（空间焦点卡片）/ "
+     "region_memory（常用区域，含访问次数与时间衰减）/ user_profile / confirmed_facts。"
+     "刻意<b>不用 LangGraph checkpointer</b> —— 它存的是整个图状态快照"
+     "（我们的 state 里有 DEM 路径、产物列表、trace 等大对象），"
+     "而且项目是双运行时，checkpointer 只在图分支生效会造成行为分叉。",
+     "《三·六》设计文档已落盘；<code>memory/store.py</code> 单测通过"),
+    ("W7-2 ✅", "跨轮指代消解",
+     "划清边界：<b>规则只做确定性替换</b>（「这个地方」→「五指山一带（北纬18.5°–19.5°…）」），"
+     "<b>意图判断仍交给模型</b>。代词指向什么是已经发生过的事实，查库即可；"
+     "用户想干什么才需要语义理解。另外区分「这里」=当前视野、「刚才那个」=上一轮焦点。",
+     "补全后的句子与视图、历史一起交给模型，泛化能力仍由模型提供"),
+    ("W7-3 ✅", "接入请求链路",
+     "读：取最近 6 轮 + 空间焦点 → 指代替换 → 一并注入提示词（关键约束后置）。"
+     "写：本轮结束落轮次、更新焦点、分析类任务进长期区域记忆、超窗口的旧轮整条删除。",
+     "「这个区域」类问题第一次真正被理解"),
+    ("W7-4 ✅", "前端会话管理",
+     "session_id 持久化到 localStorage（以前硬编码 'web-panel'，所有会话共用一个 ID），"
+     "顶栏加纯图标「新会话」按钮，对话区给出<i>结合上文理解</i>的可见提示。",
+     "记忆必须可见 —— 猜错了用户要能立刻发现并纠正"),
+    ("W7-5 ✅", "修「换地名就多绕几分钟」",
+     "根因不在后端（<code>classify_intent</code> 对 9 个句式实测 8 个正确）："
+     "<b>前端在发请求之前就无条件采样了 128×128 高程点</b>，"
+     "「跳转到阿尔卑斯山」也要先等几分钟才把请求发出去。"
+     "改为按需采样 + 后端 <code>need_terrain</code> 回退补采。",
+     "三种跳转问法全程 0 次采样，耗时 3.9–5.5 s"),
+    ("W7-6 ✅", "验证",
+     "多轮真机冒烟（<code>cesium_old/_smoke_memory.js</code>）+ 全量评测确认单轮准确率不降。",
+     "见下方冒烟与回归表"),
+]
+
+WEEK7_SMOKE = [
+    ("入口为纯图标（顶部菜单常驻，不需要文字占位）", True, "右下角悬浮按钮已按要求移除"),
+    ("会话 ID 持久化到 localStorage", True, "首次发送时生成，刷新页面后上文仍可续接"),
+    ("第 1 句「我想看看五指山」", True,
+     "意图 <b>action</b> → 直接跳转（以前只回一段五指山的风土介绍）；<b>未触发任何地形采样</b>"),
+    ("第 2 句「跳转到这个地方」", True,
+     "记忆：「这个地方」→ <b>五指山一带（北纬18.50°–19.50°，东经109.50°–110.50°）</b>"
+     "；改造前答的是「请提供具体的地名或坐标」"),
+    ("第 3 句「跳转到阿尔卑斯山」（换地名）", True,
+     "仍是 <b>action</b>、<b>仍未触发采样</b>；后端实测 4.4 s 返回"),
+    ("第 4 句「跳转到这个地方」", True,
+     "记忆跟上最新一轮 → <b>阿尔卑斯山一带（北纬46.00°–48.00°，东经6.86°–15.00°）</b>"),
+    ("点「新会话」图标", True, "对话区清空、会话 ID 更换；旧会话记忆仍留在库里不误删"),
+]
+
+
 def _load(path: Path) -> Optional[List[Dict[str, Any]]]:
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
     return data["details"] if isinstance(data, dict) else data
+
 
 
 def _avg(values: List[float]) -> Optional[float]:
@@ -720,6 +775,20 @@ def build_html(
         for name, n, te, f1, rc, note, _ok in WEEK6_REGRESSION
     )
 
+    # ---- Week 7 记忆 ----
+    week7_html = "".join(
+        f'<div class="step"><div class="step-head">'
+        f'<span class="step-code">{code}</span><span class="step-title">{title}</span></div>'
+        f'<div class="step-why">{why}</div>'
+        f'<div class="step-done"><span class="tag tag-mean">验收</span>{done}</div></div>'
+        for code, title, why, done in WEEK7_PLAN
+    )
+    smoke7_html = "".join(
+        f'<tr><td>{name}</td><td class="{"ok" if passed else "bad"}">'
+        f'{"✅ 通过" if passed else "❌ 未通过"}</td><td class="dim">{note}</td></tr>'
+        for name, passed, note in WEEK7_SMOKE
+    )
+
     return f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -991,6 +1060,49 @@ def build_html(
     （它们看「拒答正确」那一列）。直接对全部条目取平均会把拒答题按 0 分计入，
     得出「主集 76.9%」这种错误数字 —— 必须用
     <code>app.eval.metrics.aggregate()</code>，它在内部做了分口径处理。
+  </div>
+</section>
+
+<section>
+  <h2>Week 7 · 对话记忆与上下文管理</h2>
+  <div class="sub" style="margin-bottom:12px">
+    起因：用户实测反馈两条 —— ① Agent <b>不保留、也不阅读上下文</b>，
+    上一轮刚聊完五指山，下一句「跳转到这个地方」它答"请提供具体地名"；
+    ② 同样的操作换个地名就变样，「跳转到五指山」秒回，
+    「跳转到阿尔卑斯山」却先跑几分钟地形采样才跳转。<br>
+    诊断结论：两条都<b>不是模型不够聪明，是架构缺口</b> ——
+    第二条尤其反直觉，<b>后端意图判断一直是对的</b>（9 个句式实测 8 个正确），
+    问题出在<b>前端抢跑</b>：请求还没发出去，它就先无条件采样了 16384 个高程点。
+  </div>
+  {week7_html}
+
+  <h3 style="font-size:14px;margin:20px 0 8px">多轮连续对话真机冒烟</h3>
+  <div class="sub" style="margin-bottom:10px">
+    脚本 <code>cesium_old/_smoke_memory.js</code>：在同一会话里连问四句，
+    验证「记忆能不能理解指代」与「跳转还会不会被抢跑采样」。
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:46%">检查项</th><th style="width:14%">结果</th><th>说明</th>
+    </tr></thead>
+    <tbody>{smoke7_html}</tbody>
+  </table>
+
+  <h3 style="font-size:14px;margin:22px 0 8px">设计取舍（面试会问的三点）</h3>
+  <div class="note">
+    <ul>
+      <li><b>为什么不用 LangGraph checkpointer？</b>它解决的是"断点续跑"（存整个图状态快照），
+        而记忆解决的是"理解上下文"。我们的 state 里有 DEM 路径、产物列表、trace 等大对象，
+        每轮快照既慢又脏；且项目是 LangGraph + 自研循环双运行时，
+        checkpointer 只在图分支生效会造成行为分叉。</li>
+      <li><b>为什么短期只截断不摘要？</b>已实测 4B 模型做"转述"会改坏事实；
+        且 Lost-in-the-Middle 实测注意力呈 U 型、中段信息召回率约 20% ——
+        历史塞得越多整体准确率越低，与信息是否在窗口内无关。</li>
+      <li><b>为什么指代消解用规则而不是让模型做？</b>代词指向什么是<b>已经发生过的事实</b>
+        （库里记着上一轮的 bbox），查一下即可；让 4B 去猜等于抽奖。
+        但<b>意图判断仍交给模型</b> —— 规则只补事实，不替模型做决定，
+        否则就会回到用户批评过的"只会回答写死的问题"。</li>
+    </ul>
   </div>
 </section>
 

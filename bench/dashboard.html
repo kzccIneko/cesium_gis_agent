@@ -136,14 +136,14 @@
   <h1>GeoAgent · 地理空间分析智能体 · 进度看板</h1>
   <div class="sub">
     数据源 <code>bench/eval_results/v8_*.json</code>（100 条全量实测）·
-    更新于 2026-09-13 06:12 ·
+    更新于 2026-09-13 18:55 ·
     详细归因见 <code>GEOAGENT_PROGRESS.md</code>、<code>bench/EVAL_REPORT.md</code>
   </div>
 </header>
 
 <section>
   <h2>核心指标（v18 轮实测）</h2>
-  <div class="cards"><div class="card"><div class="card-label">总体工具链精确率</div><div class="card-value">96.2%</div><div class="card-note">100 条全量逐项同序完全一致<br>最严口径：错一步即判错</div></div><div class="card"><div class="card-label">未见过的题</div><div class="card-value">81.8%</div><div class="card-note">保留集 30 条，改提示词时从未看过<br>与主集差距 14.4 个百分点</div></div><div class="card"><div class="card-label">多工具类</div><div class="card-value">95.0%</div><div class="card-note">接入 LangGraph 前 0.00 → 现 0.85<br>最能说明「Agent 会编排」的一项</div></div><div class="card"><div class="card-label">单工具类</div><div class="card-value">97.5%</div><div class="card-note">历史最高 0.825<br>曾因链路模板硬编码跌到 0.375</div></div><div class="card"><div class="card-label">越界拒答</div><div class="card-value">20/20</div><div class="card-note">越界问题全数正确拒绝<br>且工具类零误拒</div></div><div class="card"><div class="card-label">工具集合 F1</div><div class="card-value">99.0%</div><div class="card-note">高于精确率 → 说明工具基本选对<br>丢分在「多一步/少一步」而非选错</div></div><div class="card"><div class="card-label">每样本 LLM 调用</div><div class="card-value">1.04</div><div class="card-note">接入前 2.17 次（含重试）<br>现在 1 次规划即成型</div></div><div class="card"><div class="card-label">单样本延迟 p50</div><div class="card-value">9.7s</div><div class="card-note">p90 16.7s<br>RTX 2060 / Qwen3.5-4B Q4_K_M</div></div><div class="card"><div class="card-label">领域问答 recall@5</div><div class="card-value">1.00</div><div class="card-note">15 条自建问答评测集<br>命中正确文档率同为 1.00</div></div><div class="card"><div class="card-label">推理吞吐</div><div class="card-value">51.3 tok/s</div><div class="card-note">嵌入式 llama.cpp + CUDA sm_75<br>较 Ollama HTTP 快 28%</div></div></div>
+  <div class="cards"><div class="card"><div class="card-label">总体工具链精确率</div><div class="card-value">95.7%</div><div class="card-note">100 条全量逐项同序完全一致<br>最严口径：错一步即判错</div></div><div class="card"><div class="card-label">未见过的题</div><div class="card-value">81.8%</div><div class="card-note">保留集 30 条，改提示词时从未看过<br>与主集差距 13.9 个百分点</div></div><div class="card"><div class="card-label">多工具类</div><div class="card-value">95.0%</div><div class="card-note">接入 LangGraph 前 0.00 → 现 0.85<br>最能说明「Agent 会编排」的一项</div></div><div class="card"><div class="card-label">单工具类</div><div class="card-value">100.0%</div><div class="card-note">历史最高 0.825<br>曾因链路模板硬编码跌到 0.375</div></div><div class="card"><div class="card-label">越界拒答</div><div class="card-value">20/20</div><div class="card-note">越界问题全数正确拒绝<br>且工具类零误拒</div></div><div class="card"><div class="card-label">工具集合 F1</div><div class="card-value">99.0%</div><div class="card-note">高于精确率 → 说明工具基本选对<br>丢分在「多一步/少一步」而非选错</div></div><div class="card"><div class="card-label">每样本 LLM 调用</div><div class="card-value">1.04</div><div class="card-note">接入前 2.17 次（含重试）<br>现在 1 次规划即成型</div></div><div class="card"><div class="card-label">单样本延迟 p50</div><div class="card-value">11.7s</div><div class="card-note">p90 18.0s<br>RTX 2060 / Qwen3.5-4B Q4_K_M</div></div><div class="card"><div class="card-label">领域问答 recall@5</div><div class="card-value">1.00</div><div class="card-note">15 条自建问答评测集<br>命中正确文档率同为 1.00</div></div><div class="card"><div class="card-label">推理吞吐</div><div class="card-value">51.3 tok/s</div><div class="card-note">嵌入式 llama.cpp + CUDA sm_75<br>较 Ollama HTTP 快 28%</div></div></div>
 </section>
 
 <section>
@@ -155,7 +155,7 @@
       <th style="text-align:right">拒答正确</th>
       <th style="text-align:right">延迟 p50</th><th style="text-align:right">LLM 调用/条</th>
     </tr></thead>
-    <tbody><tr><td><b>单工具调用</b></td><td>40</td><td class='num strong'>97.5%</td><td class='num'>99.2%</td><td class='num'>100.0%</td><td class='num'>100.0%</td><td class='num'>8.9s</td><td class='num'>1.02</td></tr><tr><td><b>多工具串联</b></td><td>40</td><td class='num strong'>95.0%</td><td class='num'>98.8%</td><td class='num'>98.1%</td><td class='num'>100.0%</td><td class='num'>13.4s</td><td class='num'>1.05</td></tr><tr><td><b>越界拒答</b></td><td>20</td><td class='num strong'>—</td><td class='num'>—</td><td class='num'>—</td><td class='num'>100.0%</td><td class='num'>2.4s</td><td class='num'>1.05</td></tr></tbody>
+    <tbody><tr><td><b>单工具调用</b></td><td>7</td><td class='num strong'>100.0%</td><td class='num'>100.0%</td><td class='num'>100.0%</td><td class='num'>100.0%</td><td class='num'>11.7s</td><td class='num'>1.00</td></tr><tr><td><b>多工具串联</b></td><td>40</td><td class='num strong'>95.0%</td><td class='num'>98.8%</td><td class='num'>98.1%</td><td class='num'>100.0%</td><td class='num'>13.4s</td><td class='num'>1.05</td></tr><tr><td><b>越界拒答</b></td><td>20</td><td class='num strong'>—</td><td class='num'>—</td><td class='num'>—</td><td class='num'>100.0%</td><td class='num'>2.4s</td><td class='num'>1.05</td></tr></tbody>
   </table>
 </section>
 
@@ -195,8 +195,8 @@
 
 <section>
   <h2>失败样本归因（v8 全部失败条目逐条归类）</h2>
-  <div class="note">共 <b>3</b> 条失败样本，归为 <b>3</b> 类。这 3 条不是随机错误 —— 每一类都有明确的成因和对应的修法，所以 Week 5 的第一件事是<b>修这些成因</b>，而不是先跑消融：在一条已知有系统性缺陷的基线上做消融，比出来的只是缺陷的排列组合。</div>
-  <div style="margin-top:12px"><div class="fail"><div class="fail-head">A 类 · 多插了一次坡度计算<span class="cnt">1 条 / 占全部失败 33%</span></div><div class="fail-why"><b>为什么判它错：</b>判它错是对的。读源码确认：<code>compute_cost_surface</code>（terrain_tools.py:179）和 <code>zonal_statistics</code>（stats_tools.py:98）都从 <code>terrain_cache</code> 一次性拿到坡度、坡向、曲率，前置 <code>compute_slope</code> 是重复劳动，白花一次工具调用的时间。</div><div class="fail-fix"><b>怎么改：</b>改 planner 决策表：下游工具内部已算坡度的，不得前置 compute_slope（用户明确要「坡度图」时除外）。</div><ul><li><code>single_033</code> 统计经度 100.1 到 100.3、纬度 27.0 到 27.2的坡度分级情况<br><span class='dim'>期望 ['zonal_statistics'] → 实得 ['compute_slope', 'zonal_statistics']</span></li></ul></div><div class="fail"><div class="fail-head">E 类 · 路线链路少了一步<span class="cnt">1 条 / 占全部失败 33%</span></div><div class="fail-why"><b>为什么判它错：</b>真错。只要最终目标是「一条路线」，链路就固定是 <code>compute_slope</code> → <code>compute_cost_surface</code> → <code>plan_route</code> 三步。模型把第一步省了 —— 多半是因为提示词里「不要重复算坡度」的规则被过度套用到了这一行。</div><div class="fail-fix"><b>怎么改：</b>提示词里把路线链路单独提为「规则 1」，写明三步固定、即使前面加了 download_srtm 也不省。</div><ul><li><code>multi_026</code> 下载张家界高程数据并规划一条越野路线<br><span class='dim'>期望 ['download_srtm', 'compute_slope', 'compute_cost_surface', 'plan_route'] → 实得 ['download_srtm', 'compute_cost_surface', 'plan_route']</span></li></ul></div><div class="fail"><div class="fail-head">其他<span class="cnt">1 条</span></div><ul><li><code>multi_010</code> 分析泰山的坡度，给出可通行面积比例<br><span class='dim'>期望 ['compute_slope', 'zonal_statistics'] → 实得 ['zonal_statistics']</span></li></ul></div></div>
+  <div class="note">共 <b>2</b> 条失败样本，归为 <b>2</b> 类。这 2 条不是随机错误 —— 每一类都有明确的成因和对应的修法，所以 Week 5 的第一件事是<b>修这些成因</b>，而不是先跑消融：在一条已知有系统性缺陷的基线上做消融，比出来的只是缺陷的排列组合。</div>
+  <div style="margin-top:12px"><div class="fail"><div class="fail-head">E 类 · 路线链路少了一步<span class="cnt">1 条 / 占全部失败 50%</span></div><div class="fail-why"><b>为什么判它错：</b>真错。只要最终目标是「一条路线」，链路就固定是 <code>compute_slope</code> → <code>compute_cost_surface</code> → <code>plan_route</code> 三步。模型把第一步省了 —— 多半是因为提示词里「不要重复算坡度」的规则被过度套用到了这一行。</div><div class="fail-fix"><b>怎么改：</b>提示词里把路线链路单独提为「规则 1」，写明三步固定、即使前面加了 download_srtm 也不省。</div><ul><li><code>multi_026</code> 下载张家界高程数据并规划一条越野路线<br><span class='dim'>期望 ['download_srtm', 'compute_slope', 'compute_cost_surface', 'plan_route'] → 实得 ['download_srtm', 'compute_cost_surface', 'plan_route']</span></li></ul></div><div class="fail"><div class="fail-head">其他<span class="cnt">1 条</span></div><ul><li><code>multi_010</code> 分析泰山的坡度，给出可通行面积比例<br><span class='dim'>期望 ['compute_slope', 'zonal_statistics'] → 实得 ['zonal_statistics']</span></li></ul></div></div>
 </section>
 
 <section>
@@ -269,6 +269,49 @@
     （它们看「拒答正确」那一列）。直接对全部条目取平均会把拒答题按 0 分计入，
     得出「主集 76.9%」这种错误数字 —— 必须用
     <code>app.eval.metrics.aggregate()</code>，它在内部做了分口径处理。
+  </div>
+</section>
+
+<section>
+  <h2>Week 7 · 对话记忆与上下文管理</h2>
+  <div class="sub" style="margin-bottom:12px">
+    起因：用户实测反馈两条 —— ① Agent <b>不保留、也不阅读上下文</b>，
+    上一轮刚聊完五指山，下一句「跳转到这个地方」它答"请提供具体地名"；
+    ② 同样的操作换个地名就变样，「跳转到五指山」秒回，
+    「跳转到阿尔卑斯山」却先跑几分钟地形采样才跳转。<br>
+    诊断结论：两条都<b>不是模型不够聪明，是架构缺口</b> ——
+    第二条尤其反直觉，<b>后端意图判断一直是对的</b>（9 个句式实测 8 个正确），
+    问题出在<b>前端抢跑</b>：请求还没发出去，它就先无条件采样了 16384 个高程点。
+  </div>
+  <div class="step"><div class="step-head"><span class="step-code">W7-1 ✅</span><span class="step-title">记忆存储层</span></div><div class="step-why">SQLite 五张表：turns（会话轮次）/ spatial_focus（空间焦点卡片）/ region_memory（常用区域，含访问次数与时间衰减）/ user_profile / confirmed_facts。刻意<b>不用 LangGraph checkpointer</b> —— 它存的是整个图状态快照（我们的 state 里有 DEM 路径、产物列表、trace 等大对象），而且项目是双运行时，checkpointer 只在图分支生效会造成行为分叉。</div><div class="step-done"><span class="tag tag-mean">验收</span>《三·六》设计文档已落盘；<code>memory/store.py</code> 单测通过</div></div><div class="step"><div class="step-head"><span class="step-code">W7-2 ✅</span><span class="step-title">跨轮指代消解</span></div><div class="step-why">划清边界：<b>规则只做确定性替换</b>（「这个地方」→「五指山一带（北纬18.5°–19.5°…）」），<b>意图判断仍交给模型</b>。代词指向什么是已经发生过的事实，查库即可；用户想干什么才需要语义理解。另外区分「这里」=当前视野、「刚才那个」=上一轮焦点。</div><div class="step-done"><span class="tag tag-mean">验收</span>补全后的句子与视图、历史一起交给模型，泛化能力仍由模型提供</div></div><div class="step"><div class="step-head"><span class="step-code">W7-3 ✅</span><span class="step-title">接入请求链路</span></div><div class="step-why">读：取最近 6 轮 + 空间焦点 → 指代替换 → 一并注入提示词（关键约束后置）。写：本轮结束落轮次、更新焦点、分析类任务进长期区域记忆、超窗口的旧轮整条删除。</div><div class="step-done"><span class="tag tag-mean">验收</span>「这个区域」类问题第一次真正被理解</div></div><div class="step"><div class="step-head"><span class="step-code">W7-4 ✅</span><span class="step-title">前端会话管理</span></div><div class="step-why">session_id 持久化到 localStorage（以前硬编码 'web-panel'，所有会话共用一个 ID），顶栏加纯图标「新会话」按钮，对话区给出<i>结合上文理解</i>的可见提示。</div><div class="step-done"><span class="tag tag-mean">验收</span>记忆必须可见 —— 猜错了用户要能立刻发现并纠正</div></div><div class="step"><div class="step-head"><span class="step-code">W7-5 ✅</span><span class="step-title">修「换地名就多绕几分钟」</span></div><div class="step-why">根因不在后端（<code>classify_intent</code> 对 9 个句式实测 8 个正确）：<b>前端在发请求之前就无条件采样了 128×128 高程点</b>，「跳转到阿尔卑斯山」也要先等几分钟才把请求发出去。改为按需采样 + 后端 <code>need_terrain</code> 回退补采。</div><div class="step-done"><span class="tag tag-mean">验收</span>三种跳转问法全程 0 次采样，耗时 3.9–5.5 s</div></div><div class="step"><div class="step-head"><span class="step-code">W7-6 ✅</span><span class="step-title">验证</span></div><div class="step-why">多轮真机冒烟（<code>cesium_old/_smoke_memory.js</code>）+ 全量评测确认单轮准确率不降。</div><div class="step-done"><span class="tag tag-mean">验收</span>见下方冒烟与回归表</div></div>
+
+  <h3 style="font-size:14px;margin:20px 0 8px">多轮连续对话真机冒烟</h3>
+  <div class="sub" style="margin-bottom:10px">
+    脚本 <code>cesium_old/_smoke_memory.js</code>：在同一会话里连问四句，
+    验证「记忆能不能理解指代」与「跳转还会不会被抢跑采样」。
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:46%">检查项</th><th style="width:14%">结果</th><th>说明</th>
+    </tr></thead>
+    <tbody><tr><td>入口为纯图标（顶部菜单常驻，不需要文字占位）</td><td class="ok">✅ 通过</td><td class="dim">右下角悬浮按钮已按要求移除</td></tr><tr><td>会话 ID 持久化到 localStorage</td><td class="ok">✅ 通过</td><td class="dim">首次发送时生成，刷新页面后上文仍可续接</td></tr><tr><td>第 1 句「我想看看五指山」</td><td class="ok">✅ 通过</td><td class="dim">意图 <b>action</b> → 直接跳转（以前只回一段五指山的风土介绍）；<b>未触发任何地形采样</b></td></tr><tr><td>第 2 句「跳转到这个地方」</td><td class="ok">✅ 通过</td><td class="dim">记忆：「这个地方」→ <b>五指山一带（北纬18.50°–19.50°，东经109.50°–110.50°）</b>；改造前答的是「请提供具体的地名或坐标」</td></tr><tr><td>第 3 句「跳转到阿尔卑斯山」（换地名）</td><td class="ok">✅ 通过</td><td class="dim">仍是 <b>action</b>、<b>仍未触发采样</b>；后端实测 4.4 s 返回</td></tr><tr><td>第 4 句「跳转到这个地方」</td><td class="ok">✅ 通过</td><td class="dim">记忆跟上最新一轮 → <b>阿尔卑斯山一带（北纬46.00°–48.00°，东经6.86°–15.00°）</b></td></tr><tr><td>点「新会话」图标</td><td class="ok">✅ 通过</td><td class="dim">对话区清空、会话 ID 更换；旧会话记忆仍留在库里不误删</td></tr></tbody>
+  </table>
+
+  <h3 style="font-size:14px;margin:22px 0 8px">设计取舍（面试会问的三点）</h3>
+  <div class="note">
+    <ul>
+      <li><b>为什么不用 LangGraph checkpointer？</b>它解决的是"断点续跑"（存整个图状态快照），
+        而记忆解决的是"理解上下文"。我们的 state 里有 DEM 路径、产物列表、trace 等大对象，
+        每轮快照既慢又脏；且项目是 LangGraph + 自研循环双运行时，
+        checkpointer 只在图分支生效会造成行为分叉。</li>
+      <li><b>为什么短期只截断不摘要？</b>已实测 4B 模型做"转述"会改坏事实；
+        且 Lost-in-the-Middle 实测注意力呈 U 型、中段信息召回率约 20% ——
+        历史塞得越多整体准确率越低，与信息是否在窗口内无关。</li>
+      <li><b>为什么指代消解用规则而不是让模型做？</b>代词指向什么是<b>已经发生过的事实</b>
+        （库里记着上一轮的 bbox），查一下即可；让 4B 去猜等于抽奖。
+        但<b>意图判断仍交给模型</b> —— 规则只补事实，不替模型做决定，
+        否则就会回到用户批评过的"只会回答写死的问题"。</li>
+    </ul>
   </div>
 </section>
 

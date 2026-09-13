@@ -77,6 +77,8 @@ def run_agent(
     recursion_limit: int = DEFAULT_RECURSION_LIMIT,
     session_dem_path: Optional[str] = None,
     view_context: Optional[Dict[str, Any]] = None,
+    history: Optional[List[Dict[str, Any]]] = None,
+    focus_context: str = "",
 ) -> AgentState:
     """运行一次完整的 Agent 分析流程。
 
@@ -91,6 +93,8 @@ def run_agent(
         recursion_limit: LangGraph 递归上限（防止死循环的第二道保险）
         session_dem_path: 本次会话的默认 DEM（前端从 Cesium 地形采样得到的 GeoTIFF）。
             工具参数里没给 dem_path 时用它，避免回退到合成地形。
+        history: 本会话此前几轮消息（不含本轮），由记忆层提供，用于理解跨轮指代。
+        focus_context: 跨轮空间焦点文本（上一轮 bbox / 地名 / 工具），与 view_context 互补。
 
     Returns:
         最终 AgentState（含 final_answer / tool_calls / trace / reflection）
@@ -107,6 +111,8 @@ def run_agent(
         max_retries=max_retries,
         session_dem_path=session_dem_path,
         view_context=view_context,
+        history=history,
+        focus_context=focus_context,
     )
 
     if use_langgraph:

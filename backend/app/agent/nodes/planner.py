@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..gazetteer import get_gazetteer
+from ..memory import build_history_text
 from ...rag.context import retrieve_for_query
 from ..llm import (
     LLMClient,
@@ -269,8 +270,14 @@ def classify_intent(state: AgentState, llm: LLMClient) -> Optional[Dict[str, Any
     except OSError:
         return None
 
+    # 视图 + 历史焦点一起给它：分类器需要知道「这个地方」指的是哪儿，
+    # 才能判断用户是要"跳过去"还是"分析那一带"。
+    ctx = build_view_context(state) or "（未知）"
+    focus_txt = str(state.get("focus_context") or "").strip()
+    if focus_txt:
+        ctx = ctx + "\n\n" + focus_txt
     prompt = (
-        template.replace("{{VIEW_CONTEXT}}", build_view_context(state) or "（未知）")
+        template.replace("{{VIEW_CONTEXT}}", ctx)
         .replace("{{QUERY}}", str(state.get("query") or ""))
     )
 
@@ -568,10 +575,11 @@ def plan_node(state: AgentState, llm: LLMClient) -> Dict[str, Any]:
     history = ""
     msgs = state.get("messages") or []
     if len(msgs) > 1:
-        recent = msgs[:-1][-4:]
-        history = "此前对话：\n" + "\n".join(
-            f"  {m.get('role')}: {str(m.get('content'))[:200]}" for m in recent
-        )
+        # 消息流本身已由记忆层裁到最近若干轮（见 memory.store.trim_turns），
+        # 这里再取尾部若干条并逐条截断 —— 4B 模型对长历史很不友好，
+        # 与其塞满不如只留最近的（Lost-in-the-Middle：中段信息基本被忽略）。
+        recent = msgs[:-1][-8:]
+        history = "此前对话：\n" + build_history_text(recent, max_chars_per_turn=160)
 
     used_fallback = False
     errors: List[str] = []
@@ -613,8 +621,14 @@ def plan_node(state: AgentState, llm: LLMClient) -> Dict[str, Any]:
     # 没有这段，模型回答不了「这里是什么地方」，也无法理解「跳转到海南省」之后
     # 该把视角放哪 —— 它只能靠猜或干脆拒答（这正是用户实测反馈的问题）。
     view_ctx = build_view_context(state)
+    # 再叠上"这一轮对话在聊哪"（跨轮空间焦点）。
+    # 两者可能不同：用户跳转到海南之后问「刚才那个山西的区域」，
+    # 视图在海南、焦点在山西，缺了焦点这段模型必然理解错。
+    focus_txt = str(state.get("focus_context") or "").strip()
+    if focus_txt:
+        view_ctx = (view_ctx + "\n\n" + focus_txt).strip() if view_ctx else focus_txt
     if view_ctx:
-        trace.append("已注入当前视图上下文")
+        trace.append("已注入当前视图" + ("与历史焦点上下文" if focus_txt else "上下文"))
 
     prompt = render_planner_prompt(
         query, bbox, history, rag_context=rag_ctx, view_context=view_ctx
