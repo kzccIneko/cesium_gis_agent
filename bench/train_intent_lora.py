@@ -45,12 +45,16 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, "backend")
-os.environ.setdefault("TMP", "D:/llama_build/tmp")
-os.environ.setdefault("TEMP", "D:/llama_build/tmp")
-os.environ.setdefault("HF_HOME", "D:/llama_build/hf")
-os.environ.setdefault("MODELSCOPE_CACHE", "D:/llama_build/ms")
-# CPU 训练时把线程数用满
-os.environ.setdefault("OMP_NUM_THREADS", "8")
+# 这些只在 Windows 本机需要（把临时/缓存目录从余量极小的 C 盘挪到 D 盘）。
+# Linux（云端实例）上绝不能设 —— 否则会造出名为 "D:/llama_build/..." 的怪目录，
+# 且 MODELSCOPE_CACHE 会被顶掉，模型重复下载 8.8 GB。
+if os.name == "nt":
+    os.environ.setdefault("TMP", "D:/llama_build/tmp")
+    os.environ.setdefault("TEMP", "D:/llama_build/tmp")
+    os.environ.setdefault("HF_HOME", "D:/llama_build/hf")
+    os.environ.setdefault("MODELSCOPE_CACHE", "D:/llama_build/ms")
+    # CPU 训练时把线程数用满（本机 8 核）
+    os.environ.setdefault("OMP_NUM_THREADS", "8")
 
 HERE = Path(__file__).resolve().parent
 DATA_DIR = HERE / "sft_data"
@@ -91,10 +95,17 @@ def build_batch(tok, sample: dict, max_len: int):
     不想让它把容量花在复现 system/user 的措辞上。
     """
     msgs = sample["messages"]
+    # enable_thinking=False 是这次的关键修复。Qwen3.5 的 chat template 在思考开启时
+    # 会注入 "<think>\n"，模型随即开始长篇推理（"首先，我需要判断……"），而我们只要 JSON。
+    # 训练数据渲染出的是 "<think>\n\n</think>\n\n{JSON}"（空思考），所以评测侧必须用
+    # **同一个开关**，否则模板前缀不一致，模型会走进推理分支。
     prompt_ids = _ids(
-        tok.apply_chat_template(msgs[:2], tokenize=True, add_generation_prompt=True)
+        tok.apply_chat_template(msgs[:2], tokenize=True, add_generation_prompt=True,
+                                enable_thinking=False)
     )
-    full_ids = _ids(tok.apply_chat_template(msgs, tokenize=True))
+    full_ids = _ids(
+        tok.apply_chat_template(msgs, tokenize=True, enable_thinking=False)
+    )
     if len(full_ids) > max_len:
         full_ids = full_ids[:max_len]
     labels = [-100] * min(len(prompt_ids), len(full_ids))
@@ -258,12 +269,15 @@ def evaluate(model, tok, rows, dev, max_len):
     for sample in rows:
         msgs = sample["messages"]
         prompt_ids = _ids(
-            tok.apply_chat_template(msgs[:2], tokenize=True, add_generation_prompt=True)
+            tok.apply_chat_template(msgs[:2], tokenize=True, add_generation_prompt=True,
+                                    enable_thinking=False)
         )[:max_len]
         input_ids = torch.tensor([prompt_ids], device=dev)
         with torch.no_grad():
+            # 256 是护栏：正常直出 JSON 只要 30–50 token，留足余量以便万一又走推理分支时
+            # 能在日志里看到完整思考文本，好定位问题。
             gen = model.generate(
-                input_ids=input_ids, max_new_tokens=64, do_sample=False,
+                input_ids=input_ids, max_new_tokens=256, do_sample=False,
                 pad_token_id=tok.pad_token_id or tok.eos_token_id,
             )
         text = tok.decode(gen[0][len(prompt_ids):], skip_special_tokens=True)
@@ -274,7 +288,7 @@ def evaluate(model, tok, rows, dev, max_len):
         if not hit and len(detail) < 20:
             detail.append({
                 "query": msgs[1]["content"], "want": want, "got": got,
-                "raw": text[:120],
+                "raw": text[:300],
             })
     if was_training:
         model.train()
@@ -282,16 +296,24 @@ def evaluate(model, tok, rows, dev, max_len):
 
 
 def extract_intent(text: str):
-    """从模型输出里抠出 intent 字段。宽松一点 —— 评测的是意图判断能力，
-    不是 JSON 格式能力（格式问题已由 bench/_test_grammar.py 证明不存在）。"""
+    """从模型输出里抠出 intent 字段。
+
+    先认 JSON。**兜底规则必须收紧** —— 曾经的写法是"文本里出现 analysis 就返回 analysis"，
+    结果模型一旦进入推理分支、开始复述规则（"intent 的选项有 analysis、knowledge、action……"），
+    每个失败样本都被误判成 analysis，训练前基线直接变成 0.0%，把整轮评测毁了。
+    改为要求取值出现在 `intent` 一词附近，宁可返回 None 也不要瞎猜。
+    """
     import re
 
     m = re.search(r'"intent"\s*:\s*"([a-z_]+)"', text or "")
     if m:
         return m.group(1)
-    for kw in ("analysis", "knowledge", "action", "chat", "refuse"):
-        if kw in (text or ""):
-            return kw
+    m = re.search(
+        r'\bintent\b\s*(?:是|为|:|＝|=)?\s*"?(analysis|knowledge|action|chat|refuse)\b',
+        text or "",
+    )
+    if m:
+        return m.group(1)
     return None
 
 

@@ -17,6 +17,19 @@
 # ============================================================
 set -euo pipefail
 
+# ---------- 兼容：部分镜像（如 AutoDL）的 Miniconda 不在默认 PATH ----------
+# 实测 AutoDL 实例 `which python` 为空，只有 /root/miniconda3/bin/python，
+# 不补 PATH 的话下面每一步都会 command not found。
+if ! command -v python >/dev/null 2>&1; then
+    for _d in /root/miniconda3/bin /root/anaconda3/bin /opt/conda/bin; do
+        if [ -x "$_d/python" ]; then
+            export PATH="$_d:$PATH"
+            echo "ℹ python 不在默认 PATH，已加入：$_d"
+            break
+        fi
+    done
+fi
+
 MODEL="${1:-Qwen/Qwen3.5-4B}"
 EPOCHS="${2:-2}"
 
@@ -54,8 +67,18 @@ PY
 
 # ---------- 1. 依赖 ----------
 echo
-echo "[1/5] 安装依赖（约 1–2 分钟）"
-pip install -q --upgrade transformers peft datasets accelerate bitsandbytes modelscope
+echo "[1/5] 安装依赖（约 3–6 分钟）"
+# 源的选择是这一步的关键。实测同一台实例（AutoDL / 电信机房）下的速度：
+#   华为云 8.9 MB/s ｜ 腾讯云 5.5 MB/s ｜ 阿里云 630 KB/s ｜ 清华/中科大全超时
+# 差 14 倍 —— 慢源会把这一步从 5 分钟拖成 1 小时以上。可用 PIP_INDEX 覆盖。
+PIP_INDEX="${PIP_INDEX:-https://repo.huaweicloud.com/repository/pypi/simple}"
+echo "  pip 源: $PIP_INDEX"
+
+# 先把 torch 单独钉在 2.6.0：AutoDL 老镜像预装 2.1.2，而 transformers 5.x 要求 >=2.5。
+# 显式钉版本的两个理由：① 否则 pip 会顺带拉到最新版，体积更大；
+# ② 2.6.0 的 cu124 依赖与常见的 560 系驱动匹配，过新的 torch 需要更新驱动。
+pip install -q -i "$PIP_INDEX" "torch==2.6.0"
+pip install -q -i "$PIP_INDEX" --upgrade transformers peft datasets accelerate bitsandbytes modelscope
 
 # 显存 < 16 GB 自动切到 4-bit（QLoRA），避免 OOM 白跑
 VRAM_GB=$(python -c "import torch;print(round(torch.cuda.get_device_properties(0).total_memory/1024**3))")

@@ -151,7 +151,13 @@ def main() -> None:
     ap.add_argument("--port", type=int, required=True, help="SSH 端口")
     ap.add_argument("--user", default="root")
     ap.add_argument("--key", default="", help="私钥路径（与密码二选一）")
-    ap.add_argument("--remote-dir", default="~/geoagent_train/bench")
+    # 默认放数据盘：AutoDL 的系统盘只有约 30 GB，装不下 8.8 GB 模型 + 依赖，
+    # 而 /root/autodl-tmp 是 50 GB 独立数据盘。非 AutoDL 平台请用 --remote-dir 覆盖。
+    ap.add_argument(
+        "--remote-dir",
+        default="/root/autodl-tmp/geoagent_train/bench",
+        help="远端工作目录（务必落在数据盘，系统盘通常只有 30 GB）",
+    )
     ap.add_argument("--local-out", default="bench/geoagent_lora.tar.gz")
     ap.add_argument("--epochs", default="2")
     ap.add_argument("--model", default="Qwen/Qwen3.5-4B")

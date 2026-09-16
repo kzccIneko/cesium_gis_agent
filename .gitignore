@@ -103,3 +103,9 @@ bench/lora_out/**/tokenizer_config.json
 bench/lora_out/**/chat_template.jinja
 bench/lora_out/**/README.md
 bench/lora_out/_smoke*/
+
+# 云端训练产物打包（约 120 MB）与 ModelScope 权重缓存：
+# 都可由 bench/cloud_train.sh 重新生成，不入库。评测数字在
+# lora_out/*/eval_result.json 里，那个要入库作为数字来源。
+bench/geoagent_lora.tar.gz
+bench/.ms_cache/
