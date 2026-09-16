@@ -164,16 +164,46 @@ bash cloud_train.sh
 如果不想自己敲命令，本仓库已备好远程控制脚本 `bench/cloud_remote.py`，
 可由 AI 一条命令走完「上传 → 训练 → 取回产物」。
 
-**你只需在控制台的「SSH 登录指令」里找到三个信息**：主机地址、端口、密码。
+### 先配免密登录（一次配置，之后免密）
 
-然后 AI 执行：
+控制台 **设置 → SSH 免密登录 → 添加 SSH 公钥**，粘贴本机公钥：
 
 ```bash
-export CLOUD_SSH_PASSWORD='<你的密码>'
-python bench/cloud_remote.py --host <主机> --port <端口> --action all
+cat ~/.ssh/id_ed25519.pub      # 复制输出的整行
+```
+
+> 控制台方式的好处是**持久**：实例重建、新开实例都会自动注入该公钥。
+> 直接往实例的 `~/.ssh/authorized_keys` 写也生效，但实例重置镜像后会被清掉。
+
+本机 `~/.ssh/config` 已加好别名（**端口是实例专属，重建后会变，需同步改这里**）：
+
+```
+Host autodl
+    HostName connect.cqa1.seetacloud.com
+    Port 19393
+    User root
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+```
+
+验证与日常用法：
+
+```bash
+ssh autodl "nvidia-smi"                       # 免密执行命令
+scp bench/train_intent_lora.py autodl:/root/autodl-tmp/   # 免密上传
+scp autodl:/root/autodl-tmp/geoagent_lora.tar.gz .        # 免密取回
+```
+
+### 再让 AI 跑训练
+
+```bash
+python bench/cloud_remote.py --action all      # 串好别名后，无需再传 host/port/密码
 ```
 
 也可以分步：`--action upload` / `train` / `fetch`。
+
+> 若不配免密，仍可用密码方式：`export CLOUD_SSH_PASSWORD='<密码>'` 后
+> `python bench/cloud_remote.py --host <主机> --port <端口> --action all`。
 
 **能力边界（先讲清楚）**：
 
@@ -221,6 +251,7 @@ AutoDL 的关机**保留数据盘**，下次开机环境还在，不用重装。
 | `❌ 未找到 nvidia-smi` | 实例没挂到 GPU，或选错了镜像。回控制台确认。 |
 | `❌ torch 能看到但 CUDA 不可用` | 镜像装的是 CPU 版 torch。执行 `pip install torch --index-url https://download.pytorch.org/whl/cu121` 重装。 |
 | `❌ 缺 sft_data/train.json` | 只传了脚本没传数据。回第三步把 `sft_data/` 一起拖上去。 |
+| `python: command not found` | AutoDL 的 Miniconda **不在默认 PATH 里**（实测 `which python` 为空，只有 `/root/miniconda3/bin/python`）。用绝对路径，或先 `source /root/miniconda3/etc/profile.d/conda.sh && conda activate base`。脚本里若直接写 `python` 会在此翻车。 |
 | 模型下载卡住 | ModelScope 偶尔波动，重跑 `bash cloud_train.sh` 即可（已下载的部分会跳过）。 |
 | `CUDA out of memory` | 脚本已按显存自动切 4-bit；若仍 OOM，把脚本里的 `--accum 8` 改成 `16`、或减小 `--max-len`。 |
 | 训练完忘了关机 | 立刻关。数据盘保留，下次接着用。 |
