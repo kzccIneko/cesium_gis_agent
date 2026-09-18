@@ -67,7 +67,13 @@ def load_split(name: str, limit: int | None = None):
 
 
 def intent_of(sample: dict) -> str:
-    return json.loads(sample["messages"][2]["content"])["intent"]
+    """取样本标签。
+
+    用 `[-1]` 而不是写死索引 2 —— 消息条数并不固定：
+    v1 数据是 system+user+assistant 三条，v2 数据是 user+assistant 两条
+    （因为部署时整段 prompt 是塞进 user 消息的）。
+    """
+    return json.loads(sample["messages"][-1]["content"])["intent"]
 
 
 def _ids(enc) -> list:
@@ -95,12 +101,11 @@ def build_batch(tok, sample: dict, max_len: int):
     不想让它把容量花在复现 system/user 的措辞上。
     """
     msgs = sample["messages"]
-    # enable_thinking=False 是这次的关键修复。Qwen3.5 的 chat template 在思考开启时
-    # 会注入 "<think>\n"，模型随即开始长篇推理（"首先，我需要判断……"），而我们只要 JSON。
-    # 训练数据渲染出的是 "<think>\n\n</think>\n\n{JSON}"（空思考），所以评测侧必须用
-    # **同一个开关**，否则模板前缀不一致，模型会走进推理分支。
+    # 标签是最后一条 assistant，它之前的全部消息构成 prompt。
+    # 用切片而不是写死 msgs[:2]，才能同时吃下 v1（system+user）与 v2（只有 user）。
+    prompt_msgs = msgs[:-1]
     prompt_ids = _ids(
-        tok.apply_chat_template(msgs[:2], tokenize=True, add_generation_prompt=True,
+        tok.apply_chat_template(prompt_msgs, tokenize=True, add_generation_prompt=True,
                                 enable_thinking=False)
     )
     full_ids = _ids(
@@ -128,8 +133,22 @@ def main() -> None:
     ap.add_argument("--load-4bit", action="store_true",
                     help="以 4-bit（NF4）加载底座。显存约为 bf16 的 1/4，"
                          "8–12 GB 显卡跑 4B 时用这个；24 GB 卡可直接用 bf16")
+    ap.add_argument("--grad-ckpt", action="store_true",
+                    help="启用梯度检查点。序列超过 ~2000 token 时必开，"
+                         "否则单卡 24GB 也会 OOM（v2 数据约 4000 token）")
     ap.add_argument("--save", default="")
+    ap.add_argument("--save-every", type=int, default=200,
+                    help="每 N 个优化步存一次 adapter（0=只在最后存）。长训练时用作保险："
+                         "中途崩溃也能拿到一份可用的近似产物，不必从头再跑。")
+    ap.add_argument("--data-dir", default="",
+                    help="训练数据目录（需含 train.json / eval.json）；"
+                         "默认 bench/sft_data，可指向 bench/sft_data_v2/planner 等")
     args = ap.parse_args()
+
+    global DATA_DIR
+    if args.data_dir:
+        DATA_DIR = Path(args.data_dir).resolve()
+        print(f"数据目录: {DATA_DIR}")
 
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -180,6 +199,16 @@ def main() -> None:
     )
     model = get_peft_model(model, lcfg)
     model.print_trainable_parameters()
+
+    if args.grad_ckpt:
+        # 梯度检查点：反向时把中间激活重算一遍，而不是全存着 —— 用时间换显存。
+        # v2 数据的序列约 4000 token（user 里装了完整的 planner 提示词 + 工具定义），
+        # 不开这个必 OOM：实测 4B + bf16 + 4608 序列直接顶到 23.4 / 23.5 GiB。
+        model.gradient_checkpointing_enable()
+        if hasattr(model, "enable_input_require_grads"):
+            model.enable_input_require_grads()
+        print("  已启用梯度检查点（用时间换显存）")
+
     if not quantized:
         model.to(dev)
     if dev == "cuda":
@@ -197,6 +226,7 @@ def main() -> None:
     # ---------------- 训练 ----------------
     print(f"\n[训练] {args.epochs} epoch, lr={args.lr}, r={args.lora_r}, "
           f"batch={args.batch}×accum={args.accum}")
+    save_dir = args.save or str(OUT_DIR / "intent_lora")
     opt = torch.optim.AdamW(
         [p for p in model.parameters() if p.requires_grad], lr=args.lr
     )
@@ -210,18 +240,31 @@ def main() -> None:
             input_ids = torch.tensor([ids], device=dev)
             label_t = torch.tensor([labels], device=dev)
             out = model(input_ids=input_ids, labels=label_t)
-            (out.loss / args.accum).backward()
-            losses.append(out.loss.item())
+            loss = out.loss
+            loss_val = loss.item()
+            (loss / args.accum).backward()
+            # 及时释放：out.logits 的形状是 (1, seq, 151936)，bf16 下单个就有 1 GB 出头，
+            # 若把 out 留到下一轮再被覆盖，它会一直占着显存不放。
+            del out, loss, input_ids, label_t
+            losses.append(loss_val)
             if (i + 1) % args.accum == 0:
                 opt.step()
                 opt.zero_grad()
                 step += 1
+                if args.save_every and step % args.save_every == 0:
+                    model.save_pretrained(save_dir)
+                    print(f"   [存档] step {step} 已保存到 {save_dir}")
                 if step % 10 == 0:
                     avg = sum(losses[-args.accum * 10:]) / max(len(losses[-args.accum * 10:]), 1)
-                    done = i + 1
+                    # 注意：i 每个 epoch 都会归零，所以进度和 ETA 都要按"跨 epoch 的
+                    # 累计样本数"算，不能直接用 i+1 —— 否则进入第 2 个 epoch 后
+                    # 分母突然变小，ETA 会算出几千分钟这种离谱值。
+                    seen = ep * len(train_rows) + i + 1
+                    total_n = len(train_rows) * args.epochs
                     el = time.perf_counter() - t0
-                    eta = el / done * (len(train_rows) - done)
-                    print(f"    ep{ep + 1} {done}/{len(train_rows)}  "
+                    eta = el / seen * (total_n - seen)
+                    print(f"    ep{ep + 1} {i + 1}/{len(train_rows)}  "
+                          f"[总 {seen}/{total_n}]  "
                           f"loss={avg:.4f}  已用 {el / 60:.1f}min  预计还需 {eta / 60:.1f}min")
     opt.step()
     opt.zero_grad()
@@ -240,7 +283,7 @@ def main() -> None:
           f"{(new_acc - base_acc) * 100:>+11.1f}pp")
     print("=" * 60)
 
-    save = args.save or str(OUT_DIR / "intent_lora")
+    save = save_dir
     model.save_pretrained(save)
     tok.save_pretrained(save)
     print(f"adapter 已保存到 {save}")
@@ -269,7 +312,7 @@ def evaluate(model, tok, rows, dev, max_len):
     for sample in rows:
         msgs = sample["messages"]
         prompt_ids = _ids(
-            tok.apply_chat_template(msgs[:2], tokenize=True, add_generation_prompt=True,
+            tok.apply_chat_template(msgs[:-1], tokenize=True, add_generation_prompt=True,
                                     enable_thinking=False)
         )[:max_len]
         input_ids = torch.tensor([prompt_ids], device=dev)

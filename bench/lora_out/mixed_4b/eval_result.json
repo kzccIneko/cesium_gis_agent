@@ -1,0 +1,10 @@
+{
+  "model": "/root/autodl-tmp/geoagent_train/bench/.ms_cache/models/Qwen--Qwen3.5-4B/snapshots/master",
+  "device": "cuda",
+  "epochs": 2,
+  "train_n": 1980,
+  "eval_n": 3,
+  "acc_before": 0.6666666666666666,
+  "acc_after": 1.0,
+  "eval_detail_after": []
+}

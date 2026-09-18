@@ -901,3 +901,84 @@ NotImplementedError: can't reshape the row size trivially
 4. 跑 **v20 主评测集（100 条）**，与 v19（98.75%）**同口径**对比
 5. 安装 `causal_conv1d` / `flash-linear-attention`
    （缺失时 GDN 层回退参考实现，训练明显更慢）
+
+---
+
+## 九、Week 8 · v2 重训（a/b 两套方案）与端到端对比（9/17–9/18）
+
+### 9.1 目标
+
+验证案例 11 列出的修正方向：**a（改训练目标为完整 plan JSON）**、
+**b（planner + intent 多任务混合）**。c（缩小 LoRA 影响面）留待结果出来再定。
+
+### 9.2 v2 训练数据的构造（`bench/build_sft_data_v2.py`）
+
+| 修正点 | v1 的做法 | v2 的做法 |
+|---|---|---|
+| prompt 模板 | 自己写的三行简写 | 用部署的 `intent.txt` / `planner.txt` **真实模板**渲染 |
+| 消息结构 | `system` 装指令 | **`user`** 装整段 prompt（与部署一致） |
+| 输出内容 | `{intent, understanding, reply}` | **完整 plan JSON**（含 `bbox` + `steps`） |
+| 数据泄漏 | 把评测集 query 直接收进训练集 | 排除 `gazetteer` 中 `source='eval'` 的 20 条 |
+| 规模 | 720 条 | 方案 a **990 条** / 方案 b **1980 条** |
+
+序列长度约 **3400 token**（工具定义占大头）。因此必须
+`--load-4bit --grad-ckpt --max-len 3456`，实测显存稳定 19.2 / 24 GB。
+
+### 9.3 训练
+
+在 AutoDL RTX 4090D 上顺序跑（并行必 OOM：单任务 15 GB+）：
+
+| 方案 | 数据 | 训练循环耗时 | 单条速度 | 末段 loss |
+|---|---|---|---|---|
+| a 纯 planner | 990 × 2 epoch | 170.6 min | 5.17 s | 0.0005 |
+| b 混合 | 1980 × 2 epoch | 211.5 min | 3.2 s | 0.0005 |
+
+### 9.4 端到端结果（主评测集 100 条，同口径）
+
+| 评测版本 | tool_exact | param_bbox | refusal | completed |
+|---|---|---|---|---|
+| v19 底座（无微调） | **98.75%** | 100% | 100% | 99.0% |
+| v20 v1 微调（意图 JSON） | 32.5% | 83.8% | 99.0% | 40.0% |
+| **v21 v2-a 微调（纯 planner）** | **47.5%** | 90.5% | 96.0% | 53.0% |
+| **v22 v2-b 微调（混合）** | **31.2%** | 83.8% | 96.0% | 36.0% |
+
+**结论：方向对（32.5% → 47.5%，+15pp），但远远不够；b 反而更差。**
+
+### 9.5 根因：训练数据的**工具分布**与真实需求不一致
+
+拆开失败样本，三种错误形状指向同一个病因：
+
+| 错误形状 | 现象 |
+|---|---|
+| 多塞工具 | 期望 `[compute_slope]` → 实际 `[compute_slope, zonal_statistics]` |
+| 丢掉前置步骤 | 期望 `[download_srtm, compute_slope]` → 实际 `[compute_slope]` |
+| 选错相似工具 | 期望 `[compute_cost_surface]` → 实际 `[plan_route]` |
+
+并排比对分布后确认：
+
+| 工具 | 训练数据出现率 | 评测集期望率 |
+|---|---|---|
+| `compute_slope` | 38.5% | 45% |
+| **`download_srtm`** | **6.5%** | **20%** |
+| **`get_dem_metadata`** | **0%（990 条里一次都没有）** | 3% |
+
+模板生成器漏掉的工具，模型**永远学不会**；出现率过低的，模型会**丢掉这一步**。
+
+### 9.6 三条附带结论
+
+1. **训练 → 部署的 prompt 仍未字节一致**：`{{TOOLS}}` 用精简版（省显存），
+   `{{BBOX_HINT}}` 训练留空而部署会填。**正确做法是"运行时抓取部署实际发出的串"**。
+2. **多任务混合不成立**：混入"意图格式"样本把 planner 那半边也带偏了。
+3. **底座已有 98.75% 时，SFT 的收益空间本来就极小**，任何分布偏差都会直接吃掉它。
+   这类任务应优先考虑提示词工程 / 专用小分类器，而不是 SFT 整个 4B 模型。
+
+### 9.7 本轮新增的工具链（可复用）
+
+- `bench/build_sft_data_v2.py` —— 用部署真实模板造 planner 形态数据
+- `bench/train_intent_lora.py` 增强：`--save-every`（周期性存档，防崩）、`--grad-ckpt`、
+  `--max-len`、`--data-dir`
+- `D:\llama_build\tmp\build_gguf.sh` —— adapter → 合并 → GGUF(`--no-mtp`) → Q4_K_M 一键
+- **评测搬到云端 4090D**：装 CUDA 版 `llama-cpp-python`（有预编译 wheel，2 分钟），
+  同步 `backend` + `bench` + `models/embedding` + `models/terrain_morphology` 即可
+- 云端 192 核可编译 `llama-quantize`；但**云端跑 `convert_hf_to_gguf.py` 必然失败**
+  （`OSError: Not enough free space ...`，已排除空间/路径/numpy 三类原因，**未解**）
