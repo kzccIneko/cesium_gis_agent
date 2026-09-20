@@ -1,0 +1,76 @@
+{
+  "meta": {
+    "purpose": "独立意图分类测试集，用于对比「不微调」与「微调」两条路线。",
+    "why": "主评测集里绝大多数问句都含正则关键词（坡度/下载/高程…），会被 _force_analysis 直接旁路，因此它测不出意图判断的真实水平。本测试集刻意构造「不含任何关键词的改写问法」（paraphrase 子集），作为有区分度的部分。",
+    "labels": "analysis / knowledge / action / refuse / chat（与 backend/app/agent/prompts/intent.txt 的五类一致）",
+    "subsets": {
+      "paraphrase": "改写问法，不含 _FORCE_ANALYSIS_KEYWORDS 中任何一个词 —— 只能靠语义判断",
+      "keyword": "含关键词，正则安全网会命中（作为对照组，验证安全网本身的表现）"
+    },
+    "author": "人工编写（2026-09-20），刻意避免与训练集模板同源",
+    "n_items": 56
+  },
+  "items": [
+    {"id": "pa01", "subset": "paraphrase", "expected": "analysis", "query": "贡嘎山哪一片走起来最费劲"},
+    {"id": "pa02", "subset": "paraphrase", "expected": "analysis", "query": "横断山这一带，从东边绕到西边有多麻烦"},
+    {"id": "pa03", "subset": "paraphrase", "expected": "analysis", "query": "四姑娘山哪个方向常年见不到太阳"},
+    {"id": "pa04", "subset": "paraphrase", "expected": "analysis", "query": "这片山地的向阳面在哪儿"},
+    {"id": "pa05", "subset": "paraphrase", "expected": "analysis", "query": "泰山哪里适合修一条上山的路"},
+    {"id": "pa06", "subset": "paraphrase", "expected": "analysis", "query": "武夷山哪块的石头最密"},
+    {"id": "pa07", "subset": "paraphrase", "expected": "analysis", "query": "横断山区的山梁子都分布在哪儿"},
+    {"id": "pa08", "subset": "paraphrase", "expected": "analysis", "query": "太行山这道屏障有多高"},
+    {"id": "pa09", "subset": "paraphrase", "expected": "analysis", "query": "帮我看看这一带是丘陵还是平地"},
+    {"id": "pa10", "subset": "paraphrase", "expected": "analysis", "query": "四川盆地边上哪里高低变化最快"},
+    {"id": "pa11", "subset": "paraphrase", "expected": "analysis", "query": "天山南北两边哪里更平整"},
+    {"id": "pa12", "subset": "paraphrase", "expected": "analysis", "query": "这块地有多少是树林"},
+    {"id": "pa13", "subset": "paraphrase", "expected": "analysis", "query": "青海湖周边草地占几成"},
+    {"id": "pa14", "subset": "paraphrase", "expected": "analysis", "query": "从甲点到乙点要翻几道梁"},
+    {"id": "pa15", "subset": "paraphrase", "expected": "analysis", "query": "华山哪一段最险"},
+    {"id": "pa16", "subset": "paraphrase", "expected": "analysis", "query": "黄山哪一面草木最旺"},
+    {"id": "pa17", "subset": "paraphrase", "expected": "analysis", "query": "这块区域里山有多密"},
+    {"id": "pa18", "subset": "paraphrase", "expected": "analysis", "query": "帮我把这块地方的立体形状描述一下"},
+    {"id": "pa19", "subset": "paraphrase", "expected": "analysis", "query": "秦岭南北两边的差别在图上怎么体现"},
+    {"id": "pa20", "subset": "paraphrase", "expected": "analysis", "query": "我要从这边走到那边，怎么绕最省力"},
+
+    {"id": "pk01", "subset": "paraphrase", "expected": "knowledge", "query": "什么是曲率"},
+    {"id": "pk02", "subset": "paraphrase", "expected": "knowledge", "query": "山顶上的旗云是怎么回事"},
+    {"id": "pk03", "subset": "paraphrase", "expected": "knowledge", "query": "我现在看的是哪个省"},
+    {"id": "pk04", "subset": "paraphrase", "expected": "knowledge", "query": "这一带属于哪个市"},
+    {"id": "pk05", "subset": "paraphrase", "expected": "knowledge", "query": "中国有多少个地级市"},
+    {"id": "pk06", "subset": "paraphrase", "expected": "knowledge", "query": "为什么山上会下雪"},
+    {"id": "pk07", "subset": "paraphrase", "expected": "knowledge", "query": "等高线是怎么画出来的"},
+    {"id": "pk08", "subset": "paraphrase", "expected": "knowledge", "query": "你刚才提到的那套东西是干嘛的"},
+
+    {"id": "pc01", "subset": "paraphrase", "expected": "action", "query": "带我去洱海"},
+    {"id": "pc02", "subset": "paraphrase", "expected": "action", "query": "我想看看五指山"},
+    {"id": "pc03", "subset": "paraphrase", "expected": "action", "query": "把镜头拉到张家界"},
+    {"id": "pc04", "subset": "paraphrase", "expected": "action", "query": "回到刚才那个位置"},
+    {"id": "pc05", "subset": "paraphrase", "expected": "action", "query": "把地图挪到云南那边"},
+    {"id": "pc06", "subset": "paraphrase", "expected": "action", "query": "视角切到青海湖"},
+
+    {"id": "pr01", "subset": "paraphrase", "expected": "refuse", "query": "月球背面的地形长什么样"},
+    {"id": "pr02", "subset": "paraphrase", "expected": "refuse", "query": "火星上最高的山有多高"},
+    {"id": "pr03", "subset": "paraphrase", "expected": "refuse", "query": "帮我写个 Python 脚本"},
+    {"id": "pr04", "subset": "paraphrase", "expected": "refuse", "query": "今天天气怎么样"},
+    {"id": "pr05", "subset": "paraphrase", "expected": "refuse", "query": "圆的面积怎么算"},
+    {"id": "pr06", "subset": "paraphrase", "expected": "refuse", "query": "推荐几支股票"},
+    {"id": "pr07", "subset": "paraphrase", "expected": "refuse", "query": "金星表面温度是多少"},
+
+    {"id": "ph01", "subset": "paraphrase", "expected": "chat", "query": "你好"},
+    {"id": "ph02", "subset": "paraphrase", "expected": "chat", "query": "你叫什么名字"},
+    {"id": "ph03", "subset": "paraphrase", "expected": "chat", "query": "你能干什么"},
+    {"id": "ph04", "subset": "paraphrase", "expected": "chat", "query": "谢谢"},
+    {"id": "ph05", "subset": "paraphrase", "expected": "chat", "query": "在吗"},
+
+    {"id": "kw01", "subset": "keyword", "expected": "analysis", "query": "四姑娘山这一带的坡度是多少"},
+    {"id": "kw02", "subset": "keyword", "expected": "analysis", "query": "西安哪里是沟谷"},
+    {"id": "kw03", "subset": "keyword", "expected": "analysis", "query": "下载四姑娘山的真实高程数据并计算坡度"},
+    {"id": "kw04", "subset": "keyword", "expected": "analysis", "query": "计算经度 102.4 到 102.9、纬度 24.8 到 25.3 的通行代价"},
+    {"id": "kw05", "subset": "keyword", "expected": "analysis", "query": "贡嘎山哪里比较陡"},
+    {"id": "kw06", "subset": "keyword", "expected": "analysis", "query": "三峡哪些是阴坡哪些是阳坡"},
+    {"id": "kw07", "subset": "keyword", "expected": "analysis", "query": "都江堰的山坡主要朝向哪边"},
+    {"id": "kw08", "subset": "keyword", "expected": "analysis", "query": "获取贡嘎山的 SRTM 数据然后算坡度"},
+    {"id": "kw09", "subset": "keyword", "expected": "analysis", "query": "看看这个 DEM 的坐标系和分辨率"},
+    {"id": "kw10", "subset": "keyword", "expected": "analysis", "query": "帮我规划一条越野路线"}
+  ]
+}

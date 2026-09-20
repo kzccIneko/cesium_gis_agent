@@ -1,0 +1,898 @@
+{
+ "M1::pa01": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"贡嘎山地区地形复杂，不同区域通行难度差异较大。一般来说，山脊线附近（如垭口）和陡峭的沟谷出口处（如某些冰碛垄或碎石坡）行走最为费劲，需要专业装备"
+ },
+ "M1::pa02": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问横断山一带从东到西的通行难度（'多麻烦'），涉及地形因子（如坡度、通行性）的计算和评估，符合 analysis 意图中关于'通行性"
+ },
+ "M1::pa03": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"四姑娘山位于四川盆地西北部，属于横断山脉区域。由于该地区地形复杂，且四姑娘山本身是南北走向的山脉，其向阳面和背阴面会随季节和具体位置变化。一般来说，山脉的北侧（北"
+ },
+ "M1::pa04": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问‘向阳面’（即阳坡），涉及地形因子分析，属于需要计算或查询结果的分析类意图，而非地理概念问答。\"}\n```"
+ },
+ "M1::pa05": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问在特定地点（泰山）进行路径规划（修路），涉及地形分析、通行性评估和路线计算，符合 analysis 意图中关于‘路径’、‘路线’及‘通行"
+ },
+ "M1::pa06": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"武夷山地区以花岗岩地貌为主，岩石密度较高，但具体哪一块“石头最密”无法给出精确答案，因为岩石密度受地质构造、风化程度及具体采样位置影响，且该区域范围广阔，不同地块的岩石"
+ },
+ "M1::pa07": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"横断山区的山梁子（山脊）广泛分布于该区域的山脉中，如邛崃山脉、大雪山山脉等。这些山梁子构成了横断山脉的骨架，是地形上的重要分界线。\", \"actions"
+ },
+ "M1::pa08": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"太行山是中国东部的重要地理屏障，其主峰四姑娘山（注：此处为示例，实际太行山主峰为王快山，海拔约 2899 米，但根据当前视图中心点四姑娘山，"
+ },
+ "M1::pa09": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"根据当前视野范围（西 102.80-东 103.00，南 30.90-北 31.10），中心点位于四姑娘山。该区域属于横断"
+ },
+ "M1::pa10": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问‘高低变化最快’，即要求计算地形起伏度或坡度等量化指标，符合分析意图中关于‘地形因子’和‘计算结果’的定义。\"}\n```"
+ },
+ "M1::pa11": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"从地形地貌来看，天山山脉整体呈东西走向，山体高大且多冰川、积雪，地形起伏大。一般来说，天山山脉的南坡（尤其是南麓）由于受印度洋暖湿气流影响，降水相对较多，植被覆盖"
+ },
+ "M1::pa12": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问特定区域内树林的面积占比，涉及‘多少面积’和‘分区统计’，属于需要计算的结果，符合 analysis 意图。\"}\n```"
+ },
+ "M1::pa13": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"青海湖周边以高寒草甸和草原为主，是重要的生态保护区。具体草地面积占比需要基于最新的遥感数据或统计资料进行精确计算，目前无法直接给出确切的百分比数值。\", \"actions\": [], \"understanding\":"
+ },
+ "M1::pa14": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问从甲点到乙点需要翻越几道梁，涉及地形路径分析中的‘梁’（山脊线）数量统计，属于要计算结果的分析类意图。\"}\n```"
+ },
+ "M1::pa15": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"华山以“奇险天下第一山”著称，最险的一段通常被认为是“千尺幢”和“百尺峡”。这两处位于华山西峰，崖壁近乎垂直，石阶狭窄陡峭，古人形容“上得千尺幢"
+ },
+ "M1::pa16": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"黄山以“奇松、怪石、云海、温泉”四绝闻名，其中松树的分布与光照密切相关。一般来说，**阳坡**（朝南的一面）光照充足、温度较高，植被生长条件较好，因此草木相对更茂盛"
+ },
+ "M1::pa17": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"这块区域位于四姑娘山，这里山峦连绵，植被茂密，属于典型的高山峡谷地貌，山体密集程度非常高。\", \"actions\": [], \"understanding\": \"用户询问的是该区域的山体密集程度这一地理事实描述"
+ },
+ "M1::pa18": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"这块地方是四姑娘山，位于中国四川省阿坝藏族羌族自治州。从立体形状上看，它是一座典型的褶皱山脉，由多座山峰组成，包括著名的幺妹峰、三姐妹峰等，山体陡峭，地形复杂，"
+ },
+ "M1::pa19": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"秦岭南北两边的差别在图上主要通过**植被类型**和**景观特征**来体现：\\n\\n1. **秦岭以北**：多为温带落叶阔叶林，冬季寒冷干燥，植被稀疏，景观较为荒凉。\\n2."
+ },
+ "M1::pa20": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问从当前位置到目标地点的路线规划及省力方案，涉及路径计算和代价评估，符合 analysis 意图。\"}\n```"
+ },
+ "M1::pk01": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"曲率是描述地形表面弯曲程度的几何参数，通常分为平面曲率（或称高曲率）和剖面曲率（或称线曲率）。在地理信息系统（GIS）和数字高程模型（DEM）分析中，曲"
+ },
+ "M1::pk02": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"旗云是山顶附近空气流动形成的云，通常出现在高海拔地区。当山顶空气流动速度较快时，会形成类似旗帜状的云，这种现象在气象学中被称为“旗云”。\", \"actions\": [], \"understanding\": \"用户"
+ },
+ "M1::pk03": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"您现在看的是四川省。\", \"actions\": [], \"understanding\": \"用户询问当前视野所属的行政区划，属于地理事实类问题，依据判断要点 2 归类为 knowledge。\"}\n```"
+ },
+ "M1::pk04": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"这一带属于四川省阿坝藏族羌族自治州。\", \"actions\": [], \"understanding\": \"用户询问当前视野范围内的行政区划归属，属于地理事实查询，无需计算。\"}\n```"
+ },
+ "M1::pk05": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"中国共有 33 个省级行政区，包括 23 个省、5 个自治区、4 个直辖市和 2 个特别行政区（香港、澳门）。其中，地级市数量约为 293 个（含"
+ },
+ "M1::pk06": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"四姑娘山位于中国四川省，海拔较高（最高峰幺妹峰约 6250 米），属于横断山脉区域。由于海拔高，气温随高度降低，加上该地区受西南季风影响，冬季常有降雪，"
+ },
+ "M1::pk07": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"等高线是通过将地形图上高程相等的点连接而成的闭合曲线画出来的。它们通常以固定的高程间隔（如每 10 米或 20 米）绘制，用于直观地表示地面的起伏形态。等高线越"
+ },
+ "M1::pk08": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"您刚才提到的“那套东西”具体是指什么呢？如果您是指刚才提到的四姑娘山区域的地形分析数据（如坡度、坡向、曲率等），我可以为您解释这些地形因子在地理信息系统（GIS）中的含义、计算方法"
+ },
+ "M1::pc01": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"正在为您跳转到洱海。\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [100.25, 25.5, 100.9, 25.9], \"name\": \""
+ },
+ "M1::pc02": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"正在将地图移动到五指山。\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [100.5, 21.5, 101.5, 22.5], \"name\": \""
+ },
+ "M1::pc03": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [110.3, 29.2, 110.6, 29.5], \"name\": \"张家界\"}], \"understanding\": \""
+ },
+ "M1::pc04": {
+  "pred": null,
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"好的，已回到刚才查看四姑娘山的位置。\", \"actions\": [], \"understanding\": \"用户说'回到刚才那个位置'，属于地图操作指令（让地图移动），根据规则 3 应判定为 action，但当前"
+ },
+ "M1::pc05": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"正在将地图移动到云南省。\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [97.53, 21.14, 106.2, 29.26], \"name\":"
+ },
+ "M1::pc06": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"正在将视角切换到青海湖。\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [89.35, 31.6, 103.07, 39.21], \"name"
+ },
+ "M1::pr01": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我们只支持地球表面的地理信息，无法提供月球背面的地形数据。\", \"actions\": [], \"understanding\": \"用户询问的是月球（外星天体）的地形，根据规则 5，此类问题属于与地球"
+ },
+ "M1::pr02": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我只能提供关于地球表面的地理信息，无法回答关于火星的问题。\", \"actions\": [], \"understanding\": \"用户询问的是火星上的山峰高度，属于外星天体，根据规则应归类为 refuse。\"}\n```"
+ },
+ "M1::pr03": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我无法为您编写 Python 脚本。我的主要功能是处理地球地理信息（如坡度、地形分类、地图导航等），而编写代码属于编程任务，不在我的能力范围内。\", \"actions\": [], \"understanding\": \"用户"
+ },
+ "M1::pr04": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我只能回答关于地球表面地理信息的问题，无法提供天气数据。\", \"actions\": [], \"understanding\": \"用户询问天气，属于与地球地理无关的话题，根据规则应归类为 refuse。\"}\n```"
+ },
+ "M1::pr05": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我无法回答这个问题。我的功能仅限于地球表面的地理信息分析，而圆的面积计算属于数学公式范畴，不在我的服务范围内。\", \"actions\": [], \"understanding\": \"用户询问的是数学公式（圆的面积），根据规则"
+ },
+ "M1::pr06": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我无法回答关于股票的问题。我是一个专注于地球地理信息的助手，无法提供金融、股票或投资建议。\", \"actions\": [], \"understanding\": \"用户询问股票推荐，属于金融领域，与地球地理完全无关，符合 refuse"
+ },
+ "M1::pr07": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我只能提供地球表面的地理信息，无法回答关于金星表面的问题。\", \"actions\": [], \"understanding\": \"用户询问的是金星（外星天体）的表面温度，根据规则 5，与地球地理完全无关的问题应"
+ },
+ "M1::ph01": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"你好！我是你的地理助手，可以帮你分析地形数据、查询地理知识或操作地图视图。有什么我可以帮你的吗？\", \"actions\": [], \"understanding\": \"用户发送了简单的问候语，属于寒暄行为，符合"
+ },
+ "M1::ph02": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"你好，我是你的地理助手，可以帮你分析地形数据、查询地理知识或操作地图视图。有什么需要吗？\", \"actions\": [], \"understanding\": \"用户询问我的名字，属于寒暄和自我介绍类问题，符合 chat"
+ },
+ "M1::ph03": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"你好！我是你的地理助手，可以帮你分析地形数据（如坡度、坡向、面积统计等）、回答地理常识问题，或者帮你定位和查看地图上的特定区域。有什么需要我帮忙的吗？\", \"actions\": [], \"under"
+ },
+ "M1::ph04": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"不客气！有什么其他关于四姑娘山或地图的问题随时问我。\", \"actions\": [], \"understanding\": \"用户发送'谢谢'属于寒暄和感谢，符合 chat 意图。\"}\n```"
+ },
+ "M1::ph05": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"在的，有什么可以帮你的吗？\", \"actions\": [], \"understanding\": \"用户发送'在吗'属于典型的寒暄，意图是确认在线状态，符合 chat 意图定义。\"}\n```"
+ },
+ "M1::kw01": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问四姑娘山一带的坡度数值，属于要求计算地形因子的请求，符合 analysis 意图中关于‘坡度’及‘要计算结果’的判断依据。\"}\n```"
+ },
+ "M1::kw02": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问特定地点（西安）内的具体地形要素（沟谷），属于需要计算或检索该区域地形数据的分析任务，符合判断依据 1 中关于'地形分类'和'哪里"
+ },
+ "M1::kw03": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户明确要求计算四姑娘山的坡度，且指定了区域范围，符合'坡度'关键词及'要计算结果'的判断依据，属于 analysis 意图。\"}\n```"
+ },
+ "M1::kw04": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户明确要求计算特定经纬度范围内的'通行代价'，这属于地形因子分析中的计算结果需求，符合 analysis 意图。\"}\n```"
+ },
+ "M1::kw05": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问‘哪里比较陡’，涉及地形因子‘陡度’的计算与结果，符合分析意图。\"}\n```"
+ },
+ "M1::kw06": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问三峡地区阴坡和阳坡的分布，涉及地形因子分析，属于计算类意图。\"}\n```"
+ },
+ "M1::kw07": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问都江堰山坡的朝向，涉及具体的地形因子（坡向）计算，属于分析类意图。\"}\n```"
+ },
+ "M1::kw08": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户明确要求获取数据并计算坡度，符合判断依据中关于‘坡度’、‘SRTM'等关键词必须判定为 analysis 的规则，且需要计算结果。\"}\n```"
+ },
+ "M1::kw09": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问 DEM 的坐标系和分辨率，涉及具体数据查询与计算，符合分析意图。\"}\n```"
+ },
+ "M1::kw10": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户请求规划越野路线，涉及路径和路线计算，符合 analysis 意图中关于‘路径/路线’且要计算结果的判断依据。\"}\n```"
+ },
+ "M2::pa01": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [101.6, 29.4, 102.0, 29.8], \"name\": \"贡嘎山\"}], \"understanding"
+ },
+ "M2::pa02": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问横断山一带从东到西的通行难度，这需要基于地形地貌进行计算分析，属于 analysis 意图。\"}\n```"
+ },
+ "M2::pa03": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [102.8, 30.9, 103.2, 31.2], \"name\": \"四姑娘山\"}], \"understanding"
+ },
+ "M2::pa04": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"四姑娘山位于中国四川省阿坝藏族羌族自治州，其向阳面主要分布在北坡和东坡，因为太阳从东边升起、西边落下，北坡和东坡能接收到更多的阳光照射。\", \"actions\": [], \"under"
+ },
+ "M2::pa05": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"泰山适合修路的位置通常选择山脚至山腰的平缓路段，如红门至中天门段，那里地势平坦、坡度小，施工难度低且通行效率高。\", \"actions\": [], \"understanding\": \"用户询问的是"
+ },
+ "M2::pa06": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"武夷山以丹霞地貌和花岗岩地貌闻名，其岩石密度分布并不均匀。一般来说，花岗岩构成的山体（如主峰区域）岩石密度较高，而丹霞地貌区域（如赤壁丹崖）主要由红色砂砾岩构成，密度相对较低"
+ },
+ "M2::pa07": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"横断山区的山梁子主要分布在四川西部、云南西北部以及西藏东部一带，这里山高谷深，山梁多呈东西走向，是横断山脉的重要组成部分。\", \"actions\": [], \"understanding\": \"用户询问的是关于横"
+ },
+ "M2::pa08": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"太行山是中国东部的重要地理屏障，其平均海拔约为 1500 至 2000 米，最高峰为太行八陉之一的王屋山附近的区域，但具体高度因段落不同而异。如果您需要"
+ },
+ "M2::pa09": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"这一带属于四姑娘山区域，地形以高山峡谷和山地为主，并非典型的丘陵或平地。如果您想具体查看该区域的坡度或地形起伏数据，我可以为您进行地图分析。\", \"actions\": [], \"understanding\": \"用户"
+ },
+ "M2::pa10": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问四川盆地边缘高低变化最快的具体位置，这需要基于当前地图视野（四姑娘山区域）对地形坡度进行计算和比较，属于地形分析任务。\"}\n```"
+ },
+ "M2::pa11": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"“平整”是一个相对主观的概念，不同地区的地形地貌差异巨大。天山山脉本身以崇山峻岭著称，南北两侧地形复杂，很难直接给出一个绝对的“更平整”的结论。如果您想了解具体的地形数据或规划路线"
+ },
+ "M2::pa12": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问特定区域内树林的占比，这需要基于地图数据对地类进行统计计算，属于分析类意图。\"}\n```"
+ },
+ "M2::pa13": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"青海湖周边以高寒草甸和草原为主，是重要的生态保护区。具体草地占比需结合最新遥感数据或专业统计报告，目前公开资料中无精确到“几成”的官方统计数据，建议您参考青海省自然资源厅发布的"
+ },
+ "M2::pa14": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问两点之间需要翻越的梁的数量，这需要基于当前地图视野内的地形数据进行路径分析和计算，属于需要算一次才能得到的结果。\"}\n```"
+ },
+ "M2::pa15": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"华山以“险”著称，其最险峻的段落通常被认为是“千尺幢”和“鸟道”。这两处位于华山西峰，崖壁近乎垂直，路径狭窄如一线天，是华山“奇、险、雄"
+ },
+ "M2::pa16": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"黄山四面草木皆旺，四季景色各异。春季山花烂漫，夏季绿树成荫，秋季层林尽染，冬季雪景壮丽。不同方位因光照和微气候略有差异，但整体植被覆盖均匀，并无特定一面草木"
+ },
+ "M2::pa17": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"这块区域是四姑娘山，山势连绵，植被茂密，但具体到每一处山体的密度需要结合遥感影像进行详细分析才能给出准确数据。\", \"actions\": [], \"understanding\": \"用户询问的是该区域山"
+ },
+ "M2::pa18": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"四姑娘山整体呈现“双峰对峙”的立体形态，由两座主峰（幺妹峰和仙乃日峰）组成，山体陡峭，沟壑纵横，形成了典型的“三山夹一谷”地貌格局。"
+ },
+ "M2::pa19": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"秦岭南北两边的差别在图上主要通过地形起伏和植被颜色来体现：秦岭主体呈现为连绵的高大山脉，山体颜色较深且纹理粗糙，代表海拔较高；而秦岭以北（如当前视野中的四姑娘山区域）多为低"
+ },
+ "M2::pa20": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问从当前位置到目标位置的省力路线，需要基于地图地形数据进行路径规划和计算，属于分析类意图。\"}\n```"
+ },
+ "M2::pk01": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"曲率是描述曲线弯曲程度的几何概念。在地理学中，它通常指地球表面或地形剖面线的弯曲程度，用于衡量地势的起伏变化，而非具体的地形分析结果。\", \"actions\": [], \"understanding\": \"用户询问"
+ },
+ "M2::pk02": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"旗云是山顶上形成的积云，通常出现在高海拔地区。当山顶气温较低时，空气中的水汽容易凝结成云，这些云团会像旗帜一样飘动，因此被称为旗云。它们通常是当地天气变化的指示器。"
+ },
+ "M2::pk03": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"您现在看的是四川省。\", \"actions\": [], \"understanding\": \"用户询问当前地图视野所属的省级行政区，属于地理常识查询，无需进行地形或路线计算。\"}\n```"
+ },
+ "M2::pk04": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"这一带属于四川省阿坝藏族羌族自治州小金县。\", \"actions\": [], \"understanding\": \"用户询问的是行政区划归属，属于地理常识，不需要在地图上计算即可回答。\"}\n```"
+ },
+ "M2::pk05": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"中国共有 33 个地级行政区，包括 23 个省、5 个自治区、4 个直辖市和 2 个特别行政区。\", \"actions\": [], \"understanding\": \"用户询问的是中国行政区划的总数，"
+ },
+ "M2::pk06": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"山上会下雪是因为随着海拔升高，气温降低。当空气中的水汽凝结成冰晶并积累到一定程度时，就会形成降雪。四姑娘山海拔较高，山顶常年积雪，这也是高海拔地区常见的自然现象。\", \"actions\": [],"
+ },
+ "M2::pk07": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"等高线是在地形图上用闭合曲线来表示海拔高度相等的点连成的线。它们通常画在地图上，用来直观地展示地面的起伏和坡度：等高线越密集，说明坡度越陡；越稀疏，则坡度越缓。"
+ },
+ "M2::pk08": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"我是您的地图与地理计算助手，可以帮您分析地形地貌、规划路线、统计区域数据，或者带您飞越山川湖海。有什么想看的吗？\", \"actions\": [], \"understanding\": \"用户询问助手的功能定义，属于"
+ },
+ "M2::pc01": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"正在为您飞往洱海，请稍候。\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [100.2, 25.1, 100.9, 25.9], \"name\":"
+ },
+ "M2::pc02": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"正在为您将地图视角移动到五指山。\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [101.5, 24.5, 102.5, 25.5], \"name"
+ },
+ "M2::pc03": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [110.3, 29.2, 110.6, 29.5], \"name\": \"张家界\"}], \"understanding\": \""
+ },
+ "M2::pc04": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"正在将视角移回刚才的位置，请稍候。\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [-102.8, 30.9, 103.0, 31.1], \""
+ },
+ "M2::pc05": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [97.53, 21.14, 106.2, 29.26], \"name\": \"云南省\"}], \"understanding"
+ },
+ "M2::pc06": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [89.35, 31.6, 103.07, 39.21], \"name\": \"青海省\"}], \"understanding"
+ },
+ "M2::pr01": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我目前只能提供地球表面的地理信息和计算服务，无法查看或描述月球背面的地形。\", \"actions\": [], \"understanding\": \"用户询问的是月球（外星天体）的地形，根据规则，与地球地理"
+ },
+ "M2::pr02": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我只能提供地球表面的地理信息，无法回答关于火星上山峰高度的问题。\", \"actions\": [], \"understanding\": \"用户询问的是火星（外星天体）的地形数据，根据规则，与地球地理完全无关的内容"
+ },
+ "M2::pr03": {
+  "pred": "refuse",
+  "raw": "{\"intent\": \"refuse\", \"reply\": \"抱歉，我无法为您编写 Python 脚本。我是一个专注于地球地理信息的助手，无法处理编程、代码生成或软件开发类请求。\", \"actions\": [], \"understanding\": \"用户请求编写代码，属于与地球地理完全无关的任务，符合 refuse "
+ },
+ "M2::pr04": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"抱歉，我目前只能提供地球表面的地理信息和地图分析功能，无法查询天气信息。您可以告诉我您想查看的地图区域或地理问题，我会尽力为您解答！\", \"actions\": [], \"understanding\": \"用户询问天气，属于与地球"
+ },
+ "M2::pr05": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我无法回答这个问题。我是一个专注于地球表面地理信息的助手，无法处理数学公式或纯数学计算（如圆的面积）。\", \"actions\": [], \"understanding\": \"用户询问的是数学公式（圆的面积），与地球地理完全"
+ },
+ "M2::pr06": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我无法推荐股票。我是一个专注于地球地理信息的助手，无法提供金融投资建议或股票行情。\", \"actions\": [], \"understanding\": \"用户询问股票推荐，属于金融领域，与地球地理完全无关，符合 refuse 条件"
+ },
+ "M2::pr07": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我只能提供地球表面的地理信息，无法查询金星表面的温度。\", \"actions\": [], \"understanding\": \"用户询问的是金星（外星天体）的表面温度，与地球地理完全无关，属于 refuse 类别。\"}\n"
+ },
+ "M2::ph01": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"你好！我是你的地图与地理计算助手。有什么想看的风景，或者想算的地形数据吗？\", \"actions\": [], \"understanding\": \"用户仅发送问候语，属于寒暄，无需地理计算或地图操作。"
+ },
+ "M2::ph02": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"你好，我是你的地图与地理计算助手。有什么想了解的地理知识或需要我帮你分析的地形路线吗？\", \"actions\": [], \"understanding\": \"用户询问助手名称属于寒暄和自我介绍，不涉及地理计算、位置"
+ },
+ "M2::ph03": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"你好！我是你的地图与地理计算助手。你可以问我关于地形、路线、区域统计等需要计算的问题，也可以让我帮你定位或移动视角。有什么想看的吗？\", \"actions\": [], \"understanding\": \"用户询问助手的功能"
+ },
+ "M2::ph04": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"不客气！有什么关于四姑娘山或者这片区域的问题随时问我。\", \"actions\": [], \"understanding\": \"用户仅表达感谢，属于寒暄类对话，无需地理计算或地图操作。\"}\n```"
+ },
+ "M2::ph05": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"在的，有什么可以帮你的吗？\", \"actions\": [], \"understanding\": \"用户仅发送寒暄问候，未提出任何地理查询或操作需求。\"}\n```"
+ },
+ "M2::kw01": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [102.8, 30.9, 103.2, 31.2], \"name\": \"四姑娘山\"}], \"understanding"
+ },
+ "M2::kw02": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"“沟谷”是地形地貌的一种通用概念，指两山之间低洼的狭长地带，通常由水流侵蚀形成。在西安地区，沟谷广泛分布于秦岭北麓及渭河盆地边缘，例如秦岭北坡的许多"
+ },
+ "M2::kw03": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [102.8, 30.9, 103.2, 31.2], \"name\": \"四姑娘山\"}], \"understanding"
+ },
+ "M2::kw04": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户请求计算特定经纬度范围内的通行代价，这需要基于地形数据进行空间分析和计算，属于分析类意图。\"}\n```"
+ },
+ "M2::kw05": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [101.6, 29.4, 102.0, 29.8], \"name\": \"贡嘎山\"}], \"understanding"
+ },
+ "M2::kw06": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"三峡地区整体位于中国南方，受地形和纬度影响，其山体朝向分布较为复杂。一般来说，面向南、东南、西南方向的山坡为阳坡，接受阳光较多；面向北、西北、东北方向的山坡为阴坡"
+ },
+ "M2::kw07": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"都江堰位于岷江下游，其山体主要呈东西走向，背靠雪山（如四姑娘山方向），面向平原。因此，其山坡的主要朝向是**南**（面向岷江和下游平原）和**北**（背靠"
+ },
+ "M2::kw08": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [101.6, 29.4, 102.0, 29.8], \"name\": \"贡嘎山\"}], \"understanding"
+ },
+ "M2::kw09": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"DEM（数字高程模型）是一种用数字形式表示地面高程的栅格数据。其坐标系通常与底图一致（如 WGS84 或 GCJ02），分辨率则取决于数据源，从几十米到几公里不等"
+ },
+ "M2::kw10": {
+  "pred": "analysis",
+  "raw": "{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户请求规划越野路线，这需要基于当前地图视野内的地形数据进行路径计算和可行性分析，属于需要算一次才能得到的结果。\"}"
+ },
+ "M2b::pa01": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问‘哪一片走起来最费劲’，涉及地形通行性评估，属于需要基于地图数据计算结果的分析任务。\"}\n```"
+ },
+ "M2b::pa02": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问横断山一带从东到西的通行难度（'多麻烦'），涉及地形通行性分析，属于需要计算或推理的结果，符合 analysis 意图。\"}\n```"
+ },
+ "M2b::pa03": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问四姑娘山哪个方向常年见不到太阳，涉及‘坡向’和‘日照’计算，属于地形因子分析，需根据当前视野范围进行计算。\"}\n```"
+ },
+ "M2b::pa04": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问‘向阳面’（即阳坡）的具体位置，属于需要基于当前地图范围（四姑娘山区域）进行地形分析并计算结果的任务，符合 judgment 要点 1 中"
+ },
+ "M2b::pa05": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问在特定地点（泰山）进行路径规划（修路），涉及地形分析、通行性评估和路线计算，符合 analysis 意图中关于‘路径’、‘通行性’及‘"
+ },
+ "M2b::pa06": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问武夷山区域内石头分布的密度情况，涉及地形因子分析，属于计算类意图。\"}\n```"
+ },
+ "M2b::pa07": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"横断山区的山梁子（山脊）广泛分布于该区域的山脉中，如邛崃山脉、大雪山山脉等。这些山梁构成了横断山脉的骨架，是地形起伏和地貌分类的重要特征。\", \""
+ },
+ "M2b::pa08": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问太行山的高度，涉及具体的地形测量计算，符合分析意图。\"}\n```"
+ },
+ "M2b::pa09": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"根据当前视野范围（四姑娘山区域），这里主要是高山峡谷和山地地形，并非典型的丘陵或平地。该地区以四姑娘山为核心，海拔较高，地形起伏大，属于高山地貌。\", \"actions\": [], \"understanding\":"
+ },
+ "M2b::pa10": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问‘高低变化最快’，即要求计算地形起伏度或坡度等量化指标，属于需要基于地图数据进行计算分析的任务，符合 analysis 意图。\"}\n```"
+ },
+ "M2b::pa11": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"“平整”是一个相对主观的概念，通常指地表起伏较小。在天山山脉，南北两侧的地形特征受地质构造、冰川作用和人类活动影响不同：\\n\\n1. **北坡**：受西风带影响，降水较多"
+ },
+ "M2b::pa12": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问特定区域内树林的面积占比，属于需要基于当前地图数据进行计算分析的任务，符合 judgment 要点 1 和 1.5 中关于'多少面积'及'答案是否要"
+ },
+ "M2b::pa13": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"青海湖周边以高寒草甸和草原为主，是重要的生态屏障。具体草地占比需结合最新遥感数据或专业统计报告，目前公开资料中无精确的“几成”数值，建议您参考青海省自然资源厅发布的生态调查报告"
+ },
+ "M2b::pa14": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问从甲点到乙点需要翻越几道梁，涉及地形路径分析和计算，符合 analysis 意图中关于‘路径’、‘通行性’及‘要计算结果’的判断标准"
+ },
+ "M2b::pa15": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"华山以“险”著称，其最险要之处通常被认为是“千尺幢”和“百尺峡”。这两处位于华山西峰，是著名的“华山三险”之一，栈道狭窄陡峭，垂直落差极大，是徒步"
+ },
+ "M2b::pa16": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"黄山以“奇松、怪石、云海、温泉”四绝闻名，其中松杉等植被多生长在向阳、湿润且土壤肥沃的南坡和东南坡。一般来说，南坡光照充足、温度较高，有利于植物生长，"
+ },
+ "M2b::pa17": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问‘山有多密’，属于要求对当前视野范围内的地形进行密度计算或统计，符合分析意图中关于‘地形分类/地形形态’及‘要计算结果’的定义。\"}"
+ },
+ "M2b::pa18": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"这块地方是四姑娘山，位于中国四川省阿坝藏族羌族自治州。从立体形状上看，它是一座典型的褶皱山脉，由多座山峰组成，主峰幺妹峰海拔 6177 米，山体陡峭，"
+ },
+ "M2b::pa19": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"秦岭南北两边的差别在图上主要通过**植被类型**和**景观特征**来体现：\\n\\n1. **秦岭以北**：多为温带落叶阔叶林，冬季寒冷干燥，植被稀疏，可见明显的沟壑和裸露黄土"
+ },
+ "M2b::pa20": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问从当前位置到另一处的最优省力路线，涉及路径规划和代价计算，符合 analysis 意图中关于'路径'、'路线'及'怎么...最省力'（即寻找最优解"
+ },
+ "M2b::pk01": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"曲率是描述地形表面弯曲程度的几何参数，通常分为平面曲率（或称高曲率）和剖面曲率。在地理信息系统中，它用于量化地表在特定方向上的凹凸程度，是分析地形起伏、水流方向"
+ },
+ "M2b::pk02": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"旗云是山顶附近空气流动形成的云，通常出现在高海拔地区。当山顶气温较低时，空气中的水汽容易凝结成云。如果山顶有强烈的上升气流，这些云就会像旗帜一样飘动，形成旗云现象。\","
+ },
+ "M2b::pk03": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"您现在看的是四川省。\", \"actions\": [], \"understanding\": \"用户询问当前视野所属的行政区划，属于地理事实类问题，符合 knowledge 意图。\"}\n```"
+ },
+ "M2b::pk04": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"这一带属于四川省阿坝藏族羌族自治州。\", \"actions\": [], \"understanding\": \"用户询问当前视野范围内的行政区划归属，属于地理事实查询，无需计算。\"}\n```"
+ },
+ "M2b::pk05": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"中国共有 33 个省级行政区，包括 23 个省、5 个自治区、4 个直辖市和 2 个特别行政区（香港、澳门）。其中，地级市数量约为 293 个（含"
+ },
+ "M2b::pk06": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"四姑娘山位于青藏高原东南边缘，属于横断山脉的一部分，海拔较高（主峰幺妹峰海拔6180米），且地处季风气候区，冬季受冷空气影响，加上高海拔带来的低温，因此山上会出现降雪"
+ },
+ "M2b::pk07": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"等高线是通过将地形图上高程相等的点连接而成的闭合曲线画出来的。它们通常以固定的等高距（如 10 米或 20 米）绘制，用于直观地表示地面的起伏形态。等高线越密集"
+ },
+ "M2b::pk08": {
+  "pred": "knowledge",
+  "raw": "```json\n{\"intent\": \"knowledge\", \"reply\": \"您刚才提到的那套东西具体是指什么？如果您是指刚才讨论的四姑娘山地形分析相关的数据或工具（如坡度、坡向、曲率等），我可以为您解释这些地形因子的定义、用途以及它们在地形分析中的意义"
+ },
+ "M2b::pc01": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"正在为您跳转到洱海。\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [100.25, 25.6, 100.9, 25.9], \"name\": \""
+ },
+ "M2b::pc02": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"正在将地图移动到五指山。\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [100.5, 18.5, 101.5, 19.5], \"name\": \""
+ },
+ "M2b::pc03": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [110.3, 29.2, 110.6, 29.5], \"name\": \"张家界\"}], \"understanding\": \""
+ },
+ "M2b::pc04": {
+  "pred": null,
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"好的，已回到刚才的位置。\", \"actions\": [], \"understanding\": \"用户请求回到之前的视野位置，属于地图操作指令，符合 action 意图，但当前视图中心点为四姑娘山，用户并未指定具体目标，故"
+ },
+ "M2b::pc05": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"正在将地图移动到云南省。\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [97.53, 21.14, 106.2, 29.26], \"name\":"
+ },
+ "M2b::pc06": {
+  "pred": "action",
+  "raw": "```json\n{\"intent\": \"action\", \"reply\": \"正在将视角切换到青海湖。\", \"actions\": [{\"type\": \"flyTo\", \"bbox\": [89.35, 31.6, 103.07, 39.21], \"name"
+ },
+ "M2b::pr01": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我们只支持地球表面的地理信息，无法提供月球背面的地形数据。\", \"actions\": [], \"understanding\": \"用户询问的是月球（外星天体）的地形，根据规则 5，此类问题属于与地球"
+ },
+ "M2b::pr02": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我只了解地球表面的地理信息，无法回答关于火星的问题。\", \"actions\": [], \"understanding\": \"用户询问的是火星（外星天体）上的山峰高度，根据规则，与地球地理完全无关的内容（包括外星"
+ },
+ "M2b::pr03": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我无法为您编写 Python 脚本。我的主要功能是处理地球地理信息（如坡度、路径规划、地图定位等），不支持编写代码或处理编程任务。\", \"actions\": [], \"understanding\": \"用户请求编写 Python "
+ },
+ "M2b::pr04": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我无法回答天气问题。我是一个专注于地球表面地理信息（如地形、地貌、高程等）的助手，无法提供气象数据。\", \"actions\": [], \"understanding\": \"用户询问天气，属于气象信息，与地球"
+ },
+ "M2b::pr05": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我无法回答这个问题。我的功能仅限于地球表面的地理信息分析，而圆的面积计算属于数学公式范畴，不在我的服务范围内。\", \"actions\": [], \"understanding\": \"用户询问的是数学公式（圆的面积），根据规则"
+ },
+ "M2b::pr06": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我无法提供股票推荐。我是一个专注于地球地理信息的助手，无法处理金融、股票等与地理无关的话题。\", \"actions\": [], \"understanding\": \"用户请求推荐股票，属于金融领域，与地球地理完全无关，"
+ },
+ "M2b::pr07": {
+  "pred": "refuse",
+  "raw": "```json\n{\"intent\": \"refuse\", \"reply\": \"抱歉，我只能提供地球表面的地理信息，无法回答关于金星表面的问题。\", \"actions\": [], \"understanding\": \"用户询问的是金星（外星天体）的表面温度，根据规则 5，与地球地理完全无关的问题应"
+ },
+ "M2b::ph01": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"你好！我是你的地理助手，可以帮你分析地形数据、查询地理知识或操作地图视图。有什么需要吗？\", \"actions\": [], \"understanding\": \"用户仅发送问候语，属于寒暄，符合 chat 意图定义"
+ },
+ "M2b::ph02": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"你好，我是你的地理助手，可以帮你分析地形、查询地理知识或操作地图。有什么可以帮你的吗？\", \"actions\": [], \"understanding\": \"用户询问我的名字，属于寒暄和自我介绍类问题，符合 chat"
+ },
+ "M2b::ph03": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"你好！我是你的地理助手，可以帮你分析地形数据（如坡度、面积统计）、回答地理常识问题，或者帮你定位和查看地图上的特定区域。有什么需要我帮忙的吗？\", \"actions\": [], \"understanding\": \"用户"
+ },
+ "M2b::ph04": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"不客气！有什么其他关于四姑娘山或地图的问题随时问我。\", \"actions\": [], \"understanding\": \"用户发送'谢谢'属于寒暄和感谢，符合 chat 意图。\"}\n```"
+ },
+ "M2b::ph05": {
+  "pred": "chat",
+  "raw": "```json\n{\"intent\": \"chat\", \"reply\": \"在的，有什么可以帮你的吗？\", \"actions\": [], \"understanding\": \"用户发送'在吗'属于典型的寒暄问候，符合 chat 意图定义。\"}\n```"
+ },
+ "M2b::kw01": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问特定区域（四姑娘山）的坡度数值，属于需要基于地形数据进行计算的任务，符合 analysis 意图中关于‘坡度’及‘要计算结果’的判断标准。\"}\n```"
+ },
+ "M2b::kw02": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问'西安哪里是沟谷'，关键词'沟谷'属于判断依据中明确列出的地形因子，且问题要求计算/定位具体位置，符合 analysis 意图。\"}\n```"
+ },
+ "M2b::kw03": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户明确要求‘计算坡度’，且涉及‘真实高程数据’，符合判断依据中‘坡度’关键词及‘要计算结果’的标准，属于地形因子分析。\"}\n```"
+ },
+ "M2b::kw04": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户明确要求计算特定经纬度范围内的'通行代价'，这属于需要基于地形数据进行计算分析的任务，符合 judgment 要点 1 中关于'通行性'、'代价'等关键词必须"
+ },
+ "M2b::kw05": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问‘哪里比较陡’，涉及地形坡度分析，属于需要计算或查询地形因子的分析类意图。\"}\n```"
+ },
+ "M2b::kw06": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问三峡地区阴坡和阳坡的分布，涉及地形因子（坡向）的计算与统计，符合分析意图。\"}\n```"
+ },
+ "M2b::kw07": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问都江堰山坡的朝向，涉及具体的地形因子（坡向）计算，属于需要基于地图数据进行计算分析的任务。\"}\n```"
+ },
+ "M2b::kw08": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户明确要求获取数据并计算坡度，符合判断依据中关于‘坡度’、‘SRTM'等关键词必须判定为 analysis 的规则，且需要基于地图数据进行计算。\"}\n```"
+ },
+ "M2b::kw09": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户询问 DEM 的坐标系和分辨率，这属于对当前地图数据属性的计算或查询，符合判断依据中关于 DEM 相关词汇必须归类为 analysis 的规则。\"}\n```"
+ },
+ "M2b::kw10": {
+  "pred": "analysis",
+  "raw": "```json\n{\"intent\": \"analysis\", \"reply\": \"\", \"actions\": [], \"understanding\": \"用户请求规划越野路线，涉及路径计算和导航，符合分析意图中关于'路径/路线'且'要计算结果'的定义。\"}\n```"
+ },
+ "M4::pa01": {
+  "pred": "analysis",
+  "raw": "The user is asking for a calculation or result based on terrain factors (like \"which part is most difficult to walk\"). This matches the `analysis` criteria (要求做计算，出现「通行性 / 代价 / 路径 / 路线 / 导航 / 分区统计 / 面积占比 / 多少面积"
+ },
+ "M4::pa02": {
+  "pred": null,
+  "raw": "The user is asking for a calculation or result based on terrain/geometry factors.\nThe keywords \"坡度 / 坡向 / 曲率 / 地貌分类 / 地形分类 / 通行性 / 代价 / 路径 / 路线 / 导航 / 分区统计 / 面积占比 / 多少"
+ },
+ "M4::pa03": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about geographical facts or concepts that doesn't require calculation.\nThis falls under `knowledge`.\nThe question is \"四姑娘山哪个方向常年见不到太阳\" (Which direction in Guizhou Mountain is always in shadow?).\nThis is asking a geographical fact or concept, not requiring"
+ },
+ "M4::pa04": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about geographical facts or concepts that doesn't require calculation.\nThe question is \"这片山地的向阳面在哪儿\" (Where is the sunny side of this mountain range).\nThis is asking for a geographical fact or concept, not requiring calculation.\nSo the intent is `knowledge`.\n"
+ },
+ "M4::pa05": {
+  "pred": "analysis",
+  "raw": "The user is asking for a calculation or result based on terrain factors (path, route, navigation, etc.).\nThis matches the `analysis` intent criteria: \"用户在要求做计算\" (User is asking for a calculation).\nSpecific keywords found: \"路径\" (path), \"路线\" (route), \""
+ },
+ "M4::pa06": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about geographical facts or concepts that doesn't require calculation.\nThe question is \"What is this place\" or \"Which province does it belong to\" or \"What is the concept\".\nThis is `knowledge`.\n\nThe user is asking a geographical fact or concept question that doesn't require"
+ },
+ "M4::pa07": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about geographical facts or concepts that don't require calculation.\nThis is `knowledge`.\nThe question is \"What is this place\" or \"Which province does it belong to\" or \"Where is my current view\".\nThe user is asking about geographical facts or concepts that don't require"
+ },
+ "M4::pa08": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about geographical facts or concepts that doesn't require calculation.\nThis is `knowledge`.\nThe answer should be directly provided in `reply`.\n`actions` should be empty.\n`understanding` should explain the reasoning.\n\nThe question is \"太行山这道屏障有多高\""
+ },
+ "M4::pa09": {
+  "pred": null,
+  "raw": "The user is asking a question about geographical facts or concepts that doesn't require calculation.\nThe question is \"这里是什么地方\" or \"属于哪个省\" or \"我当前看的是哪\" (asking about location within the current view).\nThe user is asking \"这个视野在哪\" or \"这是什么地理常识"
+ },
+ "M4::pa10": {
+  "pred": "analysis",
+  "raw": "The user is asking for a calculation result (e.g., \"where is the steepest slope\" or \"what is the area\"). This matches the `analysis` intent.\n\nKey indicators:\n- \"高低变化最快\" (fastest height change) -> This is asking for a calculation result.\n-"
+ },
+ "M4::pa11": {
+  "pred": null,
+  "raw": "The user is asking for a calculation or result based on terrain factors (slope, aspect, curvature, etc.).\nThe keywords \"坡度 / 坡向 / 曲率 / 地貌分类 / 地形分类 / 通行性 / 代价 / 路径 / 路线 / 导航 / 分区统计 /"
+ },
+ "M4::pa12": {
+  "pred": null,
+  "raw": "The user is asking a question about geographical facts or concepts that doesn't require calculation.\nThe question is \"这块地是什么地方\" (What place is this area) or similar.\nWait, the user is asking \"这块地有多少是树林\" (How much of this area is forest).\nThis is asking"
+ },
+ "M4::pa13": {
+  "pred": null,
+  "raw": "The user is asking for a calculation result (e.g., \"what is the value of X\").\nThe keywords \"坡度 / 坡向 / 曲率 / 地貌分类 / 地形分类 / 通行性 / 代价 / 路径 / 路线 / 导航 / 分区统计 / 面积"
+ },
+ "M4::pa14": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about geographical facts or concepts that doesn't require calculation.\nThe question is \"这里是什么地方\" (What place is this here) or similar.\nThe user is asking about geographical facts or concepts, no calculation needed.\nSo the intent is `knowledge`.\n\nThe user is asking"
+ },
+ "M4::pa15": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about geographical facts or concepts that doesn't require calculation.\nThe question is \"华山哪一段最险\" (Which part of Huashan is the most dangerous).\nThis is asking for geographical facts or concepts, no calculation needed.\nSo the intent is `knowledge`.\nThe"
+ },
+ "M4::pa16": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about geographical facts or concepts that doesn't require calculation.\nThis is a `knowledge` question.\nThe answer should be directly provided in the `reply` field.\nThe `intent` is `knowledge`.\nThe `actions` should be empty.\nThe `understanding`"
+ },
+ "M4::pa17": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about geographical facts or concepts that doesn't require calculation.\nThe question is \"这块区域里山有多密\" (How dense are the mountains in this area?).\nThis is asking for a geographical fact or concept, not a calculation.\nSo the intent is `knowledge`.\nThe"
+ },
+ "M4::pa18": {
+  "pred": null,
+  "raw": "The user is asking for a calculation or result based on the keywords in the first rule.\nThe keywords are: 坡度、坡向、朝向、阴坡、阳坡、曲率、山脊、沟谷、地形因子、地形起伏、地貌、地形分类、地形形态、通行性、通行"
+ },
+ "M4::pa19": {
+  "pred": null,
+  "raw": "The user is asking a question about geographical facts or concepts that don't require calculation.\nThe question is \"秦岭南北两边的差别在图上怎么体现\" (How is the difference between the north and south sides of Qinling shown on the map?).\nThis is asking for geographical facts or concepts, not requiring calculation."
+ },
+ "M4::pa20": {
+  "pred": "analysis",
+  "raw": "The user is asking for a calculation or result based on the map view.\nThe keywords \"最省力\" (most energy-saving) combined with \"从这边走到那边\" (from here to there) implies a pathfinding or cost calculation.\nAccording to the rules:\n- `analysis`: 要在这"
+ },
+ "M4::pk01": {
+  "pred": "analysis",
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: The user said \"什么是曲率\" (What is curvature).\n2.  **Evaluate against Intent Categories**:\n    *   `analysis`: Requires calculation of terrain metrics (slope, aspect, curvature, etc., path, route, etc.)."
+ },
+ "M4::pk02": {
+  "pred": "analysis",
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: \"山顶上的旗云是怎么回事\" (What is the flag cloud on the mountain top?)\n2.  **Evaluate against Intent Categories**:\n    *   `analysis`: Does it require calculation (slope, path, area, etc.)? No"
+ },
+ "M4::pk03": {
+  "pred": "knowledge",
+  "raw": "The user is asking a geographical fact or concept question that doesn't require calculation.\nThis matches the `knowledge` category.\nThe answer should be direct.\nThe user is asking about a geographical fact or concept that doesn't require calculation.\nThis matches the `knowledge` category.\nThe answer should be direct"
+ },
+ "M4::pk04": {
+  "pred": "knowledge",
+  "raw": "The user is asking a geographical fact or concept question that doesn't require calculation.\nThis matches the `knowledge` category.\nThe answer should be directly provided in `reply`.\n`actions` should be empty.\n`understanding` should explain the reasoning.\n\nUser question: \"这一带属于哪个市"
+ },
+ "M4::pk05": {
+  "pred": "analysis",
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: \"中国有多少个地级市\" (How many prefecture-level cities does China have?)\n2.  **Evaluate against Intent Categories**:\n    *   `analysis`: Does it require calculation on terrain/geometry? No.\n    *  "
+ },
+ "M4::pk06": {
+  "pred": "knowledge",
+  "raw": "The user is asking a geographical fact or concept question that doesn't require calculation.\nThis matches the `knowledge` category.\nI need to answer the question directly.\nThe user is asking about geographical facts or concepts, no calculation needed.\nSo intent is `knowledge`.\nI will answer the question directly."
+ },
+ "M4::pk07": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about a geographical fact or concept that doesn't require calculation.\nThis matches the `knowledge` intent.\nThe question is \"What is this place\" or \"What is the concept\".\nHere the user is asking about a geographical fact or concept.\nSo the intent is `knowledge"
+ },
+ "M4::pk08": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about a geographical fact or concept that doesn't require calculation.\nThe question is: \"你刚才提到的那套东西是干嘛的\" (What does that thing you just mentioned do?)\nThis is asking about a geographical fact or concept, so it's `knowledge`.\nI need"
+ },
+ "M4::pc01": {
+  "pred": null,
+  "raw": "The user is asking to move the map.\nThe keywords \"把地图移动\" or \"导航到\" or \"把地图移动\" or \"把地图移动\" or \"把地图移动\" or \"把地图移动\" or \"把地图移动\" or \"把地图移动\" or \"把地图移动\""
+ },
+ "M4::pc02": {
+  "pred": "analysis",
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: \"我想看看五指山\" (I want to see Wuzhishan).\n2.  **Check Intent Categories**:\n    *   `analysis`: Does it ask for a calculation (slope, path, area, etc.)? No"
+ },
+ "M4::pc03": {
+  "pred": null,
+  "raw": "The user is saying \"把镜头拉到张家界\" (Move the camera to Zhangjiajie).\n\n1.  **Analyze the intent**:\n    *   The user is asking the map to move.\n    *   Keywords: \"把镜头拉到\" (Move the camera to / Fly to).\n"
+ },
+ "M4::pc04": {
+  "pred": "analysis",
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: \"回到刚才那个位置\" (Go back to the last position).\n2.  **Evaluate against Intent Categories**:\n    *   `analysis`: Does it ask for a calculation (slope, path, area, etc.)? No.\n"
+ },
+ "M4::pc05": {
+  "pred": "action",
+  "raw": "The user is saying \"把地图挪到云南那边\" (Move the map to Yunnan).\nThis is clearly an `action` intent (moving the map).\nAccording to the rules:\n- `action`: 让**地图动**。出现「跳转 / 飞到 / 放大 / 缩小 /"
+ },
+ "M4::pc06": {
+  "pred": "action",
+  "raw": "The user is saying \"视角切到青海湖\" (Move the map view to Qinghai Lake).\nThis is a command to move the map.\nAccording to the rules:\n- `action`: 让**地图动**。出现「跳转 / 飞到 / 放大 / 缩小 / 定位 /"
+ },
+ "M4::pr01": {
+  "pred": "analysis",
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: \"月球背面的地形长什么样\" (What does the terrain on the back of the moon look like?)\n\n2.  **Check Intent Categories**:\n    *   `analysis`: Requires calculation on earth surface terrain (slope, path, area"
+ },
+ "M4::pr02": {
+  "pred": "analysis",
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: \"火星上最高的山有多高\" (How high is the highest mountain on Mars?)\n\n2.  **Evaluate against Intent Categories**:\n    *   `analysis`: Requires calculation on Earth surface terrain (slope, path, area, etc.)."
+ },
+ "M4::pr03": {
+  "pred": "refuse",
+  "raw": "The user is asking me to write a Python script.\nThis is completely unrelated to Earth geography (math, coding, etc.).\nAccording to rule 5: \"跟地球地理完全无关\" (completely unrelated to Earth geography) -> `refuse`.\nExamples given: weather, stocks, medical, legal"
+ },
+ "M4::pr04": {
+  "pred": null,
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: \"今天天气怎么样\" (What's the weather today?)\n2.  **Evaluate against Intent Categories**:\n    *   `analysis`: Does it ask for a calculation on terrain/geometry? No.\n    *   `knowledge`: Is"
+ },
+ "M4::pr05": {
+  "pred": "refuse",
+  "raw": "The user is asking a question about geography or concepts.\nThe question is \"圆的面积怎么算\" (How to calculate the area of a circle).\nAccording to the rules:\n- `refuse`: 跟地球地理**完全无关**。如天气、股票、医疗、法律、翻译、写代码"
+ },
+ "M4::pr06": {
+  "pred": null,
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: The user said \"推荐几支股票\" (Recommend some stocks).\n2.  **Evaluate against Intent Categories**:\n    *   `analysis`: Does it ask for a calculation on terrain/geometry? No.\n    *   `knowledge"
+ },
+ "M4::pr07": {
+  "pred": "refuse",
+  "raw": "The user is asking a question about Earth geography or concepts.\nThe question is \"金星表面温度是多少\" (What is the surface temperature of Venus?).\nAccording to the rules:\n- `refuse`: 跟地球地理**完全无关**。如天气、股票、医疗、法律、翻译、写代码"
+ },
+ "M4::ph01": {
+  "pred": "chat",
+  "raw": "The user is asking a greeting or question about my capabilities.\nThis falls under `chat` (寒暄、自我介绍、问你会什么、感谢).\nI should output `{\"intent\": \"chat\", \"reply\": \"这是一条寒暄或能力问题，我直接回答。\", \"actions\":"
+ },
+ "M4::ph02": {
+  "pred": "analysis",
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: The user said \"你叫什么名字\" (What is your name).\n2.  **Evaluate against Intent Categories**:\n    *   `analysis`: Does it ask for a calculation (slope, path, area, etc.)? No.\n"
+ },
+ "M4::ph03": {
+  "pred": "chat",
+  "raw": "The user is asking \"你能干什么\" (What can you do?).\nThis is a greeting, self-introduction, or asking about my capabilities.\nAccording to the rules, this falls under `chat`.\n\nRule 4: 寒暄、自我介绍、问你会什么、感谢 → `chat`.\n\n"
+ },
+ "M4::ph04": {
+  "pred": "analysis",
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: The user said \"谢谢\" (Thank you).\n2.  **Evaluate against Intent Categories**:\n    *   `analysis`: Does it ask for a calculation (slope, path, area, etc.)? No.\n    *   `"
+ },
+ "M4::ph05": {
+  "pred": "chat",
+  "raw": "The user is asking a greeting or question about my capabilities.\nThis falls under `chat` (寒暄、自我介绍、问你会什么、感谢).\n\nI need to output JSON with:\n- `intent`: \"chat\"\n- `reply`: A normal greeting or answer to their question.\n-"
+ },
+ "M4::kw01": {
+  "pred": "analysis",
+  "raw": "The user is asking for a calculation result (e.g., \"what is the slope here\"), which matches the `analysis` intent.\nThe keywords \"坡度\" (slope) appear in the list of words that almost certainly indicate `analysis`.\nThe user is asking for a calculation result.\nSo the intent is"
+ },
+ "M4::kw02": {
+  "pred": "knowledge",
+  "raw": "The user is asking a question about geographical facts or concepts that doesn't require calculation.\nThis falls under `knowledge`.\nThe question is \"What is this place\" or \"Which province does it belong to\" or \"Where am I looking\".\nThe answer is in the current view.\nSo I should answer"
+ },
+ "M4::kw03": {
+  "pred": null,
+  "raw": "The user is asking for a calculation or result based on the map view.\nThe keywords \"坡度\" (slope) and \"计算\" (calculate) appear in the user's sentence.\nAccording to the rules:\n1. If the sentence contains words like \"坡度\", \"坡向\", \"曲率\","
+ },
+ "M4::kw04": {
+  "pred": null,
+  "raw": "The user is asking for a calculation result (e.g., \"what is the value of X\").\nThe keywords \"通行代价\" (cost of passage) appear in the user's question.\nAccording to the rules:\n1. If the sentence contains words like \"坡度 / 坡向 / 曲率"
+ },
+ "M4::kw05": {
+  "pred": "analysis",
+  "raw": "The user is asking for a calculation or result based on terrain factors (slope, aspect, curvature, etc.).\nThis falls under the `analysis` category because they are asking for a computed result based on terrain factors.\nThe keywords \"哪里比较陡\" (where is steeper) combined with terrain factor words triggers"
+ },
+ "M4::kw06": {
+  "pred": "analysis",
+  "raw": "The user is asking for a calculation result (e.g., \"what is the slope\", \"which areas are...\").\nThis matches the `analysis` intent criteria: \"用户在要求做计算\".\nThe keywords \"坡度 / 坡向 / 曲率 / 地貌分类 / 地形分类 / 通行"
+ },
+ "M4::kw07": {
+  "pred": "analysis",
+  "raw": "The user is asking for a calculation result (e.g., \"what is the slope\", \"where is the path\", \"what is the area\").\nThis matches the `analysis` intent.\nThe keywords \"坡度 / 坡向 / 曲率 / 地貌分类 / 地形分类 / 通行性"
+ },
+ "M4::kw08": {
+  "pred": "analysis",
+  "raw": "The user is asking for a calculation or analysis of the terrain data in the current view.\nThe keywords \"SRTM\", \"坡度\" (slope), \"做计算\" (do calculation) trigger the `analysis` intent.\nThe user is asking for a computed result.\nSo the intent is `analysis"
+ },
+ "M4::kw09": {
+  "pred": "analysis",
+  "raw": "Thinking Process:\n\n1.  **Analyze the User Input**: \"看看这个 DEM 的坐标系和分辨率\" (Show me the coordinate system and resolution of this DEM).\n\n2.  **Check Intent Categories**:\n    *   `analysis`: Requires calculation of terrain factors (slope, aspect, curvature,"
+ },
+ "M4::kw10": {
+  "pred": "analysis",
+  "raw": "The user is asking for a calculation or result based on the map view.\nThe keywords \"路径\" (path), \"路线\" (route), \"导航\" (navigation) appear in the analysis criteria.\nSpecifically, the user is asking for a calculation or result based on the map view.\nThe keywords"
+ }
+}
