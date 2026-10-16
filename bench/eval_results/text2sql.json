@@ -1,0 +1,9 @@
+{
+  "n_cases": 30,
+  "n_attacks": 8,
+  "exec_acc": 1.0,
+  "block_rate": 1.0,
+  "limit_clamped": true,
+  "translate_acc": 0.9666666666666667,
+  "seconds": 27.7
+}

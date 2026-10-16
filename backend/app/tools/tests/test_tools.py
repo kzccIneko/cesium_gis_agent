@@ -9,7 +9,7 @@
 
 测试覆盖：
     - 参数校验（bbox / resolution / 起终点越界 / 未知工具）
-    - 11 个工具的正常路径
+    - 12 个工具的正常路径
     - ONNX 分辨率守卫（性能保护）
     - 缓存命中（Week 1 的核心优化）
     - 调度层宽容性（忽略大模型多传的参数）
@@ -274,7 +274,7 @@ def test_get_dem_metadata_missing_file():
 
 def test_registry_completeness():
     """每个工具都必须有对应的函数与 schema。"""
-    assert len(TOOL_REGISTRY) == 11
+    assert len(TOOL_REGISTRY) == 12
     for name, item in TOOL_REGISTRY.items():
         assert callable(item["fn"]), f"{name} 缺少实现函数"
         assert "function" in item["schema"], f"{name} 缺少 schema"
@@ -283,7 +283,7 @@ def test_registry_completeness():
 
 def test_openai_tools_format():
     tools = get_openai_tools()
-    assert len(tools) == 11
+    assert len(tools) == 12
     for t in tools:
         assert t["type"] == "function"
         fn = t["function"]
@@ -294,7 +294,7 @@ def test_openai_tools_format():
 def test_mcp_tools_format():
     """MCP 格式（Week 3 使用）：name / description / inputSchema。"""
     tools = get_mcp_tools()
-    assert len(tools) == 11
+    assert len(tools) == 12
     for t in tools:
         assert set(t.keys()) == {"name", "description", "inputSchema"}
         assert t["inputSchema"]["type"] == "object"
@@ -302,7 +302,7 @@ def test_mcp_tools_format():
 
 def test_list_tools():
     tools = list_tools()
-    assert len(tools) == 11
+    assert len(tools) == 12
     assert all("name" in t and "description" in t for t in tools)
 
 

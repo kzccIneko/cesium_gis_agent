@@ -24,6 +24,7 @@ from .errors import ToolErrorType, fail
 from .path_tools import plan_route
 from .schemas import TOOL_SCHEMAS
 from .stats_tools import zonal_statistics
+from .table_tools import query_tabular
 from .terrain_tools import (
     compute_aspect,
     compute_cost_surface,
@@ -44,6 +45,7 @@ TOOL_FUNCTIONS: Dict[str, Callable[..., Dict[str, Any]]] = {
     "classify_geomorphons": classify_geomorphons,
     "classify_terrain_onnx": classify_terrain_onnx,
     "zonal_statistics": zonal_statistics,
+    "query_tabular": query_tabular,
 }
 
 # 完整注册表：函数名 → {fn, schema}
