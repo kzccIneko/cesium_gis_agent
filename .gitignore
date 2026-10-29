@@ -112,3 +112,11 @@ bench/lora_out/_smoke*/
 # lora_out/*/eval_result.json 里，那个要入库作为数字来源。
 bench/geoagent_lora.tar.gz
 bench/.ms_cache/
+
+# ========================
+#  本地开发环境（第三方二进制，非源码）
+#  JDK / Tomcat / GeoServer / 各类安装包，约 250 MB、1600+ 文件。
+#  其中多个文件超过 GitHub 100 MB 单文件上限，因此不入库；
+#  需要运行前端时请自备环境，见 README「已知限制」。
+# ========================
+envirment/

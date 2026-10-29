@@ -179,8 +179,8 @@ cat ~/.ssh/id_ed25519.pub      # 复制输出的整行
 
 ```
 Host autodl
-    HostName connect.cqa1.seetacloud.com
-    Port 19393
+    HostName <控制台给出的实例地址>
+    Port <控制台给出的端口>
     User root
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
